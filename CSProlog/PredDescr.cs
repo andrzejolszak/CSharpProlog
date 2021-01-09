@@ -19,67 +19,51 @@ using System.Collections.Generic;
 
 namespace Prolog
 {
-    [Flags]
-    public enum SpyPort : short { None = 0, Call = 1, Exit = 2, Fail = 4, Redo = 8, Full = 15 }
-    public enum CachePort { Exit, Fail }
-
     public partial class PrologEngine
     {
         public partial class PredicateDescr
         {
-            string module; // TO BE IMPLEMENTED
-            string definitionFile;
             protected string functor;
-            public string Functor { get { return functor; } }
+            public string Functor => functor;
             protected int arity;
-            public int Arity { get { return arity; } }
-            public string Name { get { return functor + '/' + arity; } }
-            public string Key { get { return arity + functor; } }
-            const short ARG0COUNT_MIN = 8;
-            Dictionary<object, ClauseNode> arg0Index = null; // for first argument indexing
-            ClauseNode clauseList;         // start of list of clauses making up this predicate
-            public ClauseNode ClauseList { get { return clauseList; } }
-            ClauseNode lastCachedClause;   // if the predicate is cacheable, each 'calculated' answer is inserted after this node
-            ClauseNode clauseListEnd;      // keeps track of the position of the last clause
-            bool isDiscontiguous = false;  // pertains to a single definitionFile only. A predicate must always be in a single definitionFile
-            bool isCacheable = false;      // indicates whether in principle the result of the predicate evaluation can be cached (tabled)
-            int profileCount = 0;          // number of times the predicate was called
-            public bool IsDiscontiguous { get { return isDiscontiguous; } set { isDiscontiguous = value; } }
-            public bool IsCacheable { get { return isCacheable; } set { isCacheable = value; } }
-            public bool HasCachedValues { get { return lastCachedClause != null; } }
-            public int ProfileCount { get { return profileCount; } set { profileCount = value; } }
+            public int Arity => arity;
+            public string Name => functor + '/' + arity;
+            public string Key => arity + functor;
+            private const short ARG0COUNT_MIN = 8;
+            private Dictionary<object, ClauseNode> arg0Index = null; // for first argument indexing
+            public ClauseNode ClauseList { get; private set; }
+            public ClauseNode ClauseListEnd;      // keeps track of the position of the last clause
+            public TermNode TermListEnd;      // keeps track of the position of the last node
+            public bool IsDiscontiguous { get; set; } = false;
+            public int ProfileCount { get; set; } = 0;
+            public bool IsPredefined { get; }
+
             public void IncProfileCount()
             {
-                profileCount++;
+                ProfileCount++;
             }
-#if enableSpying
-            bool spied;
-            public bool Spied { get { return spied; } }
-            SpyPort spyMode;
-            public SpyPort SpyPort { get { return spyMode; } }
-#endif
-            public string Module { get { return module; } set { module = value; } }
-            public string DefinitionFile { get { return definitionFile; } }
+
+            public string Module { get; set; }
+
+            public string DefinitionFile { get; }
 
             public PredicateDescr(string module, string definitionFile, string functor, int arity, ClauseNode clauseList)
             {
-                this.module = module;
-                this.definitionFile = (definitionFile == null) ? "predefined or asserted predicate" : definitionFile;
+                this.Module = module;
+                this.DefinitionFile = (definitionFile == null) ? "predefined or asserted predicate" : definitionFile;
+                this.IsPredefined = (definitionFile == null);
                 this.functor = functor;
                 this.arity = arity;
-#if enableSpying
-                spyMode = SpyPort.None;
-#endif
-                this.clauseList = clauseListEnd = clauseList;
-                this.lastCachedClause = null; // no cached clauses (yet)
+
+                this.ClauseList = ClauseListEnd = clauseList;
             }
 
 
             public void SetClauseListHead(ClauseNode c)
             {
-                clauseList = clauseListEnd = c;
+                ClauseList = ClauseListEnd = c;
 
-                while (clauseListEnd.NextClause != null) clauseListEnd = clauseListEnd.NextClause;
+                while (ClauseListEnd.NextClause != null) ClauseListEnd = ClauseListEnd.NextClause;
 
                 DestroyFirstArgIndex();
             }
@@ -87,59 +71,29 @@ namespace Prolog
 
             public void AdjustClauseListEnd() // forward clauseListEnd to the last clause
             {
-                if ((clauseListEnd = clauseList) != null)
-                    while (clauseListEnd.NextClause != null) clauseListEnd = clauseListEnd.NextClause;
+                if ((ClauseListEnd = ClauseList) != null)
+                    while (ClauseListEnd.NextClause != null) ClauseListEnd = ClauseListEnd.NextClause;
+            }
+
+            public void AdjustNodeListEnd() // forward clauseListEnd to the last clause
+            {
+                if ((TermListEnd = ClauseList) != null)
+                    while (TermListEnd.NextNode != null) TermListEnd = TermListEnd.NextNode;
             }
 
 
             public void AppendToClauseList(ClauseNode c) // NextClause and ClauseListEnd are != null
             {
-                clauseListEnd.NextClause = c;
+                ClauseListEnd.NextClause = c;
 
                 do
-                    clauseListEnd = clauseListEnd.NextClause;
+                    ClauseListEnd = ClauseListEnd.NextClause;
                 while
-                  (clauseListEnd.NextClause != null);
+                  (ClauseListEnd.NextClause != null);
 
                 DestroyFirstArgIndex();
             }
-
-            // CACHEING CURRENTLY NOT USED
-            #region Cacheing
-            // Cache -- analogous to asserting a fact, but specifically for cacheing.
-            // Cached terms are inserted at the very beginning of the predicate's clause
-            // chain, in the order in which they were determined.
-            public void Cache(BaseTerm cacheTerm, bool succeeds)
-            {
-                IO.WriteLine("Cacheing {0}{1}", cacheTerm, succeeds ? null : " :- !, fail");
-
-                CachedClauseNode newCachedClause = new CachedClauseNode(cacheTerm, null, succeeds);
-
-                if (lastCachedClause == null) // about to add the first cached term
-                {
-                    newCachedClause.NextClause = clauseList;
-                    clauseList = newCachedClause;
-                }
-                else
-                {
-                    newCachedClause.NextClause = lastCachedClause.NextClause;
-                    lastCachedClause.NextClause = newCachedClause;
-                }
-
-                lastCachedClause = newCachedClause;
-            }
-
-
-            public void Uncache()
-            {
-                if (HasCachedValues) // let clauseList start at the first non-cached clause again
-                {
-                    clauseList = lastCachedClause.NextClause;
-                    lastCachedClause = null;
-                }
-            }
-            #endregion Cacheing
-
+            
             /* First-argument indexing
 
                A dictionary is maintained of clauses that have a nonvar first argument.
@@ -171,7 +125,7 @@ namespace Prolog
                fa-clauses are grouped together (which seems advisable anyway).
             */
 
-            const bool VARARG = true;
+            private const bool VARARG = true;
 
             public bool CreateFirstArgIndex()
             {
@@ -187,7 +141,7 @@ namespace Prolog
                 // still qualifies for first argument indexing.
                 // Indexing y/n must be (re)determined after a file consult or an assert.
 
-                ClauseNode c = clauseList;
+                ClauseNode c = ClauseList;
                 short arg0Count = 0;
 
                 while (c != null)
@@ -207,7 +161,7 @@ namespace Prolog
                 // second pass: build the index
 
                 arg0Index = new Dictionary<object, ClauseNode>();
-                c = clauseList;
+                c = ClauseList;
 
                 while (c != null)
                 {
@@ -238,7 +192,7 @@ namespace Prolog
             }
 
 
-            public bool IsFirstArgIndexed { get { return (arg0Index != null); } }
+            public bool IsFirstArgIndexed => (arg0Index != null);
 
             public bool IsFirstArgMarked(ClauseNode c)
             {
@@ -292,55 +246,8 @@ namespace Prolog
 
             public override string ToString()
             {
-                return string.Format("pd[{0}/{1} clauselist {2}]", functor, arity, clauseList);
+                return $"pd[{functor}/{arity} clauselist {ClauseList}]";
             }
-
-
-#if enableSpying
-            public void SetSpy(bool enabled, string functor, int arity, SpyPort setPorts, bool warn)
-            {
-                string spySet = "[";
-
-                if (enabled)
-                {
-                    spied = true;
-                    spyMode = SpyPort.None;
-
-                    foreach (SpyPort port in Enum.GetValues(typeof(SpyPort)))
-                        if (setPorts > 0 && (setPorts | port) == setPorts)
-                        {
-                            spyMode |= port;
-
-                            if (port != SpyPort.Full)
-                                spySet += port.ToString() + (port == SpyPort.Redo ? "]" : ",");
-                        }
-
-                    if (setPorts != SpyPort.None)
-                        IO.Message("Spying {0} enabled for {1}/{2}", spySet, functor, arity);
-                }
-                else if (spied) // nospy
-                {
-                    spied = false;
-                    IO.Message("Spying disabled for {0}/{1}", functor, arity);
-                }
-                else if (warn)
-                    IO.Message("There was no spypoint on {0}/{1}", functor, arity);
-            }
-
-
-            public void ShowSpypoint()
-            {
-                if (spyMode == SpyPort.None) return;
-
-                string spySet = "[";
-
-                foreach (SpyPort port in Enum.GetValues(typeof(SpyPort)))
-                    if (port > 0 && port != SpyPort.Full && (spyMode | port) == spyMode)
-                        spySet += port.ToString() + (port == SpyPort.Redo ? "]" : ",");
-
-                IO.WriteLine("{0}/{1}: {2}", Functor, Arity, spySet);
-            }
-#endif
         }
     }
 }

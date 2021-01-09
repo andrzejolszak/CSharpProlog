@@ -23,7 +23,7 @@ namespace Prolog
     {
         public class BaseTermSet : List<BaseTerm>
         {
-            DupMode dupMode;
+            private DupMode dupMode;
 
             public BaseTermSet()
             {
@@ -65,7 +65,7 @@ namespace Prolog
                 ListTerm t = ListTerm.EMPTYLIST;
 
                 for (int i = Count - 1; i >= 0; i--)
-                    t = new ListTerm(this[i], t); // [a0, a0, ...]
+                    t = new ListTerm(this[i].Symbol, this[i], t); // [a0, a0, ...]
 
                 return t;
             }

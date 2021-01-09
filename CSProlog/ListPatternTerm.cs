@@ -17,23 +17,20 @@
 
 using System;
 using System.Text;
-using System.IO;
 using System.Collections.Generic;
-using System.Collections;
-using System.Linq;
+using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
 {
     public partial class PrologEngine
     {
-        #region Classes making up a ListPatternElem
-        public class DisjunctiveSearchTerm
+                public class DisjunctiveSearchTerm
         {
             public BaseTerm[] alternatives { get; private set; }
             public Variable bindVar { get; private set; }
             public bool isNegSearch { get; private set; }
-            public int Count { get { return alternatives.Length; } }
-            public bool HasBindVar { get { return (bindVar != null); } }
+            public int Count => alternatives.Length;
+            public bool HasBindVar => (bindVar != null);
 
             public DisjunctiveSearchTerm(BaseTerm bindVar, bool isNegSearch, List<BaseTerm> alternatives)
             {
@@ -70,7 +67,7 @@ namespace Prolog
                 {
                     if (first) first = false; else sb.Append('|');
 
-                    sb.Append(t.ToString());
+                    sb.Append(t);
                 }
 
                 if (alternatives.Length > 1) sb.Append(')');
@@ -85,9 +82,9 @@ namespace Prolog
             public Variable bindVar { get; private set; }
             public BaseTerm minLenTerm { get; private set; }
             public BaseTerm maxLenTerm { get; private set; }
-            public int MinRangeLen { get { return (minLenTerm.IsVar ? 0 : minLenTerm.To<int>()); } }
-            public int MaxRangeLen { get { return (maxLenTerm.IsVar ? PrologParser.Infinite : maxLenTerm.To<int>()); } }
-            public bool HasVariableLength { get { return (MinRangeLen != MaxRangeLen); } }
+            public int MinRangeLen => (minLenTerm.IsVar ? 0 : minLenTerm.To<int>());
+            public int MaxRangeLen => (maxLenTerm.IsVar ? PrologParser.Infinite : maxLenTerm.To<int>());
+            public bool HasVariableLength => (MinRangeLen != MaxRangeLen);
 
             protected BaseRepFactor(BaseTerm bindVar, BaseTerm minLenTerm, BaseTerm maxLenTerm)
             {
@@ -112,7 +109,7 @@ namespace Prolog
                     if (MinRangeLen == 0)
                         range = null; // {0,0} => {}
                     else
-                        range = string.Format("{{{0}}}", minLenTerm);
+                        range = $"{{{minLenTerm}}}";
                 }
                 else if (minLenTerm.IsInteger)
                 {
@@ -133,23 +130,23 @@ namespace Prolog
                     if (MaxRangeLen == PrologParser.Infinite && !maxLenTerm.IsVar)
                         range = PrologParser.ELLIPSIS; // any length, {0,Infinite} => '..'
                     else
-                        range = string.Format("{{,{0}}}", maxLenTerm);
+                        range = $"{{,{maxLenTerm}}}";
                 }
                 else if (MaxRangeLen == PrologParser.Infinite && !maxLenTerm.IsVar)
-                    range = string.Format("{{{0},}}", minLenTerm);
+                    range = $"{{{minLenTerm},}}";
                 else if (minLenTerm.IsVar && maxLenTerm.IsVar && // both symbolic, and identical
                         ((Variable)minLenTerm).IsUnifiedWith((Variable)maxLenTerm))
-                    range = string.Format("{{{0}}}", minLenTerm);
+                    range = $"{{{minLenTerm}}}";
 
                 if (range == null)
-                    range = string.Format("{{{0},{1}}}", minLenTerm, maxLenTerm);
+                    range = $"{{{minLenTerm},{maxLenTerm}}}";
 
                 if (bindVar != null)
                 {
                     if (range == null)
                         range = bindVar.ToString();
                     else
-                        range = string.Format("{0}!{1}", bindVar, range);
+                        range = $"{bindVar}!{range}";
                 }
 
                 return range;
@@ -165,7 +162,7 @@ namespace Prolog
 
             public override string ToString()
             {
-                return string.Format("\\{0}", base.ToString());
+                return $"\\{base.ToString()}";
             }
         }
 
@@ -175,28 +172,25 @@ namespace Prolog
               base(bindVar, minLenTerm, maxLenTerm)
             { }
         }
-        #endregion Classes making up a ListPatternElem
-
-        #region ListPatternElem
-        public class ListPatternElem : CompoundTerm
+        
+                public class ListPatternElem : CompoundTerm
         {
-            const int TARGETOFFSET = 4;
-            public override bool IsEvaluatable { get { return false; } }
+            private const int TARGETOFFSET = 4;
+            public override bool IsEvaluatable => false;
             public DownRepFactor downRepFactor { get; private set; }
             public DisjunctiveSearchTerm altSearchTerms { get; private set; }
             public AcrossRepFactor acrossRepFactor { get; private set; }
-            public bool HasDownRepFactor { get { return (downRepFactor != null); } }
-            public bool HasAltSearchTerms { get { return (altSearchTerms != null); } }
-            public bool HasAcrossRepFactor { get { return (acrossRepFactor != null); } }
+            public bool HasDownRepFactor => (downRepFactor != null);
+            public bool HasAltSearchTerms => (altSearchTerms != null);
+            public bool HasAcrossRepFactor => (acrossRepFactor != null);
 #if old
-            bool isNegSearch;
-            public bool IsNegSearch { get { return isNegSearch; } }
-            public BaseTerm MinLenTerm { get { return args[0]; } }
-            public BaseTerm MaxLenTerm { get { return args[1]; } }
-            public BaseTerm RangeBindVar { get { return args[2]; } }
-            public int MinRangeLen { get { return (MinLenTerm.IsVar ? 0 : MinLenTerm.To<int>()); } }
-            public int MaxRangeLen { get { return (MaxLenTerm.IsVar ? PrologParser.Infinite : MaxLenTerm.To<int>()); } }
-            public bool HasVariableLength { get { return (MinRangeLen != MaxRangeLen); } }
+            public bool IsNegSearch { get; }
+            public BaseTerm MinLenTerm => args[0];
+            public BaseTerm MaxLenTerm => args[1];
+            public BaseTerm RangeBindVar => args[2];
+            public int MinRangeLen => (MinLenTerm.IsVar ? 0 : MinLenTerm.To<int>());
+            public int MaxRangeLen => (MaxLenTerm.IsVar ? PrologParser.Infinite : MaxLenTerm.To<int>());
+            public bool HasVariableLength => (MinRangeLen != MaxRangeLen);
 #else
       public bool IsNegSearch { get { return altSearchTerms.isNegSearch; } }
       public BaseTerm MinLenTerm { get { return acrossRepFactor.minLenTerm; } }
@@ -207,15 +201,16 @@ namespace Prolog
       public int MaxRangeLen { get { return acrossRepFactor.MaxRangeLen; } }
       public bool HasVariableLength { get { return acrossRepFactor.HasVariableLength; } }
 #endif
-            public BaseTerm AltListBindVar { get { return args[3]; } }
-            public BaseTerm[] AltSearchTerms { get { return args; } } // no simple way to return args[4..args.Length-1]
-            public bool HasAltListBindVar { get { return (args[3] != null); } }
-            public bool HasSearchTerm { get { return (args[4] != null); } }
+            public BaseTerm AltListBindVar => args[3];
+            public BaseTerm[] AltSearchTerms => args;
+// no simple way to return args[4..args.Length-1]
+            public bool HasAltListBindVar => (args[3] != null);
+            public bool HasSearchTerm => (args[4] != null);
             // MinRangeTermLen: the minimum number of elements that a match must have, i.e. the
             // sum of the MinRangeLen + (1 if there is a SearchTerm, 0 otherwise)
-            public int MinRangeTermLen { get { return MinRangeLen + (HasSearchTerm ? 1 : 0); } }
+            public int MinRangeTermLen => MinRangeLen + (HasSearchTerm ? 1 : 0);
             // MaxRangeTermLen: analogous
-            public int MaxRangeTermLen { get { return SaveAdd(MaxRangeLen, (HasSearchTerm ? 1 : 0)); } }
+            public int MaxRangeTermLen => SaveAdd(MaxRangeLen, (HasSearchTerm ? 1 : 0));
             // MinRemMatchLen and MaxRemMatchLen are calculated on the fly during the matching process
             /*
                   // For future enhancement (don't forget CopyEx())
@@ -243,16 +238,17 @@ namespace Prolog
                     isNegSearch = (altSearchTerms == null) ? false : altSearchTerms.isNegSearch;
                   }
             */
-            public ListPatternElem(BaseTerm[] a, DownRepFactor downRepFactor, bool isNegSearch)
-              : base("RANGE", a)  // used by CopyEx
+            public ListPatternElem(Symbol symbol, BaseTerm[] a, DownRepFactor downRepFactor, bool isNegSearch)
+              : base(symbol, "RANGE", a)  // used by CopyEx
             {
 #if old
-                this.isNegSearch = isNegSearch;
+                this.IsNegSearch = isNegSearch;
 #endif
             }
 
-            public ListPatternElem(BaseTerm minLenTerm, BaseTerm maxLenTerm, BaseTerm rangeBindVar,
+            public ListPatternElem(Symbol symbol, BaseTerm minLenTerm, BaseTerm maxLenTerm, BaseTerm rangeBindVar,
               BaseTerm altListVar, List<SearchTerm> altSearchTerms, bool isNegSearch, bool hasDownRepFactor)
+                : base(symbol)
             {
                 int n = TARGETOFFSET + (altSearchTerms == null ? 1 : altSearchTerms.Count);
                 args = new BaseTerm[n];
@@ -268,7 +264,7 @@ namespace Prolog
                         args[i++] = t.term;
 
 #if old
-                this.isNegSearch = isNegSearch;
+                this.IsNegSearch = isNegSearch;
 #endif
             }
 
@@ -279,7 +275,7 @@ namespace Prolog
 
                 if (!((t = t.ChainEnd()) is ListPatternElem)) return false; // should never occur
 #if old
-                if (isNegSearch != ((ListPatternElem)t).isNegSearch) return false;
+                if (IsNegSearch != ((ListPatternElem)t).IsNegSearch) return false;
 #endif
                 for (int i = 0; i < arity; i++)
                     if (!((args[i] == null && t.Args[i] == null) ||
@@ -297,15 +293,15 @@ namespace Prolog
             public override string ToWriteString(int level)
             {
 #if old
-                StringBuilder sb = new StringBuilder(isNegSearch ? "~" : null);
+                StringBuilder sb = new StringBuilder(IsNegSearch ? "~" : null);
 #else
         StringBuilder sb = new StringBuilder ();
 #endif
                 if (HasDownRepFactor || HasAltSearchTerms || HasAltSearchTerms)
                 {
-                    if (HasDownRepFactor) sb.Append(downRepFactor.ToString());
-                    if (HasAltSearchTerms) sb.Append(altSearchTerms.ToString());
-                    if (HasAcrossRepFactor) sb.Append(acrossRepFactor.ToString());
+                    if (HasDownRepFactor) sb.Append(downRepFactor);
+                    if (HasAltSearchTerms) sb.Append(altSearchTerms);
+                    if (HasAcrossRepFactor) sb.Append(acrossRepFactor);
                     sb.Append("$");
 
                     return sb.ToString();
@@ -318,29 +314,29 @@ namespace Prolog
                     if (MinRangeLen == 0)
                         range = null; // {0,0} => {}
                     else
-                        range = string.Format("{{{0}}}", MinLenTerm);
+                        range = $"{{{MinLenTerm}}}";
                 }
                 else if (MinRangeLen == 0 && !MinLenTerm.IsVar)
                 {
                     if (MaxRangeLen == PrologParser.Infinite && !MaxLenTerm.IsVar)
                         range = PrologParser.ELLIPSIS; // any length, {0,Infinite} => '..'
                     else
-                        range = string.Format("{{,{0}}}", MaxLenTerm);
+                        range = $"{{,{MaxLenTerm}}}";
                 }
                 else if (MaxRangeLen == PrologParser.Infinite && !MaxLenTerm.IsVar)
-                    range = string.Format("{{{0},}}", MinLenTerm);
+                    range = $"{{{MinLenTerm},}}";
                 else if (MinLenTerm.IsVar && MaxLenTerm.IsVar && // both symbolic, and identical
                         ((Variable)MinLenTerm).IsUnifiedWith((Variable)MaxLenTerm))
-                    range = string.Format("{{{0}}}", MinLenTerm);
+                    range = $"{{{MinLenTerm}}}";
                 else
-                    range = string.Format("{{{0},{1}}}", MinLenTerm, MaxLenTerm);
+                    range = $"{{{MinLenTerm},{MaxLenTerm}}}";
 
                 if (RangeBindVar != null)
                 {
                     if (range == null)
                         range = RangeBindVar.ToString();
                     else
-                        range = string.Format("{0}{1}", RangeBindVar, range);
+                        range = $"{RangeBindVar}{range}";
                 }
 
                 if (!HasSearchTerm) return range;
@@ -356,7 +352,7 @@ namespace Prolog
                 if (range == null)
                     return sb.ToString();
                 else
-                    return string.Format("{0},{1}{2}", range, SpaceAtLevel(level), sb);
+                    return $"{range},{SpaceAtLevel(level)}{sb}";
             }
 
 
@@ -365,27 +361,24 @@ namespace Prolog
                 e.WriteLine("0}{1}", Spaces(2 * level), this);
             }
         }
-        #endregion ListPatternElem
-
-        #region ListPatternTerm
-        public class ListPatternTerm : AltListTerm
+        
+                public class ListPatternTerm : AltListTerm
         {
-            BaseTerm[] pattern; // rangeTerms; pattern is searched ...
-            List<BaseTerm> target;  // ... in target
+            private BaseTerm[] pattern; // rangeTerms; pattern is searched ...
+            private List<BaseTerm> target;  // ... in target
 
-            public ListPatternTerm(BaseTerm[] a)
-              : base(PrologParser.LISTPATOPEN, PrologParser.LISTPATCLOSE, a)
+            public ListPatternTerm(Symbol symbol, BaseTerm[] a)
+              : base(symbol, PrologParser.LISTPATOPEN, PrologParser.LISTPATCLOSE, a)
             {
             }
 
-            public override bool IsProperList { get { return false; } }
-            public override bool IsPartialList { get { return false; } }
-            public override bool IsPseudoList { get { return false; } }
-            public override bool IsProperOrPartialList { get { return false; } }
-            public override bool IsEvaluatable { get { return false; } }
+            public override bool IsProperList => false;
+            public override bool IsPartialList => false;
+            public override bool IsPseudoList => false;
+            public override bool IsProperOrPartialList => false;
+            public override bool IsEvaluatable => false;
 
-            #region Unify
-            public override bool Unify(BaseTerm t, VarStack varStack)
+                        public override bool Unify(BaseTerm t, VarStack varStack)
             {
                 if ((t = t.ChainEnd()) is Variable) // t not unified
                 {
@@ -416,10 +409,10 @@ namespace Prolog
                 return false;
             }
 
-            enum AltLoopStatus { Break, MatchFound, TryNextDown, TryNextAlt }
+            private enum AltLoopStatus { Break, MatchFound, TryNextDown, TryNextAlt }
 
             // each call processes one element of pattern[]
-            bool UnifyTailEx(int ip, int it, VarStack varStack)
+            private bool UnifyTailEx(int ip, int it, VarStack varStack)
             {
                 ListPatternElem e = (ListPatternElem)pattern[ip];
                 Variable rangeSpecVar = (Variable)e.RangeBindVar;
@@ -579,7 +572,7 @@ namespace Prolog
             }
 
             // calculated the upper and lower bounds imposed by the remainder of the pattern
-            bool DoLowerAndUpperboundChecks(int ip, int it, out int minLen, out int maxLen)
+            private bool DoLowerAndUpperboundChecks(int ip, int it, out int minLen, out int maxLen)
             {
                 ListPatternElem e = (ListPatternElem)pattern[ip];
                 int minRangeLen = e.MinRangeLen; // min and max range length ...
@@ -618,7 +611,7 @@ namespace Prolog
 
             // try to bind the variable associated with the list of search alternatives
             // (t1|t2|...|tn) to the target term found matching one of these alternatives
-            bool TryBindingAltListVarToMatch(BaseTerm AltListVar, BaseTerm searchTerm, VarStack varStack)
+            private bool TryBindingAltListVarToMatch(BaseTerm AltListVar, BaseTerm searchTerm, VarStack varStack)
             {
                 if (AltListVar == null) return true;
 
@@ -628,13 +621,13 @@ namespace Prolog
 
             // try to bind the range specification variable (if present) to the range list.
             // if the minimun or the maximum range length was a variable, then bind it to the actual length just found
-            bool TryBindingRangeRelatedVars(ListPatternElem g, int rangeLength, ListTerm RangeList, VarStack varStack)
+            private bool TryBindingRangeRelatedVars(ListPatternElem g, int rangeLength, ListTerm RangeList, VarStack varStack)
             {
                 if (g.MinLenTerm.IsVar)
-                    g.MinLenTerm.Unify(new DecimalTerm(rangeLength), varStack);
+                    g.MinLenTerm.Unify(new DecimalTerm(this.Symbol, rangeLength), varStack);
 
                 if (g.MaxLenTerm.IsVar)
-                    g.MaxLenTerm.Unify(new DecimalTerm(rangeLength), varStack);
+                    g.MaxLenTerm.Unify(new DecimalTerm(this.Symbol, rangeLength), varStack);
 
                 if (g.RangeBindVar != null)
                 {
@@ -648,23 +641,22 @@ namespace Prolog
             }
 
 
-            void AppendToRangeList(ref ListTerm RangeList, BaseTerm rangeSpecVar, BaseTerm t, ref BaseTerm tail) // append t to RangeList
+            private void AppendToRangeList(ref ListTerm RangeList, BaseTerm rangeSpecVar, BaseTerm t, ref BaseTerm tail) // append t to RangeList
             {
                 if (rangeSpecVar == null) return; // no point in constructing a range list if it won't be bound later
 
                 if (RangeList == null)
                 {
-                    RangeList = new ListTerm(t);
+                    RangeList = new ListTerm(t.Symbol, t);
                     tail = RangeList;
                 }
                 else
                 {
-                    tail.SetArg(1, new ListTerm(t));
+                    tail.SetArg(1, new ListTerm(t.Symbol, t));
                     tail = tail.Arg(1);
                 }
             }
-            #endregion Unify
-
+            
 
             public override string ToWriteString(int level)
             {
@@ -711,6 +703,5 @@ namespace Prolog
                 this.term = term;
             }
         }
-        #endregion ListPatternTerm
-    }
+            }
 }

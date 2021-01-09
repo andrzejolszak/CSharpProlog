@@ -1,55 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.4;net35</TargetFrameworks>
-    <NoWarn>$(NoWarn);1591</NoWarn>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <AssemblyName>CSProlog</AssemblyName>
-    <AssemblyTitle>C#Prolog (CSProlog)</AssemblyTitle>
-    <Title>$(AssemblyTitle)</Title>
-    <PackageId>CSProlog</PackageId>
-    <NetStandardImplicitPackageVersion>1.6.0</NetStandardImplicitPackageVersion>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
-    <RootNamespace>CSProlog</RootNamespace>
-    <Version>6.0.0.0</Version>
-    <Authors>John Pool,Amersfoort,Netherlands,J.Sakamoto,Josh Ahlstrom</Authors>
-    <Company>N/A</Company>
-    <Description>C#Prolog -- A Prolog interpreter written in C#.
-Can easily be integrated in C# programs.
-Characteristics: reliable and fairly fast interpreter, command line interface, builtin DCG, XML- and JSON-predicates, SQL-predicates, extendible.</Description>
-    <Copyright>Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl</Copyright>
-    <PackageLicenseUrl>https://github.com/jsakamoto/CSharpProlog/blob/vnext/master/LICENSE</PackageLicenseUrl>
-    <PackageProjectUrl>https://github.com/jsakamoto/CSharpProlog/</PackageProjectUrl>
-    <PackageTags>Prolog interpreter</PackageTags>
-    <PackageReleaseNotes>v.6.0.0
-- BREAKING CHANGE: Remove "SAMPLES, TESTING &amp; EXPERIMENTAL" predefined predicates. (including CHAT-80 support)
-- Fix: "help" predefined predicate dose not work. 
-- Enhance: GetAllSolutions can work with null file name.
-v.5.0.0.1
-- Support: .NET Standard 1.4 (.NET Core) and UWP
-v.5.0.0
-- BREAKING CHANGE: Remove dependency of "System.Windows.Forms".
-- NuGet package release</PackageReleaseNotes>
-    <GeneratePackageOnBuild Condition="'$(Configuration)'=='Release'">true</GeneratePackageOnBuild>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)|$(TargetFramework)'=='Release|AnyCPU|netstandard1.4'">
-    <DefineConstants>TRACE;NETSTANDARD;RELEASE;NETSTANDARD1_4;RELEASE;NETSTANDARD1_4</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)|$(TargetFramework)'=='Debug|AnyCPU|netstandard1.4'">
-    <DefineConstants>TRACE;DEBUG;NETSTANDARD</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)|$(TargetFramework)'=='Release|AnyCPU|net35'">
-    <DefineConstants>TRACE;RELEASE;mswindows;net35</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)|$(TargetFramework)'=='Debug|AnyCPU|net35'">
-    <DefineConstants>TRACE;DEBUG;mswindows;net35</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)'=='netstandard1.4'">
-    <Compile Remove="Internet.cs" />
-    <Compile Remove="SimpleDOMParser.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="PG\JsonParserEx.cs" />
@@ -63,9 +16,8 @@ v.5.0.0
     <None Remove="Properties\vssver2.scc" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net35'">
-    <Reference Include="System.Configuration" />
-    <Reference Include="System.Windows.Forms" />
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="2.10.0" />
   </ItemGroup>
 
 </Project>

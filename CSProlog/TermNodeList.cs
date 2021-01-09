@@ -43,10 +43,8 @@ namespace Prolog
 
     public partial class PrologEngine
     {
-        #region TermNode
         public class TermNode
         {
-            BI builtinId = BI.none;
             protected BaseTerm term;                  // for a NextClause: predicate head
             protected TermNode nextNode = null;       // next node in the chain
             protected ClauseNode nextClause = null;   // next predicate clause (advanced upon backtracking)
@@ -55,16 +53,13 @@ namespace Prolog
             public ClauseNode NextClause { get { return nextClause; } set { nextClause = value; } }
             protected int level = 0;                  // debugging and tracing (for indentation)
 
-            #region public properties
             public int Level { get { return level; } set { level = value; } }
-            public BaseTerm Term { get { return term; } }
+            public BaseTerm Term => term;
             public TermNode NextNode { get { return nextNode; } set { nextNode = value; } }
             public TermNode NextGoal { get { return nextNode; } set { nextNode = value; } }
-            public bool Spied { get { return PredDescr == null ? false : PredDescr.Spied; } }
-            public SpyPort SpyPort { get { return PredDescr == null ? SpyPort.None : PredDescr.SpyPort; } }
-            public BI BuiltinId { get { return builtinId; } }
+            public BI BuiltinId { get; } = BI.none;
             public PredicateDescr PredDescr { get { return predDescr; } set { predDescr = value; } }
-            #endregion
+            
 
             public TermNode()
             {
@@ -90,11 +85,11 @@ namespace Prolog
             {
                 try
                 {
-                    builtinId = (BI)Enum.Parse(typeof(BI), tag, false);
+                    BuiltinId = (BI)Enum.Parse(typeof(BI), tag, false);
                 }
                 catch
                 {
-                    IO.Error("Bootstrap.cs: unknown BI enum value '{0}'", tag);
+                    IO.ErrorConsult(string.Format("Bootstrap.cs: unknown BI enum value '{0}'", tag), this.Term?.Symbol);
                 }
             }
 
@@ -200,7 +195,7 @@ namespace Prolog
             {
                 return (NextNode == null)
                 ? Term  // last term of TermNode
-                : new OperatorTerm(CommaOpDescr, Term, NextNode.TermSeq());
+                : new OperatorTerm(Term?.Symbol, CommaOpDescr, Term, NextNode.TermSeq());
             }
 
 
@@ -216,9 +211,9 @@ namespace Prolog
                 {
                     if ((t = tn.term) is TryOpenTerm)
                     {
-                        if (!first) sb.Append(',');
+                        if (!first) sb.Append(", ");
 
-                        sb.AppendFormat("{0}{1}TRY{0}{1}(", Environment.NewLine, Spaces(2 * indent++));
+                        sb.AppendFormat(" TRY( ");
                         first = true;
                     }
                     else if (t is CatchOpenTerm)
@@ -227,20 +222,19 @@ namespace Prolog
                         string msgVar = (co.MsgVar is AnonymousVariable) ? null : co.MsgVar.Name;
                         string comma = (co.ExceptionClass == null || msgVar == null) ? null : ", ";
 
-                        sb.AppendFormat("{0}{1}){0}{1}CATCH {2}{3}{4}{0}{1}(",
-                          Environment.NewLine, Spaces(2 * (indent - 1)), co.ExceptionClass, comma, msgVar);
+                        sb.AppendFormat(" )CATCH {0}{1}{2}(", co.ExceptionClass, comma, msgVar);
                         first = true;
                     }
                     else if (t == TC_CLOSE)
                     {
-                        sb.AppendFormat("{0}{1})", Environment.NewLine, Spaces(2 * --indent));
+                        sb.AppendFormat(")");
                         first = false;
                     }
                     else
                     {
-                        if (first) first = false; else sb.Append(',');
+                        if (first) first = false; else sb.Append(", ");
 
-                        sb.AppendFormat("{0}{1}{2}", Environment.NewLine, Spaces(2 * indent), t);
+                        sb.AppendFormat("{0}", t);
                     }
 
                     tn = tn.nextNode;
@@ -248,11 +242,21 @@ namespace Prolog
 
                 return sb.ToString();
             }
-        }
-        #endregion TermNode
 
-        #region clause
-        // the terms (connected by NextNode) of a single clause
+            public TermNode GetLastNode()
+            {
+                TermNode tl = this;
+
+                while (tl.NextNode != null)
+                {
+                    tl = tl.NextNode;
+                }
+
+                return tl;
+            }
+        }
+        
+                // the terms (connected by NextNode) of a single clause
         public class ClauseNode : TermNode
         {
             public ClauseNode()
@@ -267,7 +271,7 @@ namespace Prolog
 
             public override string ToString()
             {
-                string NL = Environment.NewLine;
+                string NL = string.Empty;
 
                 StringBuilder sb = new StringBuilder(NL + term.ToString());
 
@@ -291,54 +295,7 @@ namespace Prolog
                 }
             }
 
-
             public static ClauseNode FAIL = new ClauseNode(BaseTerm.FAIL, null);
         }
-
-
-        // CACHEING CURRENTLY NOT USED
-        public class CachedClauseNode : ClauseNode
-        {
-            bool succeeds; // indicates whether the cached fact results in a failure or in a success
-                           // i.e. in doing so fib(1,9999) will effecively be cached as 'fib( 1, 9999) :- !, fail'
-                           // (the ! is necessary to prevent the resolution process from recalculating the same result
-                           // again).
-            public bool Succeeds { get { return succeeds; } }
-
-            public CachedClauseNode(BaseTerm t, TermNode body, bool succeeds) : base(t, body)
-            {
-                this.succeeds = succeeds;
-            }
-        }
-        #endregion clause
-
-        #region SpyPoint
-        //  pushed on the VarStack to detect failure, inserted in the saveGoal to detect Exit.
-        class SpyPoint : TermNode // TermNode only used as at-compatible vehicle for port and saveGoal
-        {
-            SpyPort port;
-            public SpyPort Port { get { return port; } }
-            TermNode saveGoal;
-            public TermNode SaveGoal { get { return saveGoal; } }
-
-            public SpyPoint(SpyPort p, TermNode g)
-              : base()
-            {
-                port = p;
-                saveGoal = g;
-                level = g.Level;
-            }
-
-            public void Kill()
-            {
-                port = SpyPort.None;
-            }
-
-            public override string ToString()
-            {
-                return "[" + port + "-spypoint] " + saveGoal.Term.ToString() + " ...";
-            }
-        }
-        #endregion SpyPoint
     }
 }

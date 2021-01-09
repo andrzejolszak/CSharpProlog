@@ -3,12 +3,7 @@
 namespace Prolog
 {
     using System;
-    using System.IO;
     using System.Text;
-    using System.Xml;
-    using System.Collections;
-    using System.Globalization;
-    using System.Diagnostics;
 
     /* _______________________________________________________________________________________________
       |                                                                                               |
@@ -26,19 +21,20 @@ namespace Prolog
 
     public partial class PrologEngine
     {
-        #region PrologParser
-        public partial class PrologParser : BaseParser<OpDescrTriplet>
+                public partial class PrologParser : BaseParser
         {
-            #region Variables and initialization
-            const char USCORE = '_';
-            char extraUnquotedAtomChar = '_';
+            private StringBuilder _lastCommentBlock = new StringBuilder();
 
-            PrologEngine engine;
-            PredicateTable ps;
-            OperatorTable opTable;
-            TermNode queryNode = null;
+            
+            private const char USCORE = '_';
+            private char extraUnquotedAtomChar = '_';
 
-            public TermNode QueryNode { get { return queryNode; } }
+            private PrologEngine engine;
+            private PredicateTable predTable;
+            private OperatorTable opTable;
+            private TermNode queryNode = null;
+
+            public TermNode QueryNode => queryNode;
             public int nargs;
 
             public const string IMPLIES = ":-";
@@ -67,20 +63,19 @@ namespace Prolog
             public const string TIMESSYM = "*";
             public const string QUESTIONMARK = "?";
 
-            int savePlusSym;
-            int saveTimesSym;
-            int saveQuestionMark;
+            private int savePlusSym;
+            private int saveTimesSym;
+            private int saveQuestionMark;
 
             public static readonly int Infinite = int.MaxValue;
 
-            BaseTerm readTerm; // result of read (X)
-            public BaseTerm ReadTerm { get { return readTerm; } }
-            bool inQueryMode;
-            bool jsonMode; // determines how curly brackets will be interpreted ('normal' vs. list)
-            bool readingDcgClause; // determines how to interpret {t1, ... , tn}
-            public bool InQueryMode { get { return inQueryMode; } }
+            private BaseTerm readTerm; // result of read (X)
+            public BaseTerm ReadTerm => readTerm;
+            private bool jsonMode; // determines how curly brackets will be interpreted ('normal' vs. list)
+            private bool readingDcgClause; // determines how to interpret {t1, ... , tn}
+            public bool InQueryMode { get; private set; }
 
-            void Initialize()
+            private void Initialize()
             {
                 SetReservedOperators(false);
                 terminalTable[PLUSSYM] = Operator;
@@ -93,19 +88,17 @@ namespace Prolog
                 //terminalTable.Remove ("stringstyle");
                 jsonMode = false; // Standard Prolog interpretation
 
-                if (!ConfigSettings.VerbatimStringsAllowed)
-                    terminalTable.Remove(@"@""");
+                //if (!ConfigSettings.VerbatimStringsAllowed)
+                //    terminalTable.Remove(@"@""");
             }
 
 
-            void Terminate()
+            private void Terminate()
             {
-                inQueryMode = true;
+                InQueryMode = true;
             }
-            #endregion Variables and initialization
-
-            #region Operator handling
-            public OperatorDescr AddPrologOperator(int prec, string type, string name, bool user)
+            
+                        public OperatorDescr AddPrologOperator(int prec, string type, string name, bool user)
             {
                 AssocType assoc = AssocType.None;
 
@@ -115,11 +108,11 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.Error("Illegal operator type '{0}'", type);
+                    IO.ErrorConsult($"Illegal operator type '{type}'", symbol);
                 }
 
                 if (prec < 0 || prec > 1200)
-                    IO.Error("Illegal precedence value {0} for operator '{1}'", prec, name);
+                    IO.ErrorConsult($"Illegal precedence value {prec} for operator '{name}'", symbol);
 
                 TerminalDescr td;
                 OpDescrTriplet triplet;
@@ -160,7 +153,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.Error("Illegal operator type '{0}'", type);
+                    IO.ErrorConsult($"Illegal operator type '{type}'", symbol);
                 }
 
                 TerminalDescr td;
@@ -168,7 +161,7 @@ namespace Prolog
                 if (terminalTable.Find(name, out td) && td.Payload != null)
                 {
                     if (!user)
-                        IO.Error("Undefine of operator ({0}, {1}) not allowed", type, name);
+                        IO.ErrorConsult($"Undefine of operator ({type}, {name}) not allowed", symbol);
                     else
                     {
                         ((OpDescrTriplet)td.Payload).Unassign(name, assoc);
@@ -180,7 +173,7 @@ namespace Prolog
                     }
                 }
                 else // unknown operator
-                    IO.Error("Operator not found: ({0}, {1})", type, name);
+                    IO.ErrorConsult($"Operator not found: ({type}, {name})", symbol);
             }
 
 
@@ -200,7 +193,7 @@ namespace Prolog
             }
 
 
-            void AddReservedOperators()
+            private void AddReservedOperators()
             {
                 AddPrologOperator(1200, "xfx", IMPLIES, false);
                 AddPrologOperator(1200, "fx", IMPLIES, false);
@@ -212,9 +205,9 @@ namespace Prolog
             }
 
 
-            bool isReservedOperatorSetting;
+            private bool isReservedOperatorSetting;
 
-            void SetReservedOperators(bool asOpr)
+            private void SetReservedOperators(bool asOpr)
             {
                 if (asOpr) // parsed as Operator
                 {
@@ -231,7 +224,7 @@ namespace Prolog
                 isReservedOperatorSetting = asOpr;
             }
 
-            bool SetCommaAsSeparator(bool mode)
+            private bool SetCommaAsSeparator(bool mode)
             {
                 bool result = (terminalTable[COMMA] == Comma); // returnvalue is *current* status
 
@@ -239,13 +232,11 @@ namespace Prolog
 
                 return result;
             }
-            #endregion Operator handling
-
-            #region Wrapper handling
-            public void AddBracketPair(string openBracket, string closeBracket, bool useAsList)
+            
+                        public void AddBracketPair(string openBracket, string closeBracket, bool useAsList)
             {
                 if (openBracket == closeBracket)
-                    IO.Error("Wrapper open and wrapper close token must be different");
+                    IO.ErrorConsult("Wrapper open and wrapper close token must be different", symbol);
 
                 if (useAsList)
                 {
@@ -279,10 +270,8 @@ namespace Prolog
             {
                 return jsonMode;
             }
-            #endregion Wrapper handling
-
-            #region ScanVerbatimString
-            protected void ScanVerbatimString()
+            
+                        protected void ScanVerbatimString()
             {
                 do
                 {
@@ -306,14 +295,13 @@ namespace Prolog
                 symbol.Final = streamInPtr.Position;
 
                 if (symbol.TerminalId != VerbatimStringLiteral)
-                    SyntaxError = string.Format("Unterminated verbatim string: {0}\r\n(remember to use \"\" instead of \\\" for an embedded \")",
-                      symbol.ToString());
+                    SyntaxError =
+                        $"Unterminated verbatim string: {symbol}\r\n(remember to use \"\" instead of \\\" for an embedded \")";
 
             }
-            #endregion
+            
 
-            #region ScanIdOrTerminal
-            protected override void ScanIdOrTerminalOrCommentStart()
+                        protected override void ScanIdOrTerminalOrCommentStart()
             {
                 TerminalDescr tRec;
                 bool special = ch.IsSpecialAtomChar();
@@ -423,10 +411,10 @@ namespace Prolog
             {
                 extraUnquotedAtomChar = set ? '$' : '_';
             }
-            #endregion
+            
 
-            #region ScanQuotedAtom
-            void ScanQuotedAtom(out bool canUnquote)
+            
+            private void ScanQuotedAtom(out bool canUnquote)
             {
                 canUnquote = true;
                 bool specialsOnly = true;
@@ -466,7 +454,7 @@ namespace Prolog
                 } while (!(streamInPtr.EndLine) && symbol.TerminalId != Atom);
 
                 if (streamInPtr.EndLine && symbol.TerminalId != StringLiteral)
-                    SyntaxError = "Unterminated atom: " + symbol.ToString();
+                    SyntaxError = "Unterminated atom: " + symbol;
 
                 canUnquote |= specialsOnly;
 
@@ -482,10 +470,8 @@ namespace Prolog
                         symbol.Payload = tRec.Payload;
                     }
             }
-            #endregion ScanQuotedAtom
-
-            #region NextSymbol
-            protected override void NextSymbol(string _Proc)
+            
+                        protected override void NextSymbol(string _Proc)
             {
                 if (symbol.AbsSeqNo != 0 && streamInPtr.FOnLine) streamInPtr.FOnLine = false;
 
@@ -502,8 +488,7 @@ namespace Prolog
 
                 do
                 {
-                    #region basic and conditional definition symbol handling
-                    do
+                                        do
                     {
                         while (Char.IsWhiteSpace(ch)) NextCh();
 
@@ -539,7 +524,7 @@ namespace Prolog
                             cdh.HandleSymbol(symbol); // if expecting: symbol must be an identifier
 
                     } while (cdh.CodeIsInactive || symbol.Class == SymbolClass.Meta);
-                    #endregion
+                    
 
                     if (canUnquote)
                     {
@@ -575,11 +560,17 @@ namespace Prolog
                                     Break = true;
 
                                 if (!DoComment("*/", true, streamInPtr.FOnLine))
-                                    ErrorMessage = "Unterminated comment starting at line " + symbol.LineNo.ToString();
+                                    ErrorMessage = "Unterminated comment starting at line " + symbol.LineNo;
 
                                 break;
                             case CommentSingle:
                                 if (stringMode) Break = true; else Break = false;
+
+                                if (symbol.InputLine.TrimStart().StartsWith("%"))
+                                {
+                                    _lastCommentBlock.AppendLine(symbol.InputLine.Replace("%", string.Empty).Trim());
+                                }
+
                                 DoComment("\n", false, streamInPtr.FOnLine);
                                 eoLineCount = 1;
 
@@ -601,15 +592,9 @@ namespace Prolog
 
                 symbol.AbsSeqNo++;
                 symbol.RelSeqNo++;
-#if showToken // a Console.Clear () will wipe out this output!
-        IO.WriteLine ("NextSymbol[{0}] line {1}: '{2}' [{3}]",
-                           symbol.AbsSeqNo, symbol.LineNo, symbol.ToString (), symbol.ToName ());
-#endif
             }
-            #endregion NextSymbol
-
-            #region ParseTerm
-            public BaseTerm ParseTerm()
+            
+                        public BaseTerm ParseTerm()
             {
                 if (symbol.TerminalId == EndOfInput) return null;
 
@@ -622,33 +607,23 @@ namespace Prolog
 
                     return result;
                 }
-                catch (UnhandledParserException)
+                catch (ConsultException e)
                 {
-                    throw;
-                }
-                catch (ParserException e)
-                {
-                    throw new Exception(e.Message);
-                }
-                catch (SyntaxException e)
-                {
-                    throw new Exception(e.Message);
+                    throw e;
                 }
                 catch (Exception e) // other errors
                 {
-                    errorMessage = String.Format("*** Line {0}: {1}{2}", LineNo, e.Message,
-                                                  showErrTrace ? Environment.NewLine + e.StackTrace : null);
+                    errorMessage =
+                        $"*** Line {LineNo}: {e.Message}{(showErrTrace ? Environment.NewLine + e.StackTrace : null)}";
 
-                    throw new Exception(errorMessage);
+                    throw new ConsultException(errorMessage, symbol: symbol);
                 }
             }
-            #endregion ParseTerm
-        }
-        #endregion PrologParser
-    }
+                    }
+            }
 
-    #region Extensions class
-    static class PrologParserExtensions
+    
+    internal static class PrologParserExtensions
     {
         public static bool IsSpecialAtomChar(this char c)
         {
@@ -660,6 +635,5 @@ namespace Prolog
             return (Char.IsLetterOrDigit(c) || c == '_' || c == extraUnquotedAtomChar);
         }
     }
-    #endregion Extensions class
-}
+    }
 

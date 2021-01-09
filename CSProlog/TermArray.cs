@@ -13,10 +13,6 @@
 
 -------------------------------------------------------------------------------------------*/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 // Arrays: not in this version. The whole concept needs to be thought over more carefully.
 
 namespace Prolog
@@ -24,35 +20,34 @@ namespace Prolog
     public partial class PrologEngine
     {
         // untested code
-        #region TermArray
-        public class TermArray
+    /*    public class TermArray
         {
-            string name;
-            int[] dimensions;
+            private int[] dimensions;
             // Any array (i.e. with an arbitrary number of subscripts) is mapped to a one-dimensional 
             // one (baseArray). In doing so, it is possible to accomodate arrays with an arbitrary 
             // number of subscripts.
-            BaseTerm[] baseArray;
-            public int Rank { get { return dimensions.Length; } }
-            public string Name { get { return name; } }
+            private BaseTerm[] baseArray;
+            public int Rank => dimensions.Length;
+            public string Name { get; }
 
-            public TermArray(string name, int[] dimensions)
+            // TODO: remove
+ /*           public TermArray(string name, int[] dimensions)
             {
-                this.name = name;
+                this.Name = name;
                 this.dimensions = dimensions;
                 int length = 1;
 
                 for (int i = 0; i < dimensions.Length; i++)
                 {
                     if (dimensions[i] <= 0)
-                        IO.Error("Dimension {0} of array '{1}' has illegal value {2}", i, name, dimensions[i]);
+                        IO.ErrorRuntime( "Dimension {0} of array '{1}' has illegal value {2}", i, name, dimensions[i]);
 
                     length *= dimensions[i];
                 }
 
                 baseArray = new BaseTerm[length];
             }
-
+            
             public BaseTerm GetEntry(int[] subscripts) // subscripts are zero-based
             {
                 return baseArray[CalculateOffset(subscripts)];
@@ -64,12 +59,12 @@ namespace Prolog
             }
 
             // CalculateOffset calculates the mapping of [i1, i2, ..., iN] to the index in this 1-D array
-            int CalculateOffset(int[] subscripts) // f(i1, i2, ..., iN) => 0 .. d1*d2*...*dN-1
+            private int CalculateOffset(int[] subscripts) // f(i1, i2, ..., iN) => 0 .. d1*d2*...*dN-1
             {
                 for (int i = 0; i < subscripts.Length; i++)
                     if (subscripts[i] < 0 || subscripts[i] >= dimensions[i])
-                        IO.Error("Value of index {0} is {1} but must be in the range 0..{2}",
-                          i, subscripts[i], dimensions[i] - 1);
+                        IO.ErrorRuntime(string.Format("Value of index {0} is {1} but must be in the range 0..{2}",
+                          i, subscripts[i], dimensions[i] - 1), null, null);
 
                 int offset = subscripts[0];
 
@@ -79,22 +74,21 @@ namespace Prolog
                 return offset;
             }
         }
-        #endregion TermArray
-
-        #region ArrayVariable
-        public class ArrayVariable : NamedVariable
+    */
+        /*public class ArrayVariable : NamedVariable
         {
-            TermArray ta;
-            List<BaseTerm> subscripts;
+            private TermArray ta;
+            private List<BaseTerm> subscripts;
 
-            public ArrayVariable(string name, TermArray ta, ListTerm subscripts)
+            public ArrayVariable(Symbol symbol, string name, TermArray ta, ListTerm subscripts)
+                : base(symbol, ta.Name)
             {
                 this.ta = ta;
                 this.name = ta.Name;
                 this.subscripts = subscripts.ToTermList();
 
                 if (this.subscripts.Count != ta.Rank)
-                    IO.Error("Wrong number of subscripts for '{0}': expected {1}, got {2}",
+                    IO.ErrorRuntime("Wrong number of subscripts for '{0}': expected {1}, got {2}",
                       name, ta.Rank, this.subscripts.Count);
             }
 
@@ -112,8 +106,7 @@ namespace Prolog
 
                 return sb.ToString();
             }
-        }
-        #endregion ArrayVariable
+        }*/
 
     }
 }

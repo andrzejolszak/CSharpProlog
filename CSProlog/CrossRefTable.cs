@@ -1,8 +1,6 @@
 namespace Prolog
 {
     using System;
-    using System.Text;
-    using System.Collections;
     using System.Collections.Generic;
     using System.IO;
 
@@ -29,19 +27,17 @@ namespace Prolog
         // CalculateClosure () calculates the indirect calls (i.e. if A calls B and B calls C directly,
         // then the closure would calculate the indirect call A -> C.
         // Direct calls have an entry value 'false', indirect calls an entry value 'true'.
-        #region CrossRefTable
-        public class CrossRefTable : Dictionary<string, bool?>
+        public class CrossRefTable : Dictionary<Tuple<PredicateDescr, PredicateDescr>, bool?>
         {
-            List<PredicateDescr> axis; // predicate names sorted alphabetically
-            int dimension { get { return axis.Count; } }
-            bool findAllCalls; // i.e. both direct and indirect (result of closure)
-            bool? result;
-            public bool FindAllCalls { get { return findAllCalls; } set { findAllCalls = value; } }
+            public Dictionary<PredicateDescr, List<PredicateDescr>> ReverseDirectRefIndex;
+            private List<PredicateDescr> axis; // predicate names sorted alphabetically
+            private int dimension => axis.Count;
+            private bool? result;
 
             public CrossRefTable()
             {
                 axis = new List<PredicateDescr>();
-                findAllCalls = false;
+                ReverseDirectRefIndex = new Dictionary<PredicateDescr, List<PredicateDescr>>();
             }
 
 
@@ -49,7 +45,7 @@ namespace Prolog
             {
                 Clear();
                 axis.Clear();
-                findAllCalls = false;
+                ReverseDirectRefIndex.Clear();
             }
 
 
@@ -62,13 +58,19 @@ namespace Prolog
             }
 
 
-            #region indices
             // used only when registering the direct calls, not for the closure (indirect calls)
             public bool? this[PredicateDescr row, PredicateDescr col]
             {
                 set
                 {
                     this[CompoundKey(row, col)] = false; // i.e. a direct call
+
+                    if (!ReverseDirectRefIndex.ContainsKey(col))
+                    {
+                        ReverseDirectRefIndex[col] = new List<PredicateDescr>();
+                    }
+
+                    ReverseDirectRefIndex[col].Add(row);
                 }
 
                 get
@@ -84,7 +86,7 @@ namespace Prolog
             {
                 set
                 {
-                    string key = CompoundKey(axis[i], axis[j]);
+                    Tuple<PredicateDescr, PredicateDescr> key = CompoundKey(axis[i], axis[j]);
                     bool? result;
 
                     // do not overwrite 'false', as this would hide the fact that a direct call exists
@@ -99,27 +101,7 @@ namespace Prolog
                     return null;
                 }
             }
-            #endregion indices
-
-            // find all predicates called by 'row'
-            public IEnumerable<PredicateDescr> Row(PredicateDescr row)
-            {
-                foreach (PredicateDescr col in axis)
-                    if ((result = this[row, col]) != null)
-                        if (findAllCalls || result == false)
-                            yield return col;
-            }
-
-            // find all predicates that call 'col'
-            public IEnumerable<PredicateDescr> Col(PredicateDescr col)
-            {
-                foreach (PredicateDescr row in axis)
-                    if ((result = this[row, col]) != null)
-                        if (findAllCalls || result == false)
-                            yield return col;
-            }
-
-
+            
             // Warshall algorithm -- Journal of the ACM, Jan. 1962, pp. 11-12
             // This algorithm calculates the indirect calls.
             public void CalculateClosure()
@@ -134,81 +116,12 @@ namespace Prolog
                                     this[j, k] = true; // 'true' to indicate entry is indirect call (result of closure)
             }
 
-
-            public void GenerateCsvFile(string fileName)
+            private Tuple<PredicateDescr, PredicateDescr> CompoundKey(PredicateDescr row, PredicateDescr col)
             {
-                bool? value;
-                StreamWriter sr = null;
-                int rowTotal;
-                int[] colTotal = new int[axis.Count];
-
-                try
-                {
-                    sr = new StreamWriter(File.OpenWrite(fileName));
-
-                    sr.WriteLine(Enquote("Call table. Row calls column entries. 'D' stands for direct call, 'I' for indirect call"));
-                    sr.WriteLine();
-
-                    // column titles
-                    for (int j = 0; j < dimension; j++)
-                    {
-                        sr.Write(";{0}", Enquote(axis[j].Name));
-                        colTotal[j] = 0;
-                    }
-
-                    sr.WriteLine(";TOTAL");
-
-                    // rows
-                    for (int i = 0; i < dimension; i++)
-                    {
-                        sr.Write(Enquote(axis[i].Name)); // row title
-                        rowTotal = 0;
-
-                        for (int j = 0; j < dimension; j++)
-                        {
-                            sr.Write(';');
-
-                            if ((value = this[i, j]) != null)
-                            {
-                                sr.Write((value == false) ? "D" : "I");
-                                rowTotal++;
-                                colTotal[j]++;
-                            }
-                        }
-
-                        sr.WriteLine(";{0}", rowTotal);
-                    }
-
-                    // column totals
-                    sr.Write("TOTAL");
-
-                    for (int j = 0; j < dimension; j++) sr.Write(";{0}", colTotal[j]);
-
-                    sr.WriteLine();
-                }
-                catch (Exception e)
-                {
-                    IO.Error("Error while trying to save Excel spreadsheet '{0}'. Message was:\r\n{1}" + e.Message);
-                }
-                finally
-                {
-                    if (sr != null) sr.Dispose();
-                }
-            }
-
-            string Enquote(string s)
-            {
-                return '"' + s.Replace("\"", "\"\"") + '"';
-            }
-
-            string CompoundKey(PredicateDescr row, PredicateDescr col)
-            {
-                return string.Format("{0} {1}", row.Name, col.Name);
+                return Tuple.Create<PredicateDescr, PredicateDescr>(row, col);
             }
         }
-        #endregion CrossRefTable
-
-        #region PredicateDescr CompareTo ()
+        
         public partial class PredicateDescr : IComparable<PredicateDescr>
         {
             public int CompareTo(PredicateDescr pd)
@@ -219,7 +132,33 @@ namespace Prolog
 
                 return result;
             }
+
+            protected bool Equals(PredicateDescr other)
+            {
+                return string.Equals(functor, other.functor) && arity == other.arity && IsPredefined == other.IsPredefined && string.Equals(Module, other.Module) && string.Equals(DefinitionFile, other.DefinitionFile);
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj)) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                if (obj.GetType() != this.GetType()) return false;
+                return Equals((PredicateDescr) obj);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hashCode = (functor != null ? functor.GetHashCode() : 0);
+                    hashCode = (hashCode*397) ^ arity;
+                    hashCode = (hashCode*397) ^ IsPredefined.GetHashCode();
+                    hashCode = (hashCode*397) ^ (Module != null ? Module.GetHashCode() : 0);
+                    hashCode = (hashCode*397) ^ (DefinitionFile != null ? DefinitionFile.GetHashCode() : 0);
+                    return hashCode;
+                }
+            }
         }
-        #endregion
+        
     }
 }

@@ -16,42 +16,36 @@
 using System;
 using System.Text;
 using System.Collections.Generic;
-using System.Collections;
 
 namespace Prolog
 {
-#if NETSTANDARD
-    using ApplicationException = System.Exception;
-#endif
-
     public enum AssocType { None = -1, xfx, xfy, yfx, fx, fy, xf, yf, f } // f: operator as term
-    enum AssocGroup { None = -1, Infix, Prefix, Postfix, Zerofix }
+
+    internal enum AssocGroup { None = -1, Infix, Prefix, Postfix, Zerofix }
     public enum RelOp { None, LT, LE }
 
     public partial class PrologEngine
     {
-        #region OperatorDescr
-        public class OperatorDescr
+                public class OperatorDescr
         {
-            string name;
-            int prec;
-            AssocType assoc;
-            bool user;
-            RelOp leftRelOp, rightRelOp;
-            bool isInfix;
-            bool isPrefix;
-            bool isPostfix;
+            public string Name { get; set; }
 
-            public string Name { get { return name; } set { name = value; } }
-            public bool IsComma { get { return (name == ","); } }
-            public int Prec { get { return prec; } set { prec = value; } }
-            public AssocType Assoc { get { return assoc; } set { assoc = value; } }
-            public bool User { get { return user; } set { user = value; } }
-            public bool IsInfix { get { return isInfix; } set { isInfix = value; } }
-            public bool IsPrefix { get { return isPrefix; } set { isPrefix = value; } }
-            public bool IsPostfix { get { return isPostfix; } set { isPostfix = value; } }
-            public RelOp LeftRelOp { get { return leftRelOp; } set { leftRelOp = value; } }
-            public RelOp RightRelOp { get { return rightRelOp; } set { rightRelOp = value; } }
+            public bool IsComma => (Name == ",");
+            public int Prec { get; set; }
+
+            public AssocType Assoc { get; set; }
+
+            public bool User { get; set; }
+
+            public bool IsInfix { get; set; }
+
+            public bool IsPrefix { get; set; }
+
+            public bool IsPostfix { get; set; }
+
+            public RelOp LeftRelOp { get; set; }
+
+            public RelOp RightRelOp { get; set; }
 
             public OperatorDescr()
             {
@@ -61,14 +55,14 @@ namespace Prolog
 
             public void Undefine()
             {
-                name = null;
-                prec = -1;
-                assoc = AssocType.None;
-                user = false;
-                leftRelOp = rightRelOp = RelOp.None;
-                isInfix = false;
-                isPrefix = false;
-                isPostfix = false;
+                Name = null;
+                Prec = -1;
+                Assoc = AssocType.None;
+                User = false;
+                LeftRelOp = RightRelOp = RelOp.None;
+                IsInfix = false;
+                IsPrefix = false;
+                IsPostfix = false;
             }
 
             public bool HasValidArg(OperatorDescr that, out string msg)
@@ -77,20 +71,20 @@ namespace Prolog
 
                 if (that == null) return true;
 
-                switch (assoc)
+                switch (Assoc)
                 {
                     case AssocType.fx:
                     case AssocType.xf:
-                        if (this.prec <= that.prec) msg = GT_error(this, that);
+                        if (this.Prec <= that.Prec) msg = GT_error(this, that);
                         return (msg == null);
                     case AssocType.fy:
                     case AssocType.yf:
-                        if (this.prec < that.prec) msg = GE_error(this, that);
+                        if (this.Prec < that.Prec) msg = GE_error(this, that);
                         return (msg == null);
                 }
 
-                throw new ApplicationException(
-                  string.Format("HasValidArg (...) not legal for operator {0}", this));
+                throw new RuntimeException(
+                    $"HasValidArg (...) not legal for operator {this}");
             }
 
             public bool HasValidLeftArg(OperatorDescr that, out string msg)
@@ -99,19 +93,19 @@ namespace Prolog
 
                 if (that == null) return true;
 
-                switch (assoc)
+                switch (Assoc)
                 {
                     case AssocType.xfx:
                     case AssocType.xfy:
-                        if (this.prec <= that.prec) msg = GT_error(this, that);
+                        if (this.Prec <= that.Prec) msg = GT_error(this, that);
                         return (msg == null);
                     case AssocType.yfx:
-                        if (this.prec < that.prec) msg = GE_error(this, that);
+                        if (this.Prec < that.Prec) msg = GE_error(this, that);
                         return (msg == null);
                 }
 
-                throw new ApplicationException(
-                  string.Format("HasValidLeftArg (...) not legal for operator {0}", this));
+                throw new RuntimeException(
+                    $"HasValidLeftArg (...) not legal for operator {this}");
             }
 
             public bool HasValidRightArg(OperatorDescr that, out string msg)
@@ -120,64 +114,57 @@ namespace Prolog
 
                 if (that == null) return true;
 
-                switch (assoc)
+                switch (Assoc)
                 {
                     case AssocType.xfx:
                     case AssocType.yfx:
-                        if (this.prec <= that.prec) msg = GT_error(this, that);
+                        if (this.Prec <= that.Prec) msg = GT_error(this, that);
                         return (msg == null);
                     case AssocType.xfy:
-                        if (this.prec < that.prec) msg = GE_error(this, that);
+                        if (this.Prec < that.Prec) msg = GE_error(this, that);
                         return (msg == null);
                 }
 
-                throw new ApplicationException(
-                  string.Format("HasValidRightArg (...) not legal for operator {0}", this));
+                throw new RuntimeException(
+                    $"HasValidRightArg (...) not legal for operator {this}");
             }
 
 
-            string GT_error(OperatorDescr od0, OperatorDescr od1)
+            private string GT_error(OperatorDescr od0, OperatorDescr od1)
             {
                 if (od0 == od1)
-                    return string.Format(
-                      "Parentheses required for this combination of {0}-operators '{1}'.", od0.Assoc, od0.Name);
+                    return $"Parentheses required for this combination of {od0.Assoc}-operators '{od0.Name}'.";
                 else
-                    return string.Format(
-                      "Precedence of {0} must be greater than the precedence of {1}", od0, od1);
+                    return $"Precedence of {od0} must be greater than the precedence of {od1}";
             }
 
 
-            string GE_error(OperatorDescr od0, OperatorDescr od1)
+            private string GE_error(OperatorDescr od0, OperatorDescr od1)
             {
                 if (od0 == od1)
-                    return string.Format(
-                      "Parentheses required for this combination of {0}-operators '{1}'.", od0.Assoc, od0.Name);
+                    return $"Parentheses required for this combination of {od0.Assoc}-operators '{od0.Name}'.";
                 else
-                    return string.Format(
-                      "Precedence of {0} must be greater than or equal to the precedence of {1}", od0, od1);
+                    return $"Precedence of {od0} must be greater than or equal to the precedence of {od1}";
             }
 
 
-            public bool IsDefined { get { return (prec != -1); } }
+            public bool IsDefined => (Prec != -1);
 
             public override string ToString()
             {
-                return string.Format("operator ({0},{1},{2})", prec, assoc, name);
+                return $"operator ({Prec},{Assoc},{Name})";
             }
         }
-        #endregion OperatorDescr
-
-        #region OpDescrTriplet
-        public class OpDescrTriplet // contains three OperatorDescr's with inf/pre/post-role, resp.
+        
+                public class OpDescrTriplet // contains three OperatorDescr's with inf/pre/post-role, resp.
         {
-            OperatorDescr[] triplet;
-            OperatorDescr od; // general use
-            string name;
-            public string Name { get { return name; } }
+            private OperatorDescr[] triplet;
+            private OperatorDescr od; // general use
+            public string Name { get; }
 
             public OpDescrTriplet(string name, int prec, AssocType assoc, bool user)
             {
-                this.name = name;
+                this.Name = name;
                 triplet = new OperatorDescr[3];
 
                 for (int i = 0; i < 3; i++) triplet[i] = new OperatorDescr();
@@ -185,13 +172,13 @@ namespace Prolog
                 Assign(name, prec, assoc, user);
             }
 
-            public OperatorDescr this[AssocType assoc] { get { return triplet[(int)GetFixType(assoc)]; } }
-            public OperatorDescr this[TT role] { get { return triplet[(int)role]; } }
+            public OperatorDescr this[AssocType assoc] => triplet[(int)GetFixType(assoc)];
+            public OperatorDescr this[TT role] => triplet[(int)role];
 
-            public bool HasInfixDef { get { return (triplet[0].IsDefined); } }
-            public bool HasPrefixDef { get { return (triplet[1].IsDefined); } }
-            public bool HasPostfixDef { get { return (triplet[2].IsDefined); } }
-            public bool IsOverloaded { get { return HasInfixDef && (HasPrefixDef || HasPostfixDef); } }
+            public bool HasInfixDef => (triplet[0].IsDefined);
+            public bool HasPrefixDef => (triplet[1].IsDefined);
+            public bool HasPostfixDef => (triplet[2].IsDefined);
+            public bool IsOverloaded => HasInfixDef && (HasPrefixDef || HasPostfixDef);
 
             public bool HasBinOpDef(out OperatorDescr od)
             {
@@ -235,7 +222,7 @@ namespace Prolog
                 od = triplet[(int)fixType];
 
                 if (od == null || od.Assoc == AssocType.None)
-                    IO.Error("Operator '{0}' does not have an association type '{1}'", name, assoc);
+                    IO.ErrorConsult($"Operator '{name}' does not have an association type '{assoc}'", (BaseParser.Symbol)null);
 
                 triplet[(int)fixType].Undefine();
             }
@@ -251,7 +238,7 @@ namespace Prolog
             }
 
 
-            static AssocGroup GetFixType(AssocType assoc)
+            private static AssocGroup GetFixType(AssocType assoc)
             {
                 switch (assoc)
                 {
@@ -267,29 +254,27 @@ namespace Prolog
                         return AssocGroup.Postfix;
                 }
 
-                throw new ApplicationException("Illegal call to GetFixType");
+                throw new RuntimeException("Illegal call to GetFixType");
             }
 
 
             public override string ToString()
             {
-                StringBuilder sb = new StringBuilder("<" + name.ToAtom() + " ");
+                StringBuilder sb = new StringBuilder("<" + Name.ToAtom() + " ");
                 bool first = true;
 
                 foreach (OperatorDescr od in this)
                 {
                     if (first) first = false; else sb.Append(" ");
 
-                    sb.Append(String.Format("({0},{1})", od.Prec, od.Assoc));
+                    sb.Append($"({od.Prec},{od.Assoc})");
                 }
 
-                return sb.ToString() + ">";
+                return sb + ">";
             }
         }
-        #endregion OpDescrTriplet
-
-        #region OperatorTable
-        public class OperatorTable : Dictionary<string, OpDescrTriplet>
+        
+                public class OperatorTable : Dictionary<string, OpDescrTriplet>
         {
             public bool Find(string name, out OpDescrTriplet triplet)
             {
@@ -340,11 +325,11 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.Error("Illegal operator associativity '{0}'", sassoc);
+                    IO.ErrorConsult($"Illegal operator associativity '{sassoc}'", (BaseParser.Symbol)null);
                 }
 
                 if (prec < 0 || prec > 1200)
-                    IO.Error("Illegal precedence value {0} for operator '{1}'", prec, name);
+                    IO.ErrorConsult($"Illegal precedence value {prec} for operator '{name}'", (BaseParser.Symbol) null);
 
                 if (TryGetValue(name, out triplet)) // operator exists -- modify its properties
                     triplet.Assign(name, prec, assoc, user);
@@ -373,10 +358,8 @@ namespace Prolog
                 return sb.ToString();
             }
         }
-        #endregion OperatorTable
-
-        #region BracketTable
-        public class BracketTable : Dictionary<string, string>
+        
+                public class BracketTable : Dictionary<string, string>
         {
             public void Add(ref string openBracket, ref string closeBracket)
             {
@@ -394,7 +377,6 @@ namespace Prolog
                 return closeBracket;
             }
         }
-        #endregion BracketTable
-    }
+            }
 
 }

@@ -21,209 +21,19 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-#if mswindows
+using System.Reflection;
 using System.Resources;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
-#endif
-#if !NETSTANDARD
-using System.Configuration;
-using System.IO.IsolatedStorage;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
-#endif
 
 namespace Prolog
 {
-#if NETSTANDARD
-    using ArrayList = System.Collections.Generic.List<object>;
-    using Hashtable = System.Collections.Generic.Dictionary<object, object>;
-#endif
-
     public partial class PrologEngine
-    {
-        #region ConfigSettings
-        public static class ConfigSettings // configuration settings
+    {        
+                public class ProdConsBuffer<T>
         {
-            public static readonly bool CSharpStrings;
-            public static readonly bool DiscontiguousAllowed;
-            public static readonly bool DisableControlC;
-            public static readonly string AnswerFalse;
-            public static readonly string AnswerTrue;
-            public static readonly bool ResolveEscapes;
-            public static readonly int HistorySize;
-            public static readonly bool NewlineInStringAllowed;
-            public static readonly bool VerbatimStringsAllowed;
-            public static readonly string InitialConsultFile;
-            public static readonly string CsPrologHelpFile;
-            public static readonly bool DoOccursCheck;
-            public static readonly string DefaultDateTimeFormat;
-            public static readonly string SmtpHost;
-            public static readonly bool OnErrorShowStackTrace;
-            public static int UnifyCountCacheThreshold;
-            public static string workingDirectory { get; set; }
-            public static string WorkingDirectory // symbolic names expanded
-            {
-                get
-                {
-                    string wd;
-#if NETSTANDARD
-                    if (String.IsNullOrEmpty(workingDirectory))
-                        wd = Directory.GetCurrentDirectory();
-                    else if (workingDirectory == "%desktop" || workingDirectory == "%exedir")
-                        throw new NotImplementedException();
-                    else
-                        wd = workingDirectory;
-#else
-                    if (String.IsNullOrEmpty(workingDirectory) || workingDirectory == "%exedir")
-                        wd = AppDomain.CurrentDomain.BaseDirectory;
-                    else if (workingDirectory == "%desktop")
-                        wd = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                    else
-                        wd = workingDirectory;
-#endif
-                    if (!wd.EndsWith(Path.DirectorySeparatorChar.ToString()))
-                        wd = wd + Path.DirectorySeparatorChar;
-
-                    return wd;
-                }
-                set
-                {
-                    workingDirectory = value;
-                }
-            }
-
-            static ConfigSettings()
-            {
-                try
-                {
-                    // read configuration settings
-                    DisableControlC = GetConfigSetting("DisableControlC", false);
-                    CSharpStrings = GetConfigSetting("CSharpStrings", true);
-                    DiscontiguousAllowed = GetConfigSetting("DiscontiguousAllowed", false);
-                    AnswerFalse = GetConfigSetting("AnswerFalse", "false");
-                    AnswerTrue = GetConfigSetting("AnswerTrue", "true");
-                    HistorySize = GetConfigSetting("HistorySize", 40);
-                    ResolveEscapes = GetConfigSetting("ResolveEscapes", true);
-                    NewlineInStringAllowed = GetConfigSetting("NewlineInStringAllowed", true);
-                    VerbatimStringsAllowed = GetConfigSetting("VerbatimStringsAllowed", true);
-                    InitialConsultFile = GetConfigSetting("InitialConsultFile", null);
-                    CsPrologHelpFile = GetConfigSetting("CsPrologHelpFile", null);
-                    DoOccursCheck = GetConfigSetting("DoOccursCheck", false);
-                    DefaultDateTimeFormat = GetConfigSetting("DefaultDateTimeFormat", "yyyy-MM-dd HH:mm:ss");
-                    OnErrorShowStackTrace = GetConfigSetting("OnErrorShowStackTrace", false);
-                    workingDirectory = GetConfigSetting("WorkingDirectory", null);
-                    UnifyCountCacheThreshold = GetConfigSetting("UnifyCountCacheThreshold", 100);
-                    SmtpHost = GetConfigSetting("SmtpHost", null);
-                }
-                catch (Exception e)
-                {
-                    IO.Fatal("Error while reading configuration file. Message was:\r\n{0}",
-                      e.GetBaseException().Message);
-                }
-            }
-
-            public static string GetConfigSetting(string key, string defaultValue)
-            {
-#if NETSTANDARD
-                return defaultValue;
-#else
-                return (ConfigurationManager.AppSettings[key] == null)
-                  ? defaultValue
-                  : ConfigurationManager.AppSettings[key];
-#endif
-            }
-
-            static bool GetConfigSetting(string key, bool defaultValue)
-            {
-#if NETSTANDARD
-                return defaultValue;
-#else
-                return (ConfigurationManager.AppSettings[key] == null)
-                  ? defaultValue
-                  : (ConfigurationManager.AppSettings[key] == "1");
-#endif
-            }
-
-            static int GetConfigSetting(string key, int defaultValue)
-            {
-#if NETSTANDARD
-                return defaultValue;
-#else
-                if (ConfigurationManager.AppSettings[key] == null) return defaultValue;
-
-                try
-                {
-                    return int.Parse(ConfigurationManager.AppSettings[key]);
-                }
-                catch (Exception e)
-                {
-                    IO.Error("Error converting the value in the config file.\r\n{0}\r\nUsing the default value '{1}' for '{2}'",
-                      e.Message, defaultValue, key);
-
-                    return 0;
-                }
-#endif
-            }
-
-
-            public static void SetWorkingDirectory(string dirName)
-            {
-                if (dirName == null)
-                    workingDirectory = GetConfigSetting("WorkingDirectory", null);
-                else
-                {
-                    workingDirectory = Utils.GetFullDirectoryName(dirName);
-
-                    if (workingDirectory == null)
-                        IO.Error("Illegal name '{0}' for working directory", dirName);
-                }
-
-                IO.Message("Working directory set to '{0}'", WorkingDirectory);
-            }
-
-            public static bool SetWorkingDirectory(BaseTerm term, VarStack varStack)
-            {
-                if (term.Arity == 0)
-                {
-                    workingDirectory = GetConfigSetting("WorkingDirectory", null);
-                    IO.Message("Working directory set to '{0}'", WorkingDirectory);
-
-                    return true;
-                }
-
-                BaseTerm t0 = term.Arg(0);
-
-                if (t0.IsVar)
-                {
-                    t0.Unify(new StringTerm(workingDirectory), varStack); // symbolic names
-
-                    return true;
-                }
-
-                string wd = Utils.DirectoryNameFromTerm(t0);
-
-                if (wd == null)
-                {
-                    IO.Error("Illegal name '{0}' for working directory", t0.FunctorToString);
-
-                    return false;
-                }
-
-                workingDirectory = wd;
-                IO.Message("Working directory set to '{0}'", WorkingDirectory);
-
-                return true;
-            }
-        }
-        #endregion ConfigSettings
-
-        #region Producer-Consumer buffer
-        public class ProdConsBuffer<T>
-        {
-            Queue<T> queue;
-            const int MAX_Q_SIZE = -1; // no limit
-            public int Count { get { return queue.Count; } }
+            private Queue<T> queue;
+            private const int MAX_Q_SIZE = -1; // no limit
+            public int Count => queue.Count;
 
             public ProdConsBuffer()
             {
@@ -273,363 +83,35 @@ namespace Prolog
                 return queue.Contains(item);
             }
         }
-        #endregion Producer-Consumer buffer
-
-        #region Globals
-        public class Globals
+        
+                public class Globals
         {
-            #region static readonly properties
-            public static readonly string DefaultExtension = ".pl";
-            #endregion
+                        public static readonly string DefaultExtension = ".pl";
+            
 
 
-            #region properties
-            static PrologParser currentParser = null;
-            #endregion
+            
+            
 
-            #region public fields
-            public static CultureInfo CI = CultureInfo.InvariantCulture;
-            public static Hashtable ConsultedFiles = new Hashtable();
+                        public static CultureInfo CI = CultureInfo.InvariantCulture;
+            public static Dictionary<string, bool> ConsultedFiles = new Dictionary<string, bool>();
             //TODO reconsider the use of the statics below
             public static string ConsultFileName = null;   // file being currently consulted
             public static string ConsultModuleName = null; // name of current module (if any) in file being consulted
-            public static PrologParser CurrentParser { get { return currentParser; } set { currentParser = value; } }
-            public static int LineNo { get { return (currentParser == null || currentParser.InQueryMode) ? -1 : currentParser.LineNo - 1; } }
-            public static int ColNo { get { return (currentParser == null) ? -1 : currentParser.ColNo; } }
-            #endregion
+            public static PrologParser CurrentParser { get; set; } = null;
+            public static int LineNo => (CurrentParser == null || CurrentParser.InQueryMode) ? -1 : CurrentParser.LineNo - 1;
+            public static int ColNo => (CurrentParser == null) ? -1 : CurrentParser.ColNo;
+
+            
 
         }
-        #endregion Globals
-
-        #region PersistentSettings
-#if !NETSTANDARD
-        [Serializable]
-        public class ApplicationStorage : Hashtable
-        {
-            // File name. Let us use the entry assembly name with .dat as the extension.
-            string settingsFileName =
-            System.Reflection.Assembly.GetEntryAssembly().GetName().Name + ".dat";
-
-            public ApplicationStorage()
-            {
-                LoadFromFile();
-            }
-
-
-            // This constructor is required for deserializing our class from persistent storage.
-            protected ApplicationStorage(SerializationInfo info, StreamingContext context)
-              : base(info, context)
-            {
-            }
-
-
-            public object this[string key]
-            {
-                set
-                {
-                    base[key.ToLower()] = value;
-                    SaveToFile();
-                }
-
-                get
-                {
-                    return base[key.ToLower()];
-                }
-            }
-
-
-            void LoadFromFile()
-            {
-                IsolatedStorageFile isoStore = IsolatedStorageFile.GetStore(
-                  IsolatedStorageScope.User | IsolatedStorageScope.Assembly, null, null);
-
-                if (isoStore.GetFileNames(settingsFileName).Length == 0) return;
-
-                Stream stream = new IsolatedStorageFileStream(settingsFileName, FileMode.OpenOrCreate, isoStore);
-
-                if (stream != null)
-                {
-                    try
-                    {
-                        // deserialize the Hashtable from stream.
-                        IFormatter formatter = new BinaryFormatter();
-                        Hashtable appData = (Hashtable)formatter.Deserialize(stream);
-
-                        // enumerate through the collection and load our base Hashtable.
-                        IDictionaryEnumerator enumerator = appData.GetEnumerator();
-
-                        while (enumerator.MoveNext())
-                            this[enumerator.Key] = enumerator.Value;
-                    }
-                    catch
-                    {
-                    }
-                    finally
-                    {
-                        stream.Dispose();
-                    }
-                }
-            }
-
-
-            /// <summary>
-            /// Saves the configuration data to the persistent storage.
-            /// </summary>
-            void SaveToFile()
-            {
-                // Open the stream from the IsolatedStorage.
-                IsolatedStorageFile isoStore = IsolatedStorageFile.GetStore(
-                  IsolatedStorageScope.User | IsolatedStorageScope.Assembly, null, null);
-                Stream stream = new IsolatedStorageFileStream(settingsFileName, FileMode.Create, isoStore);
-
-                if (stream != null)
-                {
-                    try
-                    {
-                        // Serialize the Hashtable into the IsolatedStorage.
-                        IFormatter formatter = new BinaryFormatter();
-                        formatter.Serialize(stream, (Hashtable)this);
-                    }
-                    finally
-                    {
-                        stream.Dispose();
-                    }
-                }
-            }
-
-
-            public T Get<T>(string key, T defVal)
-            {
-                object o = this[key];
-
-                if (o == null) return defVal; // key not found
-
-                try
-                {
-                    return (T)o;
-                }
-                catch
-                {
-                    throw new Exception(string.Format(
-                      "PersistentSettings Get<{0}>: retrieved value for key '{1}' has wrong type '{2}'",
-                      typeof(T), key, o.GetType()));
-                }
-            }
-
-
-#if Windows
-    ///<summary>
-    /// Start an OpenFile dialog and save the selected file name in persistent storage
-    ///<param name="fileName">In/out: the selected file name. Unmodified upon cancel</param>
-    ///<param name="key">In: the key under which the file name should be saved in persistent storage</param>
-    ///<param name="defaultExt">In: the dialog default extension, e.g. "wav"</param>
-    ///<param name="filter">In: the dialog filter, e.g. "WAV files (*.wav)|*.wav|*.*"</param>
-    ///</summary>
-    public string OpenFileName (ref string fileName, string key, string defaultExt, string filter)
-    {
-      OpenFileDialog openDlg = new OpenFileDialog ();
-      openDlg.DefaultExt = defaultExt;
-      openDlg.Filter = filter;
-      openDlg.InitialDirectory = Path.GetDirectoryName (fileName);
-
-      if (openDlg.ShowDialog () == DialogResult.OK)
-        this [key] = fileName = openDlg.FileName;
-
-      return fileName;
-    }
-
-
-    ///<summary>
-    /// Start a SaveFile dialog and save the selected file name in persistent storage
-    ///<param name="fileName">In/out: the selected file name. Unmodified upon cancel</param>
-    ///<param name="key">In: the key under which the file name should be saved in persistent storage</param>
-    ///<param name="defaultExt">In: the dialog default extension, e.g. "wav"</param>
-    ///<param name="filter">In: the dialog filter, e.g. "WAV files (*.wav)|*.wav|*.*"</param>
-    ///</summary>
-    public string SaveFileName (ref string fileName, string key, string defaultExt, string filter)
-    {
-      SaveFileDialog saveDlg = new SaveFileDialog ();
-      saveDlg.DefaultExt = defaultExt;
-      saveDlg.Filter = filter;
-      saveDlg.FileName = fileName;
-      saveDlg.InitialDirectory = Path.GetDirectoryName (fileName);
-
-      if (saveDlg.ShowDialog () == DialogResult.OK)
-        this [key] = fileName = saveDlg.FileName;
-
-      return fileName;
-    }
-
-
-    public bool SelectDirectory (ref string dirName, string key)
-    {
-      bool result;
-
-      FolderBrowserDialog fbd = new FolderBrowserDialog ();
-
-      if (dirName != null) fbd.SelectedPath = dirName;
-
-      fbd.Description = "Select a map";
-      fbd.ShowNewFolderButton = true;
-
-      if (result = (fbd.ShowDialog () == DialogResult.OK))
-        this [key] = dirName = fbd.SelectedPath;
-
-      return result;
-    }
-#endif
-        }
-#endif
-        #endregion PersistentSettings
-
+        
+        
         public static class Utils
         {
-            static readonly string logFileName = "PL" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
-            static StreamWriter logFile;
-            static bool showMode = true;
-            enum readStatus { Content }
-
-#if mswindows
-            public static bool CreateHelpResourceFile(out string resxFileName)
-            {
-                Regex header = new Regex(@"^_+\s*(?<functor>[^/]+)\s*/\s*(?<arity>[^ _]+)\s*_*\s*$",
-                  RegexOptions.Singleline | RegexOptions.ExplicitCapture | RegexOptions.CultureInvariant);
-                const int nColsDef = 5;
-                ResXResourceWriter rw = null;
-                string functor = "<not set>";
-                string arity = "<not set>";
-                string key = "<not set>";
-                string value = "<not set>";
-                resxFileName = "<not set>";
-                int nCols = nColsDef;
-                SortedDictionary<string, string> combinedArities = new SortedDictionary<string, string>();
-                int maxPredLen = 0;
-                StringBuilder content = new StringBuilder(); // contains the help item content
-                StreamReader sr;
-
-                if (PrologEngine.ConfigSettings.CsPrologHelpFile == null) // set in CSProlog.exe.config
-                    Console.WriteLine("No help file name found in config file (key 'CsPrologHelpFile')");
-                else
-                {
-                    string helpFileName = PrologEngine.ConfigSettings.CsPrologHelpFile;
-                    int lineNo = 0;
-
-                    try
-                    {
-                        sr = new StreamReader(helpFileName);
-                        resxFileName = Path.ChangeExtension(helpFileName, ".resx");
-                        rw = new ResXResourceWriter(resxFileName);
-                    }
-                    catch (Exception e)
-                    {
-                        IO.Error("Error opening help file '{0}'.\r\nMessage was:\r\n{1}",
-                          helpFileName, e.Message);
-
-                        return false;
-                    }
-
-                    string line;
-                    content = new StringBuilder(); // help item content
-                    bool firstHeader = true;
-
-                    try
-                    {
-                        while (!sr.EndOfStream)
-                        {
-                            line = sr.ReadLine();
-                            lineNo++;
-
-                            if (lineNo == 1) // number of colums optionally in first line
-                            {
-                                if (!int.TryParse(line.Trim(), out nCols)) nCols = nColsDef;
-                            }
-
-                            if (line.StartsWith("%")) continue;
-
-                            Match m = header.Match(line);
-
-                            if (m.Success)
-                            {
-                                if (firstHeader)
-                                    firstHeader = false;
-                                else // finish off previous content
-                                    rw.AddResource(key, content.ToString());
-                                //rw.AddResource (key, content.ToString ().TrimEnd ());
-
-                                content.Length = 0;
-                                functor = m.Groups["functor"].ToString();
-                                arity = m.Groups["arity"].ToString();
-
-                                if (!(arity.HasSignedRealNumberFormat() || arity == "*"))
-                                    IO.Warning("Erroneous header line({0}):\r\n{1}", lineNo, line);
-
-                                key = functor + '/' + arity;
-                                string arities; // collect all arities per functor name (for 'help <predicate>' without arity)
-                                combinedArities[functor] =
-                                  (combinedArities.TryGetValue(functor, out arities) ? arities : null) +
-                                  (arity == "*" ? "(*)" : '/' + arity);
-                                maxPredLen = Math.Max(
-                                  maxPredLen, functor.Length + (arities == null ? 0 : arities.Length) + arity.Length + 1);
-                            }
-                            else if (line.StartsWith("_"))
-                                IO.Warning("Erroneous header line({0}):\r\n{1}", lineNo, line);
-                            else
-                                content.AppendLine("  " + line);
-                        }
-                    }
-                    finally
-                    {
-                        sr.Close();
-                    }
-                }
-
-                // last item
-                rw.AddResource(key, content.ToString().TrimEnd());
-
-                // create an overview of all predicates (shown for 'help' without arguments)
-                StringBuilder allPreds = new StringBuilder();
-                maxPredLen += 2; // at least two spaces between columns
-
-                /* // row-wise
-                foreach (KeyValuePair<string, string> kv in predicates)
-                {
-                  string s = kv.Key + kv.Value;
-                  rw.AddResource (kv.Key, kv.Value);
-
-                  if (colNo%nCols == 0) allPreds.Append ("  "); // two leading spaces for each line
-
-                  allPreds.Append (s.PadRight (maxPredLen, ' '));
-
-                  if ((++colNo)%nCols == 0) allPreds.Append (Environment.NewLine);
-                }
-                */
-
-                int nRows = (combinedArities.Count + nCols - 1) / nCols; // number of rows for total survey
-                KeyValuePair<string, string>[] kv = new KeyValuePair<string, string>[combinedArities.Count];
-                combinedArities.CopyTo(kv, 0);
-
-                for (int i = 0; i < nRows; i++)
-                    for (int j = 0; j < nCols; j++)
-                    {
-                        int k = i + j * nRows;
-
-                        if (k >= kv.Length) break; // final positions in last column may remain empty
-
-                        key = kv[k].Key;
-                        value = kv[k].Value;
-                        rw.AddResource(key, value);
-
-                        if (j == 0) allPreds.Append(Environment.NewLine + "  "); // two leading spaces for each line
-
-                        allPreds.Append((key + value).PadRight(maxPredLen, ' '));
-                    }
-
-                rw.AddResource("help$", allPreds.ToString());
-                rw.Close();
-
-                return true;
-            }
-#endif
+            private static readonly string logFileName = "PL" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
+            private static StreamWriter logFile;
+            private static bool showMode = true;
 
             public static string AtomFromVarChar(string s)
             {
@@ -637,15 +119,10 @@ namespace Prolog
             }
 
 
-            static string WDF(string fileName)
+            private static string WDF(string fileName)
             {
-                // prefix fileName with the name of the WorkingDirectory (config setting),
-                // but only if it does not have a path prefixed already
-                string wd = ConfigSettings.WorkingDirectory;
-
-
                 if (fileName.IndexOf(Path.DirectorySeparatorChar) == -1)
-                    return ConfigSettings.WorkingDirectory + fileName;
+                    return "." + fileName;
 
                 return fileName;
             }
@@ -679,7 +156,7 @@ namespace Prolog
                 }
                 catch (Exception e)
                 {
-                    IO.Error(e.Message);
+                    IO.ErrorRuntime( e.Message, null, null);
 
                     return null;
                 }
@@ -709,7 +186,7 @@ namespace Prolog
                 }
                 catch (Exception e)
                 {
-                    IO.Error("Error in file name '{0}'\r\n{1}", fileName, e.Message);
+                    IO.ErrorRuntime($"Error in file name '{fileName}'\r\n{e.Message}", null, null);
 
                     return null;
                 }
@@ -743,7 +220,7 @@ namespace Prolog
                                 reOptions |= RegexOptions.CultureInvariant;
                                 break;
                             default:
-                                IO.Error("match_regex -- unsupported option '{0}'", o);
+                                IO.ErrorRuntime($"match_regex -- unsupported option '{o}'", null, null);
                                 break;
                         };
                 }
@@ -754,7 +231,7 @@ namespace Prolog
                 }
                 catch (Exception x)
                 {
-                    IO.Error("Error in regular expression '{0}'\r\nMessage: {1}", matchPattern, x.Message);
+                    IO.ErrorRuntime($"Error in regular expression '{matchPattern}'\r\nMessage: {x.Message}", null, null);
                 }
 
                 Match m = re.Match(source);
@@ -762,28 +239,28 @@ namespace Prolog
                 if (!m.Success) return null;
 
                 int[] gnums = re.GetGroupNumbers();
-                BaseTerm groups = new ListTerm();
+                BaseTerm groups = new ListTerm(null);
 
                 while (m.Success)
                 {
                     for (int i = 1; i < gnums.Length; i++) // start at group 1 (0 is the fully captured match string)
                     {
                         Group g = m.Groups[gnums[i]];
-                        BaseTerm captures = new ListTerm();
+                        BaseTerm captures = new ListTerm(null);
                         string groupId = re.GetGroupNames()[i];
                         int groupNo;
                         BaseTerm groupIdTerm;
 
                         foreach (Capture c in g.Captures)
-                            captures = ((ListTerm)captures).AppendElement(new StringTerm(c.ToString()));
+                            captures = ((ListTerm)captures).AppendElement(new StringTerm(captures.Symbol, c.ToString()));
 
                         if (int.TryParse(groupId, out groupNo))
-                            groupIdTerm = new DecimalTerm(groupNo);
+                            groupIdTerm = new DecimalTerm(captures.Symbol, groupNo);
                         else
-                            groupIdTerm = new StringTerm(re.GetGroupNames()[i]);
+                            groupIdTerm = new StringTerm(captures.Symbol, re.GetGroupNames()[i]);
 
                         groups = ((ListTerm)groups).AppendElement(
-                          new OperatorTerm(opTable, ":", groupIdTerm, captures));
+                          new OperatorTerm(captures.Symbol, opTable, ":", groupIdTerm, captures));
                     }
 
                     m = m.NextMatch();
@@ -805,7 +282,7 @@ namespace Prolog
             {
                 if (!lt.IsProperList || lt.ProperLength != 2)
                 {
-                    IO.Error("Format list must be a proper list of length 2");
+                    IO.ErrorRuntime( "Format list must be a proper list of length 2", null, lt);
 
                     return null;
                 }
@@ -821,7 +298,7 @@ namespace Prolog
             {
                 if (!(t is StringTerm))
                 {
-                    IO.Error("Improper format string");
+                    IO.ErrorRuntime("Improper format string", null, t);
 
                     return null;
                 }
@@ -846,7 +323,7 @@ namespace Prolog
                     }
                     catch
                     {
-                        IO.Error("Error while applying arguments to format string '{0}'", result);
+                        IO.ErrorRuntime($"Error while applying arguments to format string '{result}'", null, lt);
                     }
                 }
                 else
@@ -856,31 +333,15 @@ namespace Prolog
                     }
                     catch
                     {
-                        IO.Error("Error while applying arguments to format string '{0}'", result);
+                        IO.ErrorRuntime($"Error while applying arguments to format string '{result}'", null, args);
                     }
 
                 return null;
             }
 
-#if mswindows
             public static void SetClipboardData(string data)
             {
-                ThreadStart CopyToClipboardThreadStart = delegate ()
-                {
-                    Clipboard.SetDataObject(data, true, 3, 100);
-                };
-
-                if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
-                    CopyToClipboardThreadStart();
-                else
-                {
-                    Thread thread = new Thread(CopyToClipboardThreadStart);
-                    thread.SetApartmentState(ApartmentState.STA);
-                    thread.Start();
-                    thread.Join();
-                }
             }
-#endif
 
             public static string WrapWithMargin(string s, string margin, int lenMax)
             // Break up a string into pieces that are at most lenMax characters long, by
@@ -965,13 +426,13 @@ namespace Prolog
             {
                 const string separators = " -/:,.;";
 
-                if (lenMax < 2) IO.Error("Second argument of wrap must be > 1");
+                if (lenMax < 2) IO.ErrorRuntime("Second argument of wrap must be > 1", null, null);
 
                 return ForceSpaces(s, lenMax - 1, separators, 0); // 0 is current pos in separators
             }
 
 
-            static string ForceSpaces(string s, int lenMax, string separators, int i)
+            private static string ForceSpaces(string s, int lenMax, string separators, int i)
             {
                 int len = s.Length;
                 StringBuilder sb = new StringBuilder();
@@ -1030,22 +491,20 @@ namespace Prolog
                 return 1 + (date - startWk1).Days / 7;
             }
 
-#if mswindows
             [DllImport("netapi32.dll")]
-            static extern short NetMessageBufferSend(IntPtr server, IntPtr recipient, IntPtr reserved, IntPtr message, int size);
+            private static extern short NetMessageBufferSend(IntPtr server, IntPtr recipient, IntPtr reserved, IntPtr message, int size);
 
             public static void SendNetBios(string server, string recipient, string text)
             {
-                int err;
                 IntPtr srv = IntPtr.Zero, rcp = IntPtr.Zero, txt = IntPtr.Zero, res = IntPtr.Zero;
 
                 try
                 {
                     srv = Marshal.StringToBSTR(server);
                     rcp = Marshal.StringToBSTR(recipient);
-                    txt = Marshal.StringToBSTR(text = string.Format("{0}/{1}: {2}", server, recipient, text));
+                    txt = Marshal.StringToBSTR(text = $"{server}/{recipient}: {text}");
 
-                    err = NetMessageBufferSend(srv, rcp, res, txt, (text.Length + 1) * 2);
+                    NetMessageBufferSend(srv, rcp, res, txt, (text.Length + 1) * 2);
                 }
                 catch (Exception /*engine*/)
                 {
@@ -1065,7 +524,7 @@ namespace Prolog
 
             // Console
 
-            class Constants
+            private class Constants
             {
                 // Standard input, output, and Error
                 internal const int STD_INPUT_HANDLE = -10;
@@ -1076,35 +535,21 @@ namespace Prolog
                 internal static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
             }
 
-            struct COORD
+            private struct COORD
             {
                 internal short X;
                 internal short Y;
-
-                public COORD(bool b) // constructor just to get rid of compiler warnings
-                {
-                    X = 0;
-                    Y = 0;
-                }
             }
 
-            struct SMALL_RECT
+            private struct SMALL_RECT
             {
                 internal short Left;
                 internal short Top;
                 internal short Right;
                 internal short Bottom;
-
-                public SMALL_RECT(bool b) // constructor just to get rid of compiler warnings
-                {
-                    Left = 0;
-                    Top = 0;
-                    Right = 0;
-                    Bottom = 0;
-                }
             }
 
-            struct CONSOLE_SCREEN_BUFFER_INFO
+            private struct CONSOLE_SCREEN_BUFFER_INFO
             {
                 internal COORD dwSize;
                 internal COORD dwCursorPosition;
@@ -1114,20 +559,20 @@ namespace Prolog
             }
 
             [DllImport("kernel32.dll", SetLastError = true)]
-            static extern bool GetConsoleScreenBufferInfo(
+            private static extern bool GetConsoleScreenBufferInfo(
               IntPtr hConsoleOutput,
               out CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo
             );
 
             [DllImport("kernel32.dll", SetLastError = true)]
-            static extern IntPtr GetStdHandle(
+            private static extern IntPtr GetStdHandle(
               int whichHandle
             );
 
             [DllImport("kernel32.dll", SetLastError = true)]
-            static extern IntPtr GetConsoleWindow();
+            private static extern IntPtr GetConsoleWindow();
 
-            static IntPtr GetHandle(int WhichHandle)
+            private static IntPtr GetHandle(int WhichHandle)
             {
                 IntPtr h = GetStdHandle(WhichHandle);
 
@@ -1152,33 +597,7 @@ namespace Prolog
             }
 
 
-            public static short NumCols
-            {
-                get
-                {
-                    IntPtr h = GetHandle(Constants.STD_OUTPUT_HANDLE);
-                    CONSOLE_SCREEN_BUFFER_INFO csbi = new CONSOLE_SCREEN_BUFFER_INFO();
-
-                    if (!GetConsoleScreenBufferInfo(h, out csbi)) return 0;
-
-                    return csbi.dwSize.X;
-                }
-                //      set
-                //      {
-                //        IntPtr h = GetHandle (Constants.STD_OUTPUT_HANDLE);
-                //        CONSOLE_SCREEN_BUFFER_INFO csbi = new CONSOLE_SCREEN_BUFFER_INFO();
-                //
-                //        if (!GetConsoleScreenBufferInfo (h, out csbi)) return;
-                //
-                //        COORD c = new COORD ();
-                //        c.X = value;
-                //        c.Y = csbi.dwSize.Y;
-                //        SetConsoleScreenBufferSize (h,c);
-                //
-                //        return;
-                //      }
-            }
-#endif
+            public static short NumCols => 80;
 
 
             // Log file, debugging
@@ -1186,13 +605,6 @@ namespace Prolog
             {
                 showMode = mode;
             }
-
-
-            public static void OpenLog()
-            {
-                logFile = new StreamWriter(new FileStream(logFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite));
-            }
-
 
             public static void WriteLogLine(bool abort, string s, params object[] pa)
             {
@@ -1254,46 +666,42 @@ namespace Prolog
         }
 
 
-        static string Spaces(int n)
+        private static string Spaces(int n)
         {
             return new string(' ', n);
         }
 
-        #region Combination
-        public class Combination // without repetition
+                public class Combination // without repetition
         {
-            int k;
-            IEnumerator<ListTerm> iterator;
-            public IEnumerator<ListTerm> Iterator { get { return iterator; } }
+            private int k;
+            public IEnumerator<ListTerm> Iterator { get; }
 
             public Combination(ListTerm t, int k)
             {
                 BaseTermSet ts = new BaseTermSet(t);
                 this.k = k;
-                iterator = CombinationsEnum(ts, k).GetEnumerator();
+                Iterator = CombinationsEnum(ts, k).GetEnumerator();
             }
 
 
-            IEnumerable<ListTerm> CombinationsEnum(List<BaseTerm> terms, int length)
+            private IEnumerable<ListTerm> CombinationsEnum(List<BaseTerm> terms, int length)
             {
                 for (int i = 0; i < terms.Count; i++)
                 {
                     if (length == 1)
-                        yield return new ListTerm(terms[i]);
+                        yield return new ListTerm(terms[i].Symbol, terms[i]);
                     // If > 1, return this one plus all combinations one shorter.
                     // Only use terms after the current one for the rest of the combinations
                     else
                         foreach (BaseTerm next in CombinationsEnum(terms.GetRange(i + 1, terms.Count - (i + 1)), length - 1))
-                            yield return new ListTerm(terms[i], next);
+                            yield return new ListTerm(terms[i].Symbol, terms[i], next);
                 }
             }
         }
-        #endregion Combination
-
-        #region Permutation
-        public class Permutation
+        
+                public class Permutation
         {
-            BaseTerm[] configuration;
+            private BaseTerm[] configuration;
 
             public Permutation(ListTerm t)
             {
@@ -1359,8 +767,7 @@ namespace Prolog
                 while (NextPermutation());
             }
         }
-        #endregion Permutation
-    }
+            }
 
     public static class Extensions
     {
@@ -1446,22 +853,22 @@ namespace Prolog
             return s.IndexOf(c) >= 0;
         }
 
-        static Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
+        private static Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
           @"^([+\-*/\\^<=>`~:.?@#$&]+|\p{Ll}[\w_]*|('[^']*')+)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        static Regex unsignedInteger = new Regex(
+        private static Regex unsignedInteger = new Regex(
           @"^(\d+)?$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        static Regex signedNumber = new Regex(
+        private static Regex signedNumber = new Regex(
           @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        static Regex signedImagNumber = new Regex(
+        private static Regex signedImagNumber = new Regex(
           @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?i?)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
@@ -1481,21 +888,11 @@ namespace Prolog
             return signedImagNumber.Match(s).Success;
         }
 
-        // decimal d = decimal.Parse (value, System.Globalization.NumberStyles.HexNumber) or:
-        // Convert.ToInt32(value, 16). The 16 is the "fromBase" parameter, 16 for hex
-        // currently not used:
-        static Regex hexNumber = new Regex(
-          @"^(0x[0-9a-fA-F]+)$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
-
-        static Regex tokens = new Regex(
+        private static Regex tokens = new Regex(
           // identifiers, signed numbers and sequences of non-whites, separated by whites
           @"\s*(?<token>([\p{L}_]+\d*|[+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?|\S+))\s*",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
-
 
         public static string[] Tokens(this string s)
         {
@@ -1507,7 +904,6 @@ namespace Prolog
 
             return result;
         }
-
 
         public static string RemoveUnnecessaryAtomQuotes(this string s)
         {
@@ -1521,12 +917,10 @@ namespace Prolog
             return (atomPattern.Match((a = s.Substring(1, len - 2))).Success) ? a : s;
         }
 
-
         public static bool HasAtomFormat(this string s)
         {
             return atomPattern.Match(s).Success;
         }
-
 
         public static string ToAtom(this string s) // numbers are quoted
         {
@@ -1534,7 +928,6 @@ namespace Prolog
 
             return '\'' + s.Replace("'", "''") + '\'';
         }
-
 
         public static string ToAtomic(this string s, out TermType type) // numbers are not quoted
         {
@@ -1626,14 +1019,14 @@ namespace Prolog
         }
 
 
-        static Regex stringLiteral = new Regex(
+        private static Regex stringLiteral = new Regex(
           @"^(?<char>(\\('|""|\\|0|a|b|f|n|r|t|v|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{1,4}|U[0-9a-fA-F]{8}|.?))|[^\\])+$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
         //@"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8})|(?<h>.))",
 
-        static Regex escapedChar = new Regex(
+        private static Regex escapedChar = new Regex(
          @"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8}))",
          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
@@ -1645,15 +1038,15 @@ namespace Prolog
 
             if (stringLiteral.Match(s).Success)
                 return escapedChar.Replace(s,
-                 match => (string.Format("{0}", match.Groups[1].Value.ResolveEscape())));
+                 match => ($"{match.Groups[1].Value.ResolveEscape()}"));
 
-            PrologEngine.IO.Error("Unrecognized escape sequence in string \"{0}\"" +
-                      "\r\n(cf. CSProlog.exe.config in .exe-directory)", s);
+            PrologEngine.IO.ErrorRuntime(
+                $"Unrecognized escape sequence in string \"{s}\"" + "\r\n(cf. CSProlog.exe.config in .exe-directory)", null, null);
 
             return null;
         }
 
-        static string ResolveEscape(this string s) // resolve escaped characters
+        private static string ResolveEscape(this string s) // resolve escaped characters
         {
             switch (s)
             {
@@ -1715,44 +1108,35 @@ namespace Prolog
         // Jon Skeet -- C# In Depth, 1st edition, p.176
         public abstract class Range<T> : IEnumerable<T> where T : IComparable<T>
         {
-            readonly T start;
-            readonly T end;
-
             public Range(T start, T end)
             {
                 if (start.CompareTo(end) > 0)
                     throw new ArgumentOutOfRangeException();
 
-                this.start = start;
-                this.end = end;
+                this.Start = start;
+                this.End = end;
             }
 
-            public T Start
-            {
-                get { return start; }
-            }
+            public T Start { get; }
 
-            public T End
-            {
-                get { return end; }
-            }
+            public T End { get; }
 
             public bool Contains(T value)
             {
-                return value.CompareTo(start) >= 0 && value.CompareTo(end) <= 0;
+                return value.CompareTo(Start) >= 0 && value.CompareTo(End) <= 0;
             }
 
             public IEnumerator<T> GetEnumerator()
             {
-                T value = start;
+                T value = Start;
 
-                while (value.CompareTo(end) < 0)
+                while (value.CompareTo(End) < 0)
                 {
                     yield return value;
                     value = GetNextValue(value);
                 }
 
-                if (value.CompareTo(end) == 0)
+                if (value.CompareTo(End) == 0)
                 {
                     yield return value;
                 }
@@ -1788,7 +1172,8 @@ namespace Prolog
         Console.WriteLine("Decoded string: {0}", Encoding.UTF8.GetString(buffer_decode));
 
      */
-    class BWTImplementation
+
+    internal class BWTImplementation
     {
         public void bwt_encode(byte[] buf_in, byte[] buf_out, int size, ref int primary_index)
         {
@@ -1851,7 +1236,7 @@ namespace Prolog
         }
     }
 
-    class BWTComparator : IComparer<int>
+    internal class BWTComparator : IComparer<int>
     {
         private byte[] rotlexcmp_buf = null;
         private int rottexcmp_bufsize = 0;

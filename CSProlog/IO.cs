@@ -13,21 +13,15 @@
 
 -------------------------------------------------------------------------------------------*/
 
+using Serilog;
 using System;
-using System.IO;
 using System.Text;
 
 namespace Prolog
 {
-#if NETSTANDARD
-    using ApplicationException = System.Exception;
-#endif
-
-    #region BasicIo
-    public abstract class BasicIo
+        public abstract class BasicIo
     {
-        #region abstract methods
-        public abstract string ReadLine();
+                public abstract string ReadLine();
 
         public abstract int ReadChar();
 
@@ -40,8 +34,7 @@ namespace Prolog
         public abstract void Clear();
 
         public abstract void Reset();
-        #endregion abstract methods
-
+        
         public void Write(string s, params object[] o)
         {
             Write(string.Format(s, o));
@@ -52,10 +45,41 @@ namespace Prolog
             WriteLine(string.Format(s, o));
         }
     }
-    #endregion BasicIo
+    
+    public class SilentIO : BasicIo
+    {
+        public override void Clear()
+        {
+        }
 
-    #region DosIO. Base class for DOS IO
-    public class DosIO : BasicIo
+        public override int ReadChar()
+        {
+            return Console.ReadKey().KeyChar;
+        }
+
+        public override string ReadLine()
+        {
+            return Console.ReadLine();
+        }
+
+        public override void Reset()
+        {
+        }
+
+        public override void Write(string s)
+        {
+        }
+
+        public override void WriteLine()
+        {
+        }
+
+        public override void WriteLine(string s)
+        {
+        }
+    }
+
+        public class DosIO : BasicIo
     {
         public override string ReadLine()
         {
@@ -97,102 +121,21 @@ namespace Prolog
         {
         }
     }
-    #endregion DosIO
-
-    #region FileIO. Base class for text File IO
-    public class FileIO : BasicIo
-    {
-        StreamReader inFile;
-        StreamWriter outFile;
-
-        public FileIO(string inFileName, string outFileName)
-        {
-            // no try/catch, as I would not know how to handle the exception caught
-            inFile = new StreamReader(File.OpenRead(inFileName));
-            outFile = new StreamWriter(File.OpenWrite(outFileName));
-            outFile.AutoFlush = true; // file will contain all output even if not closed explicitly
-        }
-
-        public override string ReadLine()
-        {
-            if (inFile == null)
-                throw new ApplicationException("FileIO class: input file is not defined");
-
-            return inFile.ReadLine();
-        }
-
-
-        public override int ReadChar()
-        {
-            if (inFile == null)
-                throw new ApplicationException("FileIO class: input file is not defined");
-
-            return inFile.Read();
-        }
-
-
-        public override void Write(string s)
-        {
-            if (outFile == null)
-                throw new ApplicationException("FileIO class: output file is not defined");
-
-            outFile.Write(s);
-        }
-
-
-        public override void WriteLine(string s)
-        {
-            if (outFile == null)
-                throw new ApplicationException("FileIO class: output file is not defined");
-
-            outFile.WriteLine(s);
-        }
-
-
-        public override void WriteLine()
-        {
-            if (outFile == null)
-                throw new ApplicationException("FileIO class: output file is not defined");
-
-            outFile.WriteLine();
-        }
-
-
-        public override void Clear()
-        {
-        }
-
-
-        public override void Reset()
-        {
-        }
-
-
-        public void Close()
-        {
-            if (inFile != null) inFile.Dispose();
-
-            if (outFile != null) outFile.Dispose();
-        }
-    }
-    #endregion FileIO
-
+    
     public partial class PrologEngine
     {
-        FileReaderTerm currentFileReader;
-        FileWriterTerm currentFileWriter;
-        public BasicIo BasicIO { set { IO.BasicIO = value; } }
+        private FileReaderTerm currentFileReader;
+        private FileWriterTerm currentFileWriter;
 
-        #region BaseRead(Line/Term/Char)CurrentInput and BaseWriteCurrentOutput
-        // BaseReadCurrentInput. Input is read from StandardInput.
+                // BaseReadCurrentInput. Input is read from StandardInput.
         // StandardInput is the file set by the see command, or Console if no such file exists.
-        string BaseReadLineCurrentInput() // returns null at end of file
+        private string BaseReadLineCurrentInput() // returns null at end of file
         {
             return (currentFileReader == null) ? IO.ReadLine() : currentFileReader.ReadLine();
         }
 
 
-        BaseTerm BaseReadTermCurrentInput()
+        private BaseTerm BaseReadTermCurrentInput()
         {
             if (currentFileReader == null)
             {
@@ -215,7 +158,7 @@ namespace Prolog
                     if (line.EndsWith(".")) break;
                 }
 
-                p.StreamIn = "&reading\r\n" + query.ToString(); // equal to parser ReadingSym
+                p.StreamIn = "&reading\r\n" + query; // equal to parser ReadingSym
                 BaseTerm result = p.ReadTerm;
 
                 return (result == null) ? FileTerm.END_OF_FILE : result;
@@ -225,7 +168,7 @@ namespace Prolog
         }
 
 
-        int BaseReadCharCurrentInput() // returns -1 at end of file
+        private int BaseReadCharCurrentInput() // returns -1 at end of file
         {
             return (currentFileReader == null) ? IO.ReadChar() : currentFileReader.ReadChar();
         }
@@ -235,7 +178,7 @@ namespace Prolog
         // Output from print, display, tab, put etc. is written to StandardOutput.
         // StandardOutput is the file set by the tell command, or Console if
         // no such file exists.
-        void BaseWriteCurrentOutput(string s)
+        private void BaseWriteCurrentOutput(string s)
         {
             if (currentFileWriter == null)
                 IO.Write(s);
@@ -244,33 +187,32 @@ namespace Prolog
         }
 
 
-        void BaseWriteCurrentOutput(string s, object[] args)
+        private void BaseWriteCurrentOutput(string s, object[] args)
         {
             BaseWriteCurrentOutput(string.Format(s, args));
         }
-        #endregion BaseRead(Line/Term/Char)CurrentInput and BaseWriteCurrentOutput
+        
 
-
-        #region Read(Line/Char) and Write(Line)
-        BaseTerm ReadTerm()
+        
+        private BaseTerm ReadTerm()
         {
             return BaseReadTermCurrentInput();
         }
 
 
-        string ReadLine()
+        private string ReadLine()
         {
             return BaseReadLineCurrentInput();
         }
 
 
-        int ReadChar()
+        private int ReadChar()
         {
             return BaseReadCharCurrentInput();
         }
 
 
-        void Write(BaseTerm t, bool dequote)
+        private void Write(BaseTerm t, bool dequote)
         {
             if (t.IsString)
                 BaseWriteCurrentOutput(dequote ? t.FunctorToString : '"' + t.FunctorToString + '"');
@@ -309,73 +251,95 @@ namespace Prolog
         {
             BaseWriteCurrentOutput(Environment.NewLine);
         }
-        #endregion Read(Line/Char) and Write(Line)
-
+        
+        public enum MessageKind
+        {
+            Consult, Runtime
+        }
 
         // for IO *not* generated by Prolog predicates and not subject to
         // current input and current output (i.e. error messages etc.)
         public static class IO
         {
-            static BasicIo basicIO;
-            public static BasicIo BasicIO { get { return basicIO; } set { basicIO = value; } }
-            public static bool Verbose = true; // message display
-            static int debugLevel = 0;
+            public static BasicIo BasicIO { private get; set; }
 
-            public static void SetDebugLevel(int level)
+            public static void Reset()
             {
-                debugLevel = level;
+                BasicIO.Reset();
             }
 
-            public static bool Error(string msg, params object[] o)
+            public static bool ErrorConsult(string msg, BaseTerm o)
             {
-                Error(String.Format(msg, o));
+                Log.Error(msg);
+                throw new ConsultException(msg, o);
 
                 return false;
             }
 
-            public static bool Error(string msg)
+            public static bool ErrorConsult(string msg, TokenSeqToTerm.BaseToken o)
             {
-                if (Globals.LineNo == -1) // interactive
-                    throw new ParserException("\r\n*** error: " + msg);
-                else
-                    throw new ParserException(String.Format("\r\n*** error in line {0} at position {1}: {2}",
-                                               Globals.LineNo, Globals.ColNo, msg));
+                Log.Error(msg);
+                throw new ConsultException(msg, symbol: o.Symbol);
+
+                return false;
             }
 
 
+            public static bool ErrorConsult(string msg, BaseParser.Symbol o)
+            {
+                Log.Error(msg);
+                throw new ConsultException(msg, symbol: o);
+
+                return false;
+            }
+
+            public static bool ErrorRuntime(string msg, VarStack varStack, BaseTerm term)
+            {
+                Log.Error(msg);
+                throw new RuntimeException(msg, term, varStack);
+
+                return false;
+            }
+
             public static void Warning(string msg, params object[] o)
             {
-                BasicIO.WriteLine(string.Format("\r\n*** warning: " + msg, o));
+                Log.Warning(string.Format(msg, o));
+                BasicIO.WriteLine(string.Format("*** warning: " + msg, o));
             }
 
 
             public static void Warning(string msg)
             {
-                BasicIO.WriteLine("\r\n*** warning: " + msg);
+                Log.Warning(msg);
+                BasicIO.WriteLine("*** warning: " + msg);
             }
 
 
             public static void Message(string msg, params object[] o)
             {
-                BasicIO.WriteLine(string.Format("\r\n--- " + msg, o));
+                Log.Warning(string.Format(msg, o));
+                BasicIO.WriteLine(string.Format("--- " + msg, o));
             }
 
 
             public static void Message(string msg)
             {
-                BasicIO.WriteLine("\r\n--- " + msg);
+                Log.Warning(msg);
+                BasicIO.WriteLine("--- " + msg);
             }
 
 
-            public static void Fatal(string msg, params object[] o)
+            public static void Fatal(MessageKind messageKind, string msg, params object[] o)
             {
-                throw new Exception("\r\n*** fatal: " + String.Format(msg, o));
+                Log.Error(string.Format(msg, o));
+                throw new Exception("*** fatal: " + String.Format(msg, o));
             }
 
 
-            public static void Fatal(string msg)
+            public static void Fatal(MessageKind messageKind, string msg)
             {
-                throw new Exception("\r\n*** fatal: " + msg);
+                Log.Error(msg);
+                throw new Exception("*** fatal: " + msg);
             }
 
 

@@ -11,18 +11,6 @@ namespace Prolog
     using System.Diagnostics;
     using System.Globalization;
 
-#if NETSTANDARD
-    using ApplicationException = System.Exception;
-    using Stack = System.Collections.Generic.Stack<object>;
-    using ArrayList = System.Collections.Generic.List<object>;
-    using Hashtable = System.Collections.Generic.Dictionary<object, object>;
-
-    internal static class ArrayListExtension
-    {
-        public static void TrimToSize(this ArrayList value) => value.TrimExcess();
-    }
-#endif
-
     /* _______________________________________________________________________________________________
       |                                                                                               |
       |  C#Prolog -- Copyright (C) 2007-2014 John Pool -- j.pool@ision.nl                                  |
@@ -43,86 +31,45 @@ namespace Prolog
     {
         public static readonly CultureInfo CIC = CultureInfo.InvariantCulture;
 
-        #region Exceptions
-        class ParserException : ApplicationException
+        
+        public class ConsultException : Exception
         {
-            public ParserException(string msg) : base(msg) { }
-
-            public ParserException(string msg, params object[] args) :
-              base(string.Format(msg, args))
-            { }
-        }
-
-        class SyntaxException : ApplicationException
-        {
-            public SyntaxException(string msg) : base(msg) { }
-
-            public SyntaxException(string msg, params object[] args) :
-              base(string.Format(msg, args))
-            { }
-        }
-
-        class UserException : ApplicationException
-        {
-            string @class;
-            public string Class { get { return @class; } }
-
-            public UserException(string @class, string msg) :
-              base(string.Format("(user-thrown {0}exception:)\r\n{1}",
-               (@class == null ? null : string.Format("({0}) ", @class)), msg))
+            public ConsultException(string msg, BaseTerm term = null, BaseParser.Symbol symbol = null) : base(msg)
             {
-                this.@class = @class;
+                this.Term = term;
+                this.Symbol = symbol;
             }
 
+            public BaseParser.Symbol Symbol { get; private set; }
+            public BaseTerm Term { get; private set; }
+        }
 
-            public UserException(string @class, string msg, params object[] args) :
-              base(string.Format("(user-thrown {0}exception:)\r\n{1}",
-                (@class == null ? null : string.Format("({0}) ", @class)), string.Format(msg, args)))
+        public class RuntimeException : Exception
+        {
+            public RuntimeException(string msg, BaseTerm term = null, VarStack varStack = null) : base(msg)
             {
-                this.@class = @class;
+                this.Term = term;
+                this.VarStack = varStack;
             }
-        }
 
-        class FatalException : ApplicationException
-        {
-            public FatalException(string msg) : base(msg) { }
+            public VarStack VarStack { get; set; }
+            public BaseTerm Term { get; private set; }
         }
-
-        class UnhandledParserException : ApplicationException
+        
+                public class TerminalSet
         {
-            public UnhandledParserException(string msg) : base(msg) { }
-        }
-        #endregion Exceptions
-
-        #region TerminalSet
-        public class TerminalSet
-        {
-            bool[] x;
+            private bool[] x;
 
             public TerminalSet(int terminalCount, params int[] ta)
             {
                 x = new bool[terminalCount];
 
-                if (terminalCount == 22)
-                {
-                    terminalCount = 22;
-                }
-
-                for (int i = 0; i < terminalCount; i++) x[i] = false;
-
-                foreach (int terminal in ta) x[terminal] = true;
+                for (int i = 0; i < ta.Length; i++) x[ta[i]] = true;
             }
 
             public TerminalSet(int terminalCount, bool[] y)
             {
-                x = new bool[terminalCount];
-
-                if (terminalCount == 22)
-                {
-                    terminalCount = 22;
-                }
-
-                for (int i = 0; i < terminalCount; i++) x[i] = y[i];
+                x = (bool[]) y.Clone();
             }
 
 
@@ -130,7 +77,7 @@ namespace Prolog
             {
                 TerminalSet union = new TerminalSet(terminalCount, x);  // create an identical set
 
-                foreach (int terminal in ta) union[terminal] = true; // ... and unify
+                for (int i = 0; i < ta.Length; i++) union[ta[i]] = true;
 
                 return union;
             }
@@ -168,39 +115,36 @@ namespace Prolog
                 for (int i = 0; i < x.Length; i++) if (x[i]) a[count++] = i;
             }
         }
-        #endregion TerminalSet
-
-        #region BaseParser
-        public class BaseParser<T>
+        
+                public class BaseParser
         {
             public BaseParser()
             {
                 cdh = new ConditionalDefinitionHandler(ppChar);
             }
 
-            #region ConditionalDefinitionHandler
-            protected class ConditionalDefinitionHandler
+                        protected class ConditionalDefinitionHandler
             {
                 // An ifdef..endif statement is made up by one or more more blocks separated by else(if)s.
                 // At most one of these blocks wil actually be processed; the others contain 'dead' code.
-                enum IfStatStatus
+                private enum IfStatStatus
                 {
                     Pristine, // No block in the ifdef..endif statement has been processed yet.
                     Active,   // The current block is being processed.
                     Done      // A previous block in the ifdef..endif statement has already been processed.
                 }
-                const int NONE = -1;
-                List<string> definedSymbols;
-                Stack<IfStatStatus> nestedBlockStatus; // for keeping track of conditional definitions nesting
-                bool isExpectingId;
-                IfStatStatus ifStatStatus;
-                bool codeIsActive { get { return (ifStatStatus == IfStatStatus.Active); } }
-                bool codeIsInactive { get { return (ifStatStatus != IfStatStatus.Active); } }
-                int prevTerminalId;
-                int prevSymLineNo;
-                char ppChar;
-                public bool IsExpectingId { get { return isExpectingId; } }
-                public bool CodeIsInactive { get { return codeIsInactive; } }
+
+                private const int NONE = -1;
+                private List<string> definedSymbols;
+                private Stack<IfStatStatus> nestedBlockStatus; // for keeping track of conditional definitions nesting
+                private IfStatStatus ifStatStatus;
+                private bool codeIsActive => (ifStatStatus == IfStatStatus.Active);
+                private bool codeIsInactive => (ifStatStatus != IfStatStatus.Active);
+                private int prevTerminalId;
+                private int prevSymLineNo;
+                private char ppChar;
+                public bool IsExpectingId { get; private set; }
+                public bool CodeIsInactive => codeIsInactive;
 
                 public ConditionalDefinitionHandler(char ppChar)
                 {
@@ -214,7 +158,7 @@ namespace Prolog
                 {
                     nestedBlockStatus = new Stack<IfStatStatus>();
                     ifStatStatus = IfStatStatus.Active; // default for outermost scope
-                    isExpectingId = false;
+                    IsExpectingId = false;
                     prevTerminalId = NONE;
                     nestedBlockStatus.Push(ifStatStatus);
                 }
@@ -223,9 +167,9 @@ namespace Prolog
                 public void HandleSymbol(Symbol symbol)
                 {
                     if (symbol.TerminalId == Undefined)
-                        IO.Error("Unknown conditional definition symbol: {0}", symbol);
+                        IO.ErrorConsult( "Unknown conditional definition symbol: {0}", symbol);
 
-                    if (isExpectingId)
+                    if (IsExpectingId)
                     {
                         if (symbol.Class == SymbolClass.Id && symbol.LineNo == prevSymLineNo)
                         {
@@ -269,14 +213,13 @@ namespace Prolog
                             } //else leave status untouched
                         }
                         else
-                            IO.Error(
-                              "Identifier missing after {0}if, {0}ifdef {0}ifndef, {0}elseif, {0}define or {0}undefine",
-                              ppChar);
+                            IO.ErrorConsult(
+                              $"Identifier missing after {ppChar}if, {ppChar}ifdef {ppChar}ifndef, {ppChar}elseif, {ppChar}define or {ppChar}undefine", symbol);
 
-                        isExpectingId = false;
+                        IsExpectingId = false;
                     }
                     else if (symbol.TerminalId == EndOfInput && nestedBlockStatus.Count > 1)
-                        IO.Error("Unexpected end of input -- {0}else or {0}endif expected", ppChar);
+                        IO.ErrorConsult($"Unexpected end of input -- {ppChar}else or {ppChar}endif expected", symbol);
                     else
                     {
                         switch (symbol.TerminalId)
@@ -285,13 +228,13 @@ namespace Prolog
                             case ppUndefine:
                             case ppIf:
                             case ppIfNot:
-                                isExpectingId = true;
+                                IsExpectingId = true;
                                 break;
                             case ppElseIf:
                                 if (prevTerminalId == ppIf || prevTerminalId == ppEndIf || prevTerminalId == ppElseIf)
-                                    isExpectingId = true;
+                                    IsExpectingId = true;
                                 else
-                                    IO.Error("Unexpected {0}elseif-directive", ppChar);
+                                    IO.ErrorConsult($"Unexpected {ppChar}elseif-directive", symbol);
                                 break;
                             case ppElse:
                                 if (prevTerminalId == ppIf || prevTerminalId == ppEndIf || prevTerminalId == ppElseIf)
@@ -308,7 +251,7 @@ namespace Prolog
                                     }
                                 }
                                 else
-                                    IO.Error("Unexpected {0}else-directive", ppChar);
+                                    IO.ErrorConsult($"Unexpected {ppChar}else-directive", symbol);
                                 break;
                             case ppEndIf:
                                 ExitScope(symbol);
@@ -321,51 +264,44 @@ namespace Prolog
                 }
 
 
-                void Define(string sym)
+                private void Define(string sym)
                 {
                     if (!definedSymbols.Contains(sym))
                         definedSymbols.Add(sym);
                 }
 
 
-                void Undefine(string sym)
+                private void Undefine(string sym)
                 {
                     if (definedSymbols.Contains(sym))
                         definedSymbols.Remove(sym);
                 }
 
 
-                bool IsDefined(string sym)
+                private bool IsDefined(string sym)
                 {
                     return definedSymbols.Contains(sym);
                 }
 
 
-                bool AtOuterScope
-                {
-                    get { return (nestedBlockStatus.Count == 1); }
-                }
-
-
-                void EnterScope(IfStatStatus mode, Symbol symbol)
+                private void EnterScope(IfStatStatus mode, Symbol symbol)
                 {
                     nestedBlockStatus.Push(ifStatStatus = mode);
                 }
 
 
-                void ExitScope(Symbol symbol)
+                private void ExitScope(Symbol symbol)
                 {
                     if (nestedBlockStatus.Count == 1)
-                        IO.Error("Unexpected {0}-symbol", symbol);
+                        IO.ErrorConsult( "Unexpected {0}-symbol", symbol);
 
                     nestedBlockStatus.Pop();
                     ifStatStatus = nestedBlockStatus.Peek();
                 }
             }
-            #endregion ConditionalDefinitionHandler
-
-            #region Fields and properties
-            int traceIndentLevel;
+            
+            
+            private int traceIndentLevel;
             // The const values below must be in strict accordance with the
             // order in procedure EnterPredefinedSymbols in uCommons.pas
             protected const int Undefined = 0;
@@ -391,7 +327,7 @@ namespace Prolog
             protected const int ANYSYM = 20;
             protected const int EndOfInput = 21;
             // end of Terminal symbol const values
-            protected virtual char ppChar { get { return '#'; } }
+            protected virtual char ppChar => '#';
 
             protected const char SQUOTE = '\'';
             protected const char DQUOTE = '"';
@@ -435,13 +371,12 @@ namespace Prolog
             protected int streamInPreLen; // length of streamInPrefix
             protected positionMarker errMark;
 
-            public int ClipBegin { get { return clipBegin; } }
-            public int ClipEnd { get { return clipEnd; } }
+            public int ClipBegin => clipBegin;
+            public int ClipEnd => clipEnd;
             public bool FormatMode { get { return formatMode; } set { formatMode = value; } }
-            public int LineCount { get { return lineCount; } }
+            public int LineCount => lineCount;
             public bool ShowErrTrace { get { return showErrTrace; } set { showErrTrace = value; } }
             public int MaxRuntime { get { return maxRuntime; } set { maxRuntime = value; } }
-            public int ActRuntime { get { return actRuntime; } }
 
             public string Prefix
             {
@@ -466,7 +401,7 @@ namespace Prolog
                     errorMessage = symbol.Context + value + Environment.NewLine;
                     syntaxErrorStat = true;
 
-                    throw new SyntaxException(errorMessage);
+                    throw new ConsultException(errorMessage, symbol: symbol);
                 }
                 get
                 {
@@ -481,7 +416,7 @@ namespace Prolog
                 {
                     if (parseAnyText) return;
 
-                    throw new SyntaxException("{0}{1}{2}", symbol.Context, value, Environment.NewLine);
+                    throw new ConsultException($"{symbol.Context}{value}{Environment.NewLine}", symbol: symbol);
                 }
                 get
                 {
@@ -518,7 +453,7 @@ namespace Prolog
 
                 if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
 
-                throw new Exception(String.Format("{0}{1}{2}", symbol.Context, msg, Environment.NewLine));
+                throw new ConsultException($"{symbol.Context}{msg}{Environment.NewLine}");
             }
 
 
@@ -534,7 +469,7 @@ namespace Prolog
 
                 if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
 
-                throw new Exception(String.Format("{0}{1}{2}", symbol.Context, msg, Environment.NewLine));
+                throw new ConsultException($"{symbol.Context}{msg}{Environment.NewLine}", symbol: symbol);
             }
 
 
@@ -550,7 +485,7 @@ namespace Prolog
 
                 if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
 
-                throw new FatalException(String.Format("{0}{1}{2}", symbol.Context, msg, Environment.NewLine));
+                throw new InvalidOperationException($"{symbol.Context}{msg}{Environment.NewLine}");
             }
 
 
@@ -614,62 +549,23 @@ namespace Prolog
                 return GetStreamInString(clipBegin, clipEnd);
             }
 
-            public bool AtEndOfInput
-            {
-                get { return (inStream == null); }
-            }
-            #endregion // Public fields and properties
+            public bool AtEndOfInput => (inStream == null);
 
-            #region Structs and classes
-            #region CharSet
-            class CharSet
-            {
-                bool[] b = new bool[255];
-
-                public CharSet(params byte[] a)
-                {
-                    int i;
-
-                    for (i = 0; i < 255; b[i++] = false) ;
-
-                    for (i = 0; i < a.Length; b[a[i++]] = true) ;
-                }
-
-
-                public bool Contains(char c)
-                {
-                    return b[(byte)c];
-                }
-
-
-                public void Add(string s)
-                {
-                    foreach (char c in s.ToCharArray()) b[(byte)c] = true;
-                }
-
-
-                public void Remove(string s)
-                {
-                    foreach (char c in s.ToCharArray()) b[(byte)c] = false;
-                }
-            }
-            #endregion
-
-            #region StreamPointer
-            protected struct StreamPointer
+            
+            
+                        protected struct StreamPointer
             {
                 public int Position;
                 public int LineNo;
                 public int LineStart;
                 public bool EndLine;
-                public bool FOnLine;  // if the coming symbol is the first one on the current line
+                public bool FOnLine;  /// if the coming symbol is the first one on the current line
             }
-            #endregion
+            
 
-            #region positionMarker
-            protected struct positionMarker
+                        protected struct positionMarker
             {
-                public T Payload;
+                public OpDescrTriplet Payload;
                 public StreamPointer Pointer;
                 public int Terminal;
                 public SymbolClass Class;
@@ -684,17 +580,14 @@ namespace Prolog
                 public bool Processed;
                 public bool IsSet; // initialized to false
             }
-            #endregion
-            #endregion Structs and classes
+            
+            
+                        public enum SymbolClass { None, Id, Text, Number, Meta, Group, Comment }
 
-            #region Symbol
-            public enum SymbolClass { None, Id, Text, Number, Meta, Group, Comment }
-
-            protected class Symbol
+            public class Symbol
             {
-                BaseParser<T> parser;
-                bool processed;
-                public T Payload;
+                private BaseParser parser;
+                public OpDescrTriplet Payload;
                 public SymbolClass Class;
                 public int TerminalId;
                 public int Start;     // position in input stream
@@ -707,11 +600,11 @@ namespace Prolog
                 public int RelSeqNo;  // sequence number of symbol in current line // -- relative value, invariant under MARK/REDO
                 public bool IsFollowedByLayoutChar; // true iff the symbol is followed by a layout character
 
-                public Symbol(BaseParser<T> p)
+                public Symbol(BaseParser p)
                 {
                     parser = p;
-                    processed = false;
-                    Payload = default(T);
+                    IsProcessed = false;
+                    Payload = default(OpDescrTriplet);
                     Class = SymbolClass.None;
                     TerminalId = PrologParser.Undefined;
                     Start = UNDEF;
@@ -724,7 +617,29 @@ namespace Prolog
                     RelSeqNo = UNDEF;
                 }
 
-                public bool IsNumber { get { return true; } }
+                public Symbol Clone()
+                {
+                    Symbol symbol = new Symbol(null);
+                    symbol.TerminalId = this.TerminalId;
+                    symbol.Class = this.Class;
+                    symbol.Payload = this.Payload;
+                    symbol.Start = this.Start;
+                    symbol.Final = this.Final;
+                    symbol.FinalPlus = this.FinalPlus;
+                    symbol.PrevFinal = this.PrevFinal;
+                    symbol.LineNo = this.LineNo;
+                    symbol.AbsSeqNo = this.AbsSeqNo;
+                    symbol.RelSeqNo = this.RelSeqNo;
+                    symbol.LineStart = this.LineStart;
+                    symbol.SetProcessed(this.IsProcessed);
+
+                    return symbol;
+                }
+
+                public int StartAdjusted => Start - 10;
+                public int FinalAdjusted => Final - 10;
+
+                public bool IsNumber => true;
 
                 public override string ToString()
                 {
@@ -736,16 +651,16 @@ namespace Prolog
 
                     if (this.TerminalId == EndOfInput) return "<EndOfInput>";
 
-                    return parser.StreamInClip(Start, Final);
+                    return parser?.StreamInClip(Start, Final);
                 }
 
 
-                public int ColNo { get { return (Start >= LineStart) ? Start - LineStart + 1 : UNDEF; } }
+                public int ColNo => (Start >= LineStart) ? Start - LineStart + 1 : UNDEF;
 
 
                 public string ToName()
                 {
-                    return parser.terminalTable.Name(TerminalId);
+                    return parser?.terminalTable.Name(TerminalId);
                 }
 
 
@@ -759,7 +674,7 @@ namespace Prolog
 
                     if ((c = s[0]) == SQUOTE && s[len - 1] == SQUOTE ||
                         (c = s[0]) == DQUOTE && s[len - 1] == DQUOTE)
-                        return s.Substring(1, len - 2).Replace(c.ToString() + c.ToString(), c.ToString());
+                        return s.Substring(1, len - 2).Replace(c + c.ToString(), c.ToString());
                     else
                         return s;
                 }
@@ -773,7 +688,7 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ParserException("*** Unable to convert '{0}' to an integer value", this);
+                        throw new ConsultException($"*** Unable to convert '{this}' to an integer value", symbol: this);
                     }
                 }
 
@@ -786,7 +701,7 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ParserException("*** Unable to convert '{0}' to a short value", this);
+                        throw new ConsultException($"*** Unable to convert '{this}' to a short value", symbol: this);
                     }
                 }
 
@@ -799,7 +714,7 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ParserException("*** Unable to convert '{0}' to a real (double) value", this);
+                        throw new ConsultException($"*** Unable to convert '{this}' to a real (double) value", symbol: this);
                     }
                 }
 
@@ -812,29 +727,13 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ParserException("*** Unable to convert '{0}' to a decimal value", this);
+                        throw new ConsultException($"*** Unable to convert '{this}' to a decimal value", symbol: this);
                     }
                 }
-
-
-                public decimal ToImaginary()
-                {
-                    string imag = ToString();
-
-                    try
-                    {
-                        return Decimal.Parse(imag.Substring(0, imag.Length - 1), NumberStyles.Float, CIC);
-                    }
-                    catch
-                    {
-                        throw new ParserException("*** Unable to convert '{0}' to an imaginary value", imag);
-                    }
-                }
-
 
                 public string Dump()
                 {
-                    return String.Format("Start={0} Final={1} LineStart={2}", Start, Final, LineStart);
+                    return $"Start={Start} Final={Final} LineStart={LineStart}";
                 }
 
 
@@ -842,13 +741,17 @@ namespace Prolog
                 {
                     get
                     {
-                        StringBuilder sb = new StringBuilder(String.Format("{0}*** {1}: line {2}", Environment.NewLine,
-                                                                             parser.inStream.Name, LineNo));
+                        if (parser?.inStream == null)
+                        {
+                            return string.Empty;
+                        }
 
-                        if (this.Start >= this.Final) return sb.ToString() + Environment.NewLine;
-
-                        if (this.Start >= this.LineStart)
-                            sb.Append(" position " + ColNo.ToString());
+                        StringBuilder sb = new StringBuilder(
+                            $"{Environment.NewLine}*** {parser.inStream.Name}: line {LineNo}");
+                        
+                        sb.Append(" position " + (this.Start >= this.LineStart ? ColNo.ToString() : parser.inStream.PositionOnLine.ToString()));
+                        
+                        if (this.Start >= this.Final) return sb + Environment.NewLine + " " + Environment.NewLine;
 
                         if (parser.inStream.Name != "")
                             sb.Append(Environment.NewLine + InputLine + Environment.NewLine);
@@ -889,15 +792,12 @@ namespace Prolog
                 }
 
 
-                public bool IsProcessed
-                {
-                    get { return processed; }
-                }
+                public bool IsProcessed { get; private set; }
 
 
                 public void SetProcessed(bool status)
                 {
-                    processed = status;
+                    IsProcessed = status;
                 }
 
 
@@ -912,7 +812,7 @@ namespace Prolog
                     if (TerminalId == Undefined && this.Start > this.FinalPlus)
                         return "<Undefined>";
                     else
-                        return parser.StreamInClip(this.Start, this.FinalPlus);
+                        return parser?.StreamInClip(this.Start, this.FinalPlus);
                 }
 
 
@@ -921,7 +821,7 @@ namespace Prolog
                     if (TerminalId == Undefined && this.Start > this.FinalPlus)
                         return "<Undefined>";
                     else
-                        return parser.StreamInClip(this.PrevFinal, this.Start);
+                        return parser?.StreamInClip(this.PrevFinal, this.Start);
                 }
 
 
@@ -929,6 +829,11 @@ namespace Prolog
                 {
                     get
                     {
+                        if (parser?.inStream == null)
+                        {
+                            return string.Empty;
+                        }
+
                         char c;
                         int i = this.LineStart;
                         // find end of line
@@ -942,74 +847,67 @@ namespace Prolog
                     }
                 }
             }
-            #endregion
+            
 
-            #region TerminalDescr // Terminal descriptor
-            public class TerminalDescr : IComparable
+                        public class TerminalDescr : IComparable
             {
-                T payload;
-                int iVal;
-                string image;
-                SymbolClass @class;
+                public OpDescrTriplet Payload { get; set; }
 
-                public T Payload { get { return payload; } set { payload = value; } }
-                public int IVal { get { return iVal; } set { iVal = value; } }
-                public string Image { get { return image; } set { image = value; } }
-                public SymbolClass Class { get { return @class; } set { @class = value; } }
+                public int IVal { get; set; }
 
-                public TerminalDescr(int iVal, T payload, string image)
+                public string Image { get; set; }
+
+                public SymbolClass Class { get; set; }
+
+                public TerminalDescr(int iVal, OpDescrTriplet payload, string image)
                 {
-                    this.iVal = iVal;
-                    this.payload = payload;
-                    this.image = image;
-                    this.@class = 0;
+                    this.IVal = iVal;
+                    this.Payload = payload;
+                    this.Image = image;
+                    this.Class = 0;
                 }
 
-                public TerminalDescr(int iVal, T payload, string image, SymbolClass @class)
+                public TerminalDescr(int iVal, OpDescrTriplet payload, string image, SymbolClass @class)
                 {
-                    this.iVal = iVal;
-                    this.payload = payload;
-                    this.image = image;
-                    this.@class = @class;
+                    this.IVal = iVal;
+                    this.Payload = payload;
+                    this.Image = image;
+                    this.Class = @class;
                 }
 
                 public int CompareTo(object o)
                 {
-                    return iVal.CompareTo((int)o);
+                    return IVal.CompareTo((int)o);
                 }
 
                 public override string ToString()
                 {
-                    if (payload == null)
-                        return String.Format("{0} ({1})", iVal, image);
+                    if (Payload == null)
+                        return $"{IVal} ({Image})";
                     else
-                        return String.Format("{0}:{1} ({2}) [{3}]", iVal, payload.ToString(), image, @class);
+                        return $"{IVal}:{Payload} ({Image}) [{Class}]";
                 }
             }
-            #endregion Payload
-
-            #region CacheTrieNode
-            public class TrieNode : IComparable
+            
+                        public class TrieNode : IComparable
             {
-                char keyChar;
-                TerminalDescr termRec;
-                ArrayList subTrie;
+                public char KeyChar { get; set; }
 
-                public char KeyChar { get { return keyChar; } set { keyChar = value; } }
-                public TerminalDescr TermRec { get { return termRec; } set { termRec = value; } }
-                public ArrayList SubTrie { get { return subTrie; } set { subTrie = value; } }
+                public TerminalDescr TermRec { get; set; }
 
-                public TrieNode(char k, ArrayList s, TerminalDescr t)
+                public List<object> SubTrie { get; set; }
+
+                public TrieNode(char k, List<object> s, TerminalDescr t)
                 {
-                    keyChar = k;
-                    subTrie = s;
-                    termRec = t;
+                    KeyChar = k;
+                    SubTrie = s;
+                    TermRec = t;
                 }
 
 
                 public int CompareTo(object o)
                 {
-                    return keyChar.CompareTo((char)o);
+                    return KeyChar.CompareTo((char)o);
                 }
 
 
@@ -1024,79 +922,62 @@ namespace Prolog
                 }
 
 
-                void ToString(TrieNode node, StringBuilder sb, int indent)
+                private void ToString(TrieNode node, StringBuilder sb, int indent)
                 {
                     if (indent == 0)
                         sb.Append("<root>" + Environment.NewLine);
                     else
                     {
-                        sb.AppendFormat("{0}{1} -- ", Spaces(indent), node.keyChar);
+                        sb.AppendFormat("{0}{1} -- ", Spaces(indent), node.KeyChar);
 
-                        if (node.termRec == null)
+                        if (node.TermRec == null)
                             sb.Append(Environment.NewLine);
                         else
                             sb.Append(String.Format(node.TermRec.ToString()));
                     }
-                    if (node.subTrie != null)
-                        foreach (TrieNode subTrie in node.subTrie) ToString(subTrie, sb, indent + 1);
+                    if (node.SubTrie != null)
+                        foreach (TrieNode subTrie in node.SubTrie) ToString(subTrie, sb, indent + 1);
                 }
 
 
-                public static void ToArrayList(TrieNode node, bool atRoot, ref ArrayList a)
+                public static void ToArrayList(TrieNode node, bool atRoot, ref List<object> a)
                 {
                     if (!atRoot) // skip root
-                        if (node.termRec != null) a.Add(node.termRec.Payload);
+                        if (node.TermRec != null) a.Add(node.TermRec.Payload);
 
-                    if (node.subTrie != null)
-                        foreach (TrieNode subTrie in node.subTrie) ToArrayList(subTrie, false, ref a);
+                    if (node.SubTrie != null)
+                        foreach (TrieNode subTrie in node.SubTrie) ToArrayList(subTrie, false, ref a);
                 }
 
 
-                void ToString(TrieNode node, string prefix, StringBuilder sb, int indent)
+                private void ToString(TrieNode node, string prefix, StringBuilder sb, int indent)
                 {
                     if (indent != 0) // skip root
-                        if (node.termRec != null) sb.AppendFormat("{0} {1}\r\n", prefix, node.termRec.ToString());
+                        if (node.TermRec != null) sb.AppendFormat("{0} {1}\r\n", prefix, node.TermRec);
 
-                    if (node.subTrie != null)
-                        foreach (TrieNode subTrie in node.subTrie) ToString(subTrie, prefix, sb, indent + 1);
+                    if (node.SubTrie != null)
+                        foreach (TrieNode subTrie in node.SubTrie) ToString(subTrie, prefix, sb, indent + 1);
                 }
             }
-            #endregion CacheTrieNode
-
-            #region BaseTrie
-            public enum DupMode { dupIgnore, dupAccept, dupError };
+            
+                        public enum DupMode { dupIgnore, dupAccept, dupError };
 
             public class BaseTrie
             {
                 public static readonly int UNDEF = -1;
-                TrieNode root = new TrieNode('\x0', null, null);
-                int terminalCount;
-                ArrayList indices = new ArrayList();
-                Hashtable names = new Hashtable();
-                ArrayList curr;
-                DupMode dupMode = DupMode.dupError;
-                bool caseSensitive = false; // every term to lowercase
-                ArrayList currSub;
-                public bool AtLeaf { get { return (currSub == null); } }
-
-                public BaseTrie(int terminalCount, DupMode dm)
-                {
-                    this.terminalCount = terminalCount;
-                    dupMode = dm;
-                }
-
+                private TrieNode root = new TrieNode('\x0', null, null);
+                private int terminalCount;
+                private List<object> indices = new List<object>();
+                private Dictionary<int, string> names = new Dictionary<int, string>();
+                private List<object> curr;
+                private DupMode dupMode = DupMode.dupError;
+                private bool caseSensitive = false; // every term to lowercase
+                private List<object> currSub;
+                public bool AtLeaf => (currSub == null);
 
                 public BaseTrie(int terminalCount, bool cs)
                 {
                     this.terminalCount = terminalCount;
-                    caseSensitive = cs;
-                }
-
-
-                public BaseTrie(int terminalCount, DupMode dm, bool cs)
-                {
-                    this.terminalCount = terminalCount;
-                    dupMode = dm;
                     caseSensitive = cs;
                 }
 
@@ -1118,24 +999,24 @@ namespace Prolog
                 {
                     names[iVal] = name;
 
-                    foreach (string key in images) Add(key, iVal, default(T), @class);
+                    foreach (string key in images) Add(key, iVal, default(OpDescrTriplet), @class);
                 }
 
 
-                public void Add(string key, int iVal, T payload)
+                public void Add(string key, int iVal, OpDescrTriplet payload)
                 {
                     Add(key, iVal, payload, 0);
                 }
 
 
-                public void Add(string key, int iVal, T payload, SymbolClass @class)
+                public void Add(string key, int iVal, OpDescrTriplet payload, SymbolClass @class)
                 {
                     if (key == null || key == "")
                         throw new Exception("*** Trie.Add: Attempt to insert a null- or empty key");
 
                     if (!caseSensitive) key = key.ToLower();
 
-                    if (root.SubTrie == null) root.SubTrie = new ArrayList();
+                    if (root.SubTrie == null) root.SubTrie = new List<object>();
 
                     curr = root.SubTrie;
                     int imax = key.Length - 1;
@@ -1164,12 +1045,12 @@ namespace Prolog
                                     trec.Class = @class;
                                 }
                                 else if (dupMode == DupMode.dupError)
-                                    throw new Exception(String.Format("*** Attempt to insert duplicate key '{0}'", key));
+                                    throw new Exception($"*** Attempt to insert duplicate key '{key}'");
 
                                 return;
                             }
 
-                            if (node.SubTrie == null) node.SubTrie = new ArrayList();
+                            if (node.SubTrie == null) node.SubTrie = new List<object>();
                             curr = node.SubTrie;
                             i++;
                         }
@@ -1185,7 +1066,7 @@ namespace Prolog
 
                                     return;
                                 }
-                                node.SubTrie = new ArrayList();
+                                node.SubTrie = new List<object>();
                                 node.SubTrie.Add(next = new TrieNode(key[++i], null, null));
                                 node = next;
                             }
@@ -1194,7 +1075,7 @@ namespace Prolog
                 }
 
 
-                void AddToIndices(TerminalDescr td)
+                private void AddToIndices(TerminalDescr td)
                 {
                     int k = indices.BinarySearch(td.IVal);
                     indices.Insert((k < 0) ? ~k : k, td);
@@ -1287,13 +1168,13 @@ namespace Prolog
                 }
 
 
-                public ArrayList TerminalsOf(int i)
+                public List<object> TerminalsOf(int i)
                 {
                     int k = indices.BinarySearch(i);
 
                     if (k < 0) return null;
 
-                    ArrayList result = new ArrayList();
+                    List<object> result = new List<object>();
                     int k0 = k;
 
                     while (true)
@@ -1329,7 +1210,7 @@ namespace Prolog
 
                     foreach (int i in ii)
                     {
-                        ArrayList a = TerminalsOf(i);
+                        List<object> a = TerminalsOf(i);
                         bool isImage = false;
 
                         if (a != null)
@@ -1430,31 +1311,14 @@ namespace Prolog
                 {
                     names.Remove(i);
 
-                    ArrayList a = TerminalsOf(i);
+                    List<object> a = TerminalsOf(i);
 
                     if (a != null) foreach (TerminalDescr td in a) Remove(td.Image);
                 }
 
-
-                public void TrimToSize()  // minimize memory overhead if no new elements will be added
+                public List<object> ToArrayList()
                 {
-                    TrimToSizeEx(root);
-                }
-
-
-                public void TrimToSizeEx(TrieNode n)
-                {
-                    if (n.SubTrie != null)
-                    {
-                        n.SubTrie.TrimToSize();
-                        foreach (TrieNode t in n.SubTrie) TrimToSizeEx(t);
-                    }
-                }
-
-
-                public ArrayList ToArrayList()
-                {
-                    ArrayList a = new ArrayList();
+                    List<object> a = new List<object>();
 
                     TrieNode.ToArrayList(root, true, ref a);
 
@@ -1467,10 +1331,8 @@ namespace Prolog
                     return root.ToString();
                 }
             }
-            #endregion BaseTrie
-
-            #region ScanNumber
-            protected virtual void ScanNumber()
+            
+                        protected virtual void ScanNumber()
             {
                 bool isReal;
                 StreamPointer savPosition;
@@ -1564,12 +1426,11 @@ namespace Prolog
 
                 return result;
             }
-            #endregion
+            
 
-            #region ScanString
-            protected virtual void ScanString()
+                        protected virtual void ScanString()
             {
-                bool multiLine = ConfigSettings.NewlineInStringAllowed;
+                bool multiLine = true;
 
                 do
                 {
@@ -1577,7 +1438,7 @@ namespace Prolog
 
                     if (!streamInPtr.EndLine)
                     {
-                        if (ConfigSettings.ResolveEscapes)
+                        if (true)
                         {
                             if (ch == DQUOTE)
                             {
@@ -1601,12 +1462,11 @@ namespace Prolog
                 symbol.Final = streamInPtr.Position;
 
                 if (streamInPtr.EndLine && symbol.TerminalId != StringLiteral)
-                    SyntaxError = "Unterminated string: " + symbol.ToString();
+                    SyntaxError = "Unterminated string: " + symbol;
             }
-            #endregion
+            
 
-            #region ScanIdOrTerminal
-            protected virtual void ScanIdOrTerminalOrCommentStart()
+                        protected virtual void ScanIdOrTerminalOrCommentStart()
             {
                 TerminalDescr tRec;
                 StreamPointer iPtr = streamInPtr;
@@ -1639,17 +1499,17 @@ namespace Prolog
                         iPtr = streamInPtr;
                     }
                 } // fCnt++ by last (i.e. failing) call
-                /*
-                      At this point: (in the Prolog case, read 'Identifier and Atom made up
-                      from specials' for 'Identifier'):
-                      - tLen has length of Trie terminal (if any, 0 otherwise);
-                      - iLen has length of Identifier (if any, 0 otherwise);
-                      - fCnt is the number of characters inspected (for Id AND terminal)
-                      - The character pointer is on the last character inspected (for both)
-                      Iff iLen = fCnt then the entire sequence read sofar is an Identifier.
-                      Now try extending the Identifier, only meaningful if iLen = fCnt.
-                      Do not do this for an Atom made up from specials if a Terminal was recognized !!
-                */
+                  /*
+                        At this point: (in the Prolog case, read 'Identifier and Atom made up
+                        from specials' for 'Identifier'):
+                        - tLen has length of Trie terminal (if any, 0 otherwise);
+                        - iLen has length of Identifier (if any, 0 otherwise);
+                        - fCnt is the number of characters inspected (for Id AND terminal)
+                        - The character pointer is on the last character inspected (for both)
+                        Iff iLen = fCnt then the entire sequence read sofar is an Identifier.
+                        Now try extending the Identifier, only meaningful if iLen = fCnt.
+                        Do not do this for an Atom made up from specials if a Terminal was recognized !!
+                  */
                 if (iLen == fCnt)
                 {
                     while (true)
@@ -1681,10 +1541,9 @@ namespace Prolog
 
                 NextCh();
             }
-            #endregion
+            
 
-            #region NextSymbol, GetSymbol
-            protected virtual void NextSymbol()
+                        protected virtual void NextSymbol()
             {
                 NextSymbol(null);
             }
@@ -1700,13 +1559,12 @@ namespace Prolog
 
                 prevTerminal = symbol.TerminalId;
                 symbol.Class = SymbolClass.None;
-                symbol.Payload = default(T);
+                symbol.Payload = default(OpDescrTriplet);
                 bool Break = false;
 
                 do
                 {
-                    #region basic and conditional definition symbol handling
-                    do
+                                        do
                     {
                         while (Char.IsWhiteSpace(ch)) NextCh();
 
@@ -1742,7 +1600,7 @@ namespace Prolog
                             cdh.HandleSymbol(symbol); // if expecting: symbol must be an identifier
 
                     } while (cdh.CodeIsInactive || symbol.Class == SymbolClass.Meta);
-                    #endregion
+                    
 
                     if (symbol.TerminalId == EndOfLine)
                     {
@@ -1767,7 +1625,7 @@ namespace Prolog
                                     Break = true;
 
                                 if (!DoComment("*/", true, streamInPtr.FOnLine))
-                                    ErrorMessage = "Unterminated comment starting at line " + symbol.LineNo.ToString();
+                                    ErrorMessage = "Unterminated comment starting at line " + symbol.LineNo;
                                 break;
                             case CommentSingle:
                                 if (stringMode) Break = true; else Break = false;
@@ -1793,10 +1651,6 @@ namespace Prolog
 
                 symbol.AbsSeqNo++;
                 symbol.RelSeqNo++;
-#if showToken
-                Console.WriteLine("NextSymbol[{0}] line {1}: '{2}' [{3}]",
-                               symbol.AbsSeqNo, symbol.LineNo, symbol.ToString(), symbol.ToName());
-#endif
             }
 
             protected virtual bool GetSymbol(TerminalSet followers, bool done, bool genXCPN)
@@ -1902,7 +1756,7 @@ namespace Prolog
 
             protected void InputStreamRedo(positionMarker m, int n)
             {
-                if (!m.IsSet) throw new Exception("REDO Error: positionMarker " + n.ToString() + " is not set");
+                if (!m.IsSet) throw new Exception("REDO Error: positionMarker " + n + " is not set");
 
                 InitCh(m.Pointer);
                 symbol.TerminalId = m.Terminal;
@@ -1918,10 +1772,8 @@ namespace Prolog
                 symbol.LineStart = m.LineStart;
                 symbol.SetProcessed(m.Processed);
             }
-            #endregion NextSymbol, GetSymbol
-
-            #region Parse
-            public virtual void RootCall()
+            
+                        public virtual void RootCall()
             {
             }
 
@@ -1966,14 +1818,11 @@ namespace Prolog
 
             protected void Parse()
             {
-                var stopwatch = Stopwatch.StartNew();
                 ParseEx();
-                stopwatch.Stop();
-                actRuntime = (int)stopwatch.ElapsedMilliseconds;
             }
 
 
-            void ParseEx()
+            private void ParseEx()
             {
                 InitParse();
 
@@ -1985,26 +1834,18 @@ namespace Prolog
                     if (symbol.IsProcessed) NextSymbol(null);
 
                     if (symbol.TerminalId != EndOfInput)
-                        throw new Exception(String.Format("Unexpected symbol {0} after end of input", symbol.ToString()));
+                        throw new ConsultException($"Unexpected symbol {symbol} after end of input", symbol: symbol);
                 }
-                catch (UnhandledParserException)
+                catch (ConsultException e)
                 {
-                    throw;
-                }
-                catch (ParserException e)
-                {
-                    throw new Exception(e.Message);
-                }
-                catch (SyntaxException e)
-                {
-                    throw new Exception(e.Message);
+                    throw e;
                 }
                 catch (Exception e) // other errors
                 {
-                    errorMessage = String.Format("*** Line {0}: {1}{2}", LineNo, e.Message,
-                                                  showErrTrace ? Environment.NewLine + e.StackTrace : null);
+                    errorMessage =
+                        $"*** Line {LineNo}: {e.Message}{(showErrTrace ? Environment.NewLine + e.StackTrace : null)}";
 
-                    throw new Exception(errorMessage);
+                    throw new ConsultException(errorMessage, symbol: symbol);
                 }
                 finally
                 {
@@ -2021,10 +1862,8 @@ namespace Prolog
                 Prefix = "";
                 symbol.LineNo = UNDEF;
             }
-            #endregion Parse
-
-            #region Miscellaneous methods
-            public void ClipStart()
+            
+                        public void ClipStart()
             {
                 clipBegin = symbol.Start;
             }
@@ -2060,7 +1899,7 @@ namespace Prolog
             }
 
 
-            public void ClipFinalTrim()  // exclude any text (i.e. comment) after last symbol
+            public void ClipFinalTrim()  /// exclude any text (i.e. comment) after last symbol
             {
                 clipEnd = symbol.PrevFinal;
             }
@@ -2084,7 +1923,7 @@ namespace Prolog
             }
 
 
-            string GetStreamInString(int n, int m)
+            private string GetStreamInString(int n, int m)
             {
                 string p;
 
@@ -2114,16 +1953,10 @@ namespace Prolog
             }
 
 
-            public int LineNo
-            {
-                get { return symbol.LineNo; }
-            }
+            public int LineNo => symbol.LineNo;
 
 
-            public int ColNo
-            {
-                get { return symbol.ColNo; }
-            }
+            public int ColNo => symbol.ColNo;
 
 
             protected void NextCh()
@@ -2233,14 +2066,11 @@ namespace Prolog
 
                 return result;
             }
-            #endregion Miscellaneous methods
-        }
-        #endregion BaseParser
-
-        #region Buffer
-        public class Buffer
+                    }
+        
+                public class Buffer
         {
-            Stack indentStack = new Stack();
+            private Stack<object> indentStack = new Stack<object>();
             protected char indentChar = '\u0020';
             protected int indentDelta = 2;
             protected string name;
@@ -2252,22 +2082,13 @@ namespace Prolog
 
             public int RightMargin { get { return rightMargin; } set { rightMargin = value; } }
 
-            public virtual char this[int i]
-            {
-                get { return '\0'; }
-            }
+            public virtual char this[int i] => '\0';
 
 
-            public string Name
-            {
-                get { return name; }
-            }
+            public string Name => name;
 
 
-            public virtual string[] Lines
-            {
-                get { return null; }
-            }
+            public virtual string[] Lines => null;
 
 
             public virtual string Substring(int n, int len)
@@ -2276,10 +2097,7 @@ namespace Prolog
             }
 
 
-            public virtual int Length
-            {
-                get { return 0; } // gets overridden
-            }
+            public virtual int Length => 0;
 
 
             public virtual void UpdateCache(int p)
@@ -2360,28 +2178,20 @@ namespace Prolog
             }
 
 
-            public virtual bool FirstSymbolOnLine
-            {
-                get { return firstSymbolOnLine; }
-            }
+            public virtual bool FirstSymbolOnLine => firstSymbolOnLine;
 
 
-            public virtual int PositionOnLine
-            {
-                get { return positionOnLine; }
-            }
+            public virtual int PositionOnLine => positionOnLine;
         }
 
-        #region StringBuffer
-        public class StringBuffer : Buffer
+                public class StringBuffer : Buffer
         {
         }
 
 
-        #region StringReadBuffer
-        public class StringReadBuffer : StringBuffer
+                public class StringReadBuffer : StringBuffer
         {
-            string buffer;
+            private string buffer;
 
             public StringReadBuffer(string s)
             {
@@ -2390,16 +2200,10 @@ namespace Prolog
             }
 
 
-            public override char this[int i]
-            {
-                get { return buffer[i]; }
-            }
+            public override char this[int i] => buffer[i];
 
 
-            public override int Length
-            {
-                get { return buffer.Length; }
-            }
+            public override int Length => buffer?.Length ?? 0;
 
 
             public override string Substring(int n, int len)
@@ -2414,163 +2218,21 @@ namespace Prolog
                 }
             }
         }
-        #endregion StringReadBuffer
+        
 
-
-        #region StringWriteBuffer
-        public class StringWriteBuffer : StringBuffer
-        {
-            StringBuilder sb;
-
-            public StringWriteBuffer(string s)
-            {
-                sb = new StringBuilder(s);
-            }
-
-
-            public StringWriteBuffer()
-            {
-                sb = new StringBuilder();
-            }
-
-
-            public override string[] Lines
-            {
-                get
-                {
-                    return sb.ToString().Split('\r');
-                }
-            }
-
-
-            public override void Clear()
-            {
-                sb.Length = 0;
-                firstSymbolOnLine = true;
-                positionOnLine = 0;
-            }
-
-
-            public override void Write(string s, params object[] pa)
-            {
-                if (quietMode || s == "") return;
-
-                if (s == null) s = "";
-
-                if (firstSymbolOnLine)
-                {
-                    sb.Append(new String(indentChar, indentLength));
-                    firstSymbolOnLine = false;
-                    positionOnLine = indentLength;
-                }
-
-                string xs = (pa.Length == 0) ? s : string.Format(s, pa); // expanded s
-
-                if (rightMargin > 0 && positionOnLine + xs.Length > rightMargin)
-                {
-                    sb.AppendFormat("{0}{1}{2}", Environment.NewLine, new String(indentChar, indentLength), xs);
-                    positionOnLine = indentLength + xs.Length;
-                }
-                else
-                {
-                    sb.Append(xs);
-                    positionOnLine += xs.Length;
-                }
-            }
-
-
-            public override void WriteLine(string s, params object[] pa)
-            {
-                if (quietMode) return;
-
-                if (s == null) s = "";
-
-                if (firstSymbolOnLine) sb.Append(new String(indentChar, indentLength));
-
-                string xs = (pa.Length == 0) ? s : string.Format(s, pa); // expanded s
-
-                if (rightMargin > 0 && positionOnLine + xs.Length > rightMargin)
-                    sb.AppendFormat("{0}{1}{0}{2}{0}", Environment.NewLine, new String(indentChar, indentLength), xs);
-                else
-                    sb.AppendFormat("{0}{1}", xs, Environment.NewLine);
-
-                firstSymbolOnLine = true;
-                positionOnLine = 0;
-            }
-
-
-            public override void WriteChar(char c)
-            {
-                if (quietMode) return;
-
-                if (rightMargin > 0 && positionOnLine + 1 > rightMargin)
-                {
-                    sb.AppendFormat("{0}{1}{2}", Environment.NewLine, new String(indentChar, indentLength), c);
-                    positionOnLine = indentLength + 1;
-                }
-                else
-                {
-                    sb.Append(c);
-                    positionOnLine++;
-                }
-            }
-
-
-            public override void NewLine()
-            {
-                if (quietMode) return;
-
-                sb.Append(Environment.NewLine);
-                firstSymbolOnLine = true;
-                positionOnLine = 0;
-            }
-
-
-            public override char this[int i]
-            {
-                get { return sb[i]; }
-            }
-
-
-            public override string ToString()
-            {
-                return sb.ToString();
-            }
-
-
-            public override void SaveToFile(string fileName)
-            {
-                using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
-                using (var sw = new StreamWriter(fs))
-                {
-                    sw.Write(sb.ToString());
-                }
-            }
-
-
-            public override int Length
-            {
-                get { return sb.Length; }
-            }
-        }
-        #endregion StringWriteBuffer
-        #endregion StringBuffer
-
-        #region FileBuffer
-        public class FileBuffer : Buffer
+                public class FileBuffer : Buffer
         {
             protected Stream fs;
         }
 
-        #region FileReadBuffer
-        public class FileReadBuffer : FileBuffer
+                public class FileReadBuffer : FileBuffer
         {
-            const int CACHESIZE = 256 * 1024;
-            byte[] cache = new byte[CACHESIZE];
-            int cacheOfs; // number of chars in fs before first char of cache
-            int cacheLen; // cache length (normally CACHESIZE, less at eof)
-            bool little_endian;
-            StringBuilder sb;
+            private const int CACHESIZE = 256 * 1024;
+            private byte[] cache = new byte[CACHESIZE];
+            private int cacheOfs; // number of chars in fs before first char of cache
+            private int cacheLen; // cache length (normally CACHESIZE, less at eof)
+            private bool little_endian;
+            private StringBuilder sb;
 
             public FileReadBuffer(string fileName)
               : this(null, fileName)
@@ -2591,7 +2253,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    throw new ParserException(String.Format("*** Could not open file '{0}' for reading", streamName));
+                    throw new ConsultException($"*** Could not open file '{streamName}' for reading");
                 }
 
                 if (fs.Length >= 2) // try to work out type of file (primitive approach)
@@ -2621,7 +2283,7 @@ namespace Prolog
                 cacheOfs = CACHESIZE * (p / CACHESIZE);
 
                 if (cacheOfs > fs.Length)
-                    throw new Exception(String.Format("*** Attempt to read beyond end of FileReadBuffer '{0}'", name));
+                    throw new Exception($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
                 else
                     fs.Position = cacheOfs;
 
@@ -2655,21 +2317,16 @@ namespace Prolog
             }
 
 
-            public override int Length
-            {
-                get { return Convert.ToInt32(((little_endian) ? (fs.Length / 2 - 1) : fs.Length)); }
-            }
+            public override int Length => Convert.ToInt32(((little_endian) ? (fs.Length / 2 - 1) : fs.Length));
         }
-        #endregion FileReadBuffer
-
+        
 
         // FileWriteBuffer
 
-        #region FileWriteBuffer
-        public class FileWriteBuffer : FileBuffer
+                public class FileWriteBuffer : FileBuffer
         {
-            StreamWriter sw;
-            bool isTemp;
+            private StreamWriter sw;
+            private bool isTemp;
 
             public FileWriteBuffer(string fileName)
             {
@@ -2683,7 +2340,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    throw new ParserException(String.Format("*** Could not create file '{0}'", fileName));
+                    throw new ConsultException($"*** Could not create file '{fileName}'");
                 }
             }
 
@@ -2712,12 +2369,11 @@ namespace Prolog
 
             public override void SaveToFile(string fileName)
             {
-                using (var f = new FileStream(fileName, FileMode.Create))
-                {
-                    var b = new byte[fs.Length];
-                    fs.Read(b, 0, b.Length);
-                    f.Write(b, 0, b.Length);
-                }
+                FileStream f = new FileStream(fileName, FileMode.Create);
+                byte[] b = new byte[fs.Length];
+                fs.Read(b, 0, b.Length);
+                f.Write(b, 0, b.Length);
+                f.Dispose();
             }
 
 
@@ -2856,185 +2512,11 @@ namespace Prolog
                 positionOnLine = 0;
             }
         }
-        #endregion FileWriteBuffer
-        #endregion FileBuffer
+        
+                    }
 
-        #region XmlWriteBuffer
-#if !NETSTANDARD
-        public class XmlWriteBuffer
-        {
-            protected XmlTextWriter tw;
-            protected Stack tagStack; // extra check on matching end tag
-
-            protected void SetInitialValues(bool initialPI)
-            {
-                tagStack = new Stack();
-                tw.QuoteChar = '"';
-                tw.Formatting = Formatting.Indented;
-
-                if (initialPI) tw.WriteProcessingInstruction("xml", "version=\"1.0\" encoding=\"ISO-8859-1\"");
-
-                tw.WriteComment(String.Format(" Structure created at {0} ", DateTime.Now.ToString()));
-            }
-
-
-            void WriteAttributes(params string[] av)
-            {
-                if (av.Length % 2 == 1)
-                    throw new ParserException("*** WriteStartElement -- last attribute value is missing");
-
-                for (int j = 0; j < av.Length; j += 2) tw.WriteAttributeString(av[j], av[j + 1]);
-            }
-
-
-            public void WriteStartElement(string tag, params string[] av)
-            {
-                tw.WriteStartElement(tag);
-                WriteAttributes(av);
-                tagStack.Push(tag);
-            }
-
-
-            public void WriteAttributeString(string name, string value, params string[] av)
-            {
-                tw.WriteAttributeString(name, value);
-                WriteAttributes(av);
-            }
-
-
-            public void WriteEndElement(string tag)
-            {
-                if (tagStack.Count == 0)
-                    throw new ParserException(String.Format("*** Spurious closing tag \"{0}\"", tag));
-
-                string s = (string)tagStack.Peek();
-
-                if (tag != s)
-                    throw new ParserException(String.Format("*** Closing tag \"{0}\" does not match opening tag \"{1}\"", tag, s));
-
-                tw.WriteEndElement();
-                tagStack.Pop();
-            }
-
-
-            public void WriteProcessingInstruction(string name, string text)
-            {
-                tw.WriteProcessingInstruction(name, text);
-            }
-
-
-            public void WriteComment(string text)
-            {
-                tw.WriteComment(text);
-            }
-
-
-            public void WriteString(string text)
-            {
-                tw.WriteString(text);
-            }
-
-
-            public void WriteRaw(string text)
-            {
-                tw.WriteRaw(text);
-            }
-
-
-            public void WriteCData(string text)
-            {
-                tw.WriteCData(text);
-            }
-
-
-            public void WriteSimpleElement(string elementName, string textContent, params string[] av)
-            {
-                tw.WriteStartElement(elementName);
-                WriteAttributes(av);
-                tw.WriteString(textContent);
-                tw.WriteEndElement();
-            }
-
-
-            public void WriteEmptyElement(string elementName, params string[] av)
-            {
-                tw.WriteStartElement(elementName);
-                WriteAttributes(av);
-                tw.WriteEndElement();
-            }
-
-
-            public void Close()
-            {
-                tw.Close();
-            }
-        }
-#endif
-        #endregion XmlWriteBuffer
-
-        #region XmlFileWriter
-#if !NETSTANDARD
-        public class XmlFileWriter : XmlWriteBuffer
-        {
-            public XmlFileWriter(string fileName, bool initialPI)
-            {
-                tw = new XmlTextWriter(fileName, System.Text.Encoding.GetEncoding(1252));
-                SetInitialValues(initialPI);
-            }
-
-
-            public XmlFileWriter(string fileName)
-            {
-                tw = new XmlTextWriter(fileName, System.Text.Encoding.GetEncoding(1252));
-                SetInitialValues(true);
-            }
-        }
-#endif
-        #endregion XmlFileWriter
-
-        #region XmlStringWriter
-#if !NETSTANDARD
-        public class XmlStringWriter : XmlWriteBuffer
-        {
-            public XmlStringWriter(bool initialPI)
-            {
-                tw = new XmlTextWriter(new MemoryStream(), System.Text.Encoding.GetEncoding(1252));
-                SetInitialValues(initialPI);
-            }
-
-
-            public XmlStringWriter()
-            {
-                tw = new XmlTextWriter(new MemoryStream(), System.Text.Encoding.GetEncoding(1252));
-                SetInitialValues(true);
-            }
-
-
-            public void SaveToFile(string fileName)
-            {
-                StreamWriter sw = new StreamWriter(fileName);
-                sw.Write(this.ToString());
-                sw.Close();
-            }
-
-
-            public override string ToString()
-            {
-                Stream ms = tw.BaseStream;
-
-                if (ms == null) return null;
-
-                tw.Flush();
-                return new ASCIIEncoding().GetString(((MemoryStream)ms).ToArray());
-            }
-        }
-#endif
-        #endregion XmlStringWriter
-        #endregion Buffer
-    }
-
-    #region Extensions class
-    static class BaseParserExtensions
+    
+    internal static class BaseParserExtensions
     {
         public static bool IsIdStartChar(this char c)
         {
@@ -3046,6 +2528,5 @@ namespace Prolog
             return (Char.IsLetter(c) || char.IsDigit(c) || c == '_');
         }
     }
-    #endregion Extensions class
-}
+    }
 

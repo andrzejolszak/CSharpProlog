@@ -1,0 +1,7 @@
+
+
+sum_eq([X|Members],Eq,Sum):-
+   Members \= [],
+   sum_eq(Members,Eq1,Sum1),
+   Eq = Eq1 + X,
+   Sum is Sum1 + X.

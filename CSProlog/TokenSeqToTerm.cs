@@ -1,7 +1,6 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
 {
@@ -9,37 +8,40 @@ namespace Prolog
     {
         public enum TT { In = 0, Pre = 1, Post = 2, BoS, Term, InPre, InPost, EoS, Zero } // token types
 
-        class TokenSeqToTerm
+        public class TokenSeqToTerm
         {
 
-            #region InputToken
-            abstract class BaseToken
+            
+            public abstract class BaseToken
             {
                 protected TT type;
                 protected TT role; // identical to type, except for overloaded operators that are bound
                 public OperatorDescr prevOd { get; protected set; } // Previous operator
-                public virtual int Prec { get { return 0; } }
+                public virtual int Prec => 0;
 
-                public TT Role { get { return role; } }
+                public TT Role => role;
                 protected AssocType group { get; set; }
+                public Symbol Symbol { get; private set; }
 
-                public BaseToken()
+                public BaseToken(Symbol symbol)
                 {
+                    this.Symbol = symbol?.Clone();
                     this.group = AssocType.None;
                 }
 
                 public override string ToString()
                 {
-                    return string.Format("{0}", group.ToString());
+                    return $"{@group}";
                 }
             }
 
 
-            class OperandToken : BaseToken
+            public class OperandToken : BaseToken
             {
                 public BaseTerm term { get; set; }
 
                 public OperandToken(BaseTerm term)
+                    : base(term.Symbol)
                 {
                     this.term = term;
                     this.type = TT.Term;
@@ -47,7 +49,8 @@ namespace Prolog
                     this.prevOd = null;
                 }
 
-                public OperandToken(TT type) // for BoS and EoS
+                public OperandToken(Symbol symbol, TT type) // for BoS and EoS
+                    : base(symbol)
                 {
                     this.type = type;
                     this.role = type;
@@ -61,24 +64,25 @@ namespace Prolog
 
                     if (this == SeqEndToken) return ("End of term");
 
-                    return string.Format("{0}", term);
+                    return $"{term}";
                 }
             }
 
 
-            class OperatorToken : BaseToken
+            public class OperatorToken : BaseToken
             {
                 public OpDescrTriplet triplet;
-                public OperatorDescr od { get { return triplet[role]; } }
-                public override int Prec { get { return od.Prec; } }
-                public RelOp LeftRelOp { get { return od.LeftRelOp; } }
-                public RelOp RightRelOp { get { return od.RightRelOp; } }
-                public bool IsInfix { get { return role != TT.Zero && od.IsInfix; } }
-                public bool IsPrefix { get { return role != TT.Zero && od.IsPrefix; } }
-                public bool IsPostfix { get { return role != TT.Zero && od.IsPostfix; } }
-                public bool IsZerofix { get { return role == TT.Zero; } }
+                public OperatorDescr od => triplet[role];
+                public override int Prec => od.Prec;
+                public RelOp LeftRelOp => od.LeftRelOp;
+                public RelOp RightRelOp => od.RightRelOp;
+                public bool IsInfix => role != TT.Zero && od.IsInfix;
+                public bool IsPrefix => role != TT.Zero && od.IsPrefix;
+                public bool IsPostfix => role != TT.Zero && od.IsPostfix;
+                public bool IsZerofix => role == TT.Zero;
 
-                public OperatorToken(OpDescrTriplet triplet, OperatorDescr prevOd)
+                public OperatorToken(Symbol symbol, OpDescrTriplet triplet, OperatorDescr prevOd)
+                    : base (symbol)
                 {
                     this.triplet = triplet;
                     this.prevOd = prevOd;
@@ -110,51 +114,46 @@ namespace Prolog
 
                 public override string ToString()
                 {
-                    return string.Format(
-                      "{0}",
-                      (role == TT.Zero)
-                      ? string.Format("({0})", triplet.Name)
-                      : triplet[role].ToString());
+                    return $"{((role == TT.Zero) ? $"({triplet.Name})" : triplet[role].ToString())}";
                 }
             }
-            #endregion InputToken
-
-            #region TokenStack
-            class TokenStack : Stack<BaseToken>
+            
+            
+            private class TokenStack : Stack<BaseToken>
             {
-                string name;
-                public string Name { get { return name; } }
+                public string Name { get; }
 
                 public TokenStack(string name) : base()
                 {
-                    this.name = name;
+                    this.Name = name;
                 }
 
-                public bool IsEmpty { get { return (Count == 0); } }
-                public BaseToken Top { get { return Peek(); } } // no empty stack check!
+                public bool IsEmpty => (Count == 0);
+                public BaseToken Top => Peek();
+// no empty stack check!
 
                 public void MoveTopTo(TokenStack targetStack)
                 {
                     targetStack.Push(Pop());
                 }
             }
-            #endregion TokenStack
-
-            TokenStack IS, OS, PS;
-            static OperandToken SeqStartToken;
-            static OperandToken SeqEndToken;
-            BaseToken topToken { get { return IS.Top; } }
-            bool inOpAtBoS; // special case: infix operator (no pre- or post definition) at BoS,
+            
+            private TokenStack IS, OS, PS;
+            private static OperandToken SeqStartToken;
+            private static OperandToken SeqEndToken;
+            private BaseToken topToken => IS.Top;
+            private bool inOpAtBoS; // special case: infix operator (no pre- or post definition) at BoS,
                             // ... only allowed if it is stand-alone or immediately followed by an argument list
-            BaseToken newToken;
-            OperatorToken topOperator
-            { get { return (topToken is OperatorToken) ? topToken as OperatorToken : null; } }
-            OperatorToken OSOperator { get { return OS.Top as OperatorToken; } }
+            private BaseToken newToken;
+
+            private OperatorToken topOperator => (topToken is OperatorToken) ? topToken as OperatorToken : null;
+
+            private OperatorToken OSOperator => OS.Top as OperatorToken;
 
             static TokenSeqToTerm()
             {
-                SeqStartToken = new OperandToken(TT.BoS);
-                SeqEndToken = new OperandToken(TT.EoS);
+                SeqStartToken = new OperandToken(null, TT.BoS);
+                SeqEndToken = new OperandToken(null, TT.EoS);
             }
 
             public TokenSeqToTerm(OperatorTable opTable)
@@ -167,23 +166,36 @@ namespace Prolog
             }
 
 
-            public bool PrevTokenWasOperator
-            { get { return (topToken == SeqStartToken || topToken is OperatorToken); } }
+            public bool PrevTokenWasOperator => (topToken == SeqStartToken || topToken is OperatorToken);
 
 
-            public void AddFunctorTerm(string functor, bool spaceAfter, BaseTerm[] args)
+            public BaseTerm AddFunctorTerm(Symbol symbol, string functor, string commentHeader, string commentBody, string testGroup, bool spaceAfter, BaseTerm[] args)
             {
+                BaseTerm res = null;
                 if (args == null)
-                    Add(new AtomTerm(functor));
+                {
+                    res = new AtomTerm(symbol, functor, commentHeader, commentBody, testGroup);
+                    Add(res);
+                }
                 else
                 { // space between atom (non-operator) and left parenthesis not allowed
-                    if (spaceAfter) IO.Error("No space allowed between '{0}' and '('", functor);
-
+                    if (spaceAfter)
+                    {
+                        IO.ErrorConsult($"No space allowed between '{functor}' and '('", symbol);
+                    }
                     if (functor == PrologParser.DOT && args.Length == 2)
-                        Add(new ListTerm(args[0], args[1]));
+                    {
+                        res = new ListTerm(symbol, args[0], args[1]);
+                        Add(res);
+                    }
                     else
-                        Add(new CompoundTerm(functor, args));
+                    {
+                        res = new CompoundTerm(symbol, functor, commentHeader, commentBody, testGroup, args);
+                        Add(res);
+                    }
                 }
+
+                return res;
             }
 
 
@@ -193,15 +205,15 @@ namespace Prolog
                 IS.Push(newToken);
             }
 
-            public void Add(OpDescrTriplet triplet)
+            public void Add(Symbol symbol, OpDescrTriplet triplet)
             {
-                newToken = new OperatorToken(triplet, (topOperator == null) ? null : topOperator.od);
+                newToken = new OperatorToken(symbol, triplet, (topOperator == null) ? null : topOperator.od);
                 CheckTokenPair(newToken);
                 IS.Push(newToken);
             }
 
-
-            public void AddArgs(BaseTerm[] args)
+// TODO: remove
+/*            public void AddArgs(BaseTerm[] args)
             {
                 if (args.Length == 1) // i.e. only a single term between parentheses
                     Add(args[0]);
@@ -209,28 +221,28 @@ namespace Prolog
                     Add(new OperatorTerm(CommaOpDescr, args[0], args[1])); // a list of terms between parentheses
                 else
                     Add(new CompoundTerm(CommaOpDescr.Name, args)); // a list of terms between parentheses
-            }
+            }*/
 
-            public void AddOperatorFunctor(OpDescrTriplet triplet, BaseTerm[] args)
+            public void AddOperatorFunctor(Symbol symbol, OpDescrTriplet triplet, BaseTerm[] args)
             {
                 switch (args.Length)
                 {
                     case 1:
                         if (triplet.HasPrefixDef)
-                            Add(new OperatorTerm(triplet[TT.Pre], args[0]));
+                            Add(new OperatorTerm(symbol, triplet[TT.Pre], args[0]));
                         else if (triplet.HasPostfixDef)
-                            Add(new OperatorTerm(triplet[TT.Post], args[0]));
+                            Add(new OperatorTerm(symbol, triplet[TT.Post], args[0]));
                         else
-                            Add(new CompoundTerm(triplet.Name, args));
+                            Add(new CompoundTerm(symbol, triplet.Name, args));
                         break;
                     case 2:
                         if (triplet.HasInfixDef)
-                            Add(new OperatorTerm(triplet[TT.In], args[0], args[1]));
+                            Add(new OperatorTerm(symbol, triplet[TT.In], args[0], args[1]));
                         else
-                            Add(new CompoundTerm(triplet.Name, args));
+                            Add(new CompoundTerm(symbol, triplet.Name, args));
                         break;
                     default:
-                        Add(new CompoundTerm(triplet.Name, args));
+                        Add(new CompoundTerm(symbol, triplet.Name, args));
                         break;
                 }
             }
@@ -271,7 +283,7 @@ namespace Prolog
               is a term, it must be an infix; if the next token is a postfix, it must be set to
               postfix. In doing so, however, the precedence and associativity must be compared with
               the precedence of the penultimate token (just below the top token).
-              To make this slightly easier, a token variable "prevOd" (Operator descriptor) has been 
+              To make this slightly easier, a token variable ‘prevOd’ (Operator descriptor) has been 
               introduced, which contains the precedence of the previous token.
 
               The above strategy will guarantee that:
@@ -289,7 +301,7 @@ namespace Prolog
               operator clash. These checks are performed in InfixToPrefix()
             */
 
-            enum TC
+            private enum TC
             {
                 BoS_BoS, BoS_Term, BoS_In, BoS_Pr, BoS_Po, BoS_InPr, BoS_InPo, BoS_EoS,
                 Term_BoS, Term_Term, Term_In, Term_Pr, Term_Po, Term_InPr, Term_InPo, Term_EoS,
@@ -301,7 +313,7 @@ namespace Prolog
                 EoS_BoS, EoS_Term, EoS_In, EoS_Pr, EoS_Po, EoS_InPr, EoS_InPo, EoS_EoS
             }
 
-            static TC[,] TokenCombi = new TC[,] // possible combinations
+            private static TC[,] TokenCombi = new TC[,] // possible combinations
             {
         { TC.In_In  , TC.In_Pr  , TC.In_Po  , TC.In_BoS  , TC.In_Term  , TC.In_InPr  , TC.In_InPo  , TC.In_EoS   },
         { TC.Pr_In  , TC.Pr_Pr  , TC.Pr_Po  , TC.Pr_BoS  , TC.Pr_Term  , TC.Pr_InPr  , TC.Pr_InPo  , TC.Pr_EoS   },
@@ -314,7 +326,7 @@ namespace Prolog
             };
 
             // check the incoming token against the previous one (on top of IS)
-            void CheckTokenPair(BaseToken newToken)
+            private void CheckTokenPair(BaseToken newToken)
             {
                 BaseToken topToken = IS.Top;
                 OperatorToken newOperator = (newToken is OperatorToken) ? (OperatorToken)newToken : null;
@@ -333,13 +345,13 @@ namespace Prolog
                     case TC.Pr_InPo:
                     case TC.Po_Term:
                     case TC.Po_Pr:
-                        IO.Error("Syntax error -- {0} may not be followed by {1}", topToken, newToken);
+                        IO.ErrorConsult($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}", newToken);
                         break;
 
                     case TC.In_EoS:
                     case TC.Pr_EoS:
                         if (!ProcessIfStandAloneOperator())
-                            IO.Error("Syntax error -- Unexpected end of term after {0}", topToken);
+                            IO.ErrorConsult( " \n \nSyntax error:\n Unexpected end of term after {0}", topToken);
                         break;
 
                     case TC.BoS_In:
@@ -355,7 +367,7 @@ namespace Prolog
                     case TC.In_Term:
                         if (inOpAtBoS)
                         {
-                            IO.Error("Syntax error -- {0} may not be followed by {1}", topToken, newToken);
+                            IO.ErrorConsult($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}", newToken);
                             inOpAtBoS = false;
                         }
                         break;
@@ -377,47 +389,47 @@ namespace Prolog
                         newOperator.SetRole(TT.In);
                         break;
                     case TC.In_Pr:
-                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.Po_In:
-                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.Error(msg);
+                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.Pr_Pr:
-                        if (!topOperator.od.HasValidArg(newOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidArg(newOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.Po_Po:
-                        if (!newOperator.od.HasValidArg(topOperator.od, out msg)) IO.Error(msg);
+                        if (!newOperator.od.HasValidArg(topOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.In_InPr:
                         newOperator.SetRole(TT.Pre);
-                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.Pr_InPr:
                         newOperator.SetRole(TT.Pre);
-                        if (!topOperator.od.HasValidArg(newOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidArg(newOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.Po_InPr:
                         newOperator.SetRole(TT.In);
-                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.Error(msg);
+                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.InPo_Term:
                         topOperator.SetRole(TT.In);
-                        if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.InPo_Pr:
                         topOperator.SetRole(TT.In);
-                        if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg)) IO.Error(msg);
-                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg)) IO.ErrorConsult( msg, newOperator);
+                        if (!topOperator.od.HasValidRightArg(newOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.InPo_In:
                         topOperator.SetRole(TT.Post);
-                        if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.Error(msg);
-                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.ErrorConsult( msg, newOperator);
+                        if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.InPo_Po:
                         topOperator.SetRole(TT.Post);
-                        if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.Error(msg);
-                        if (!newOperator.od.HasValidArg(topOperator.od, out msg)) IO.Error(msg);
+                        if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.ErrorConsult( msg, newOperator);
+                        if (!newOperator.od.HasValidArg(topOperator.od, out msg)) IO.ErrorConsult( msg, newOperator);
                         break;
                     case TC.InPo_InPr:
                         bool topInOpValid =
@@ -426,8 +438,7 @@ namespace Prolog
                           newOperator.triplet[TT.In].HasValidLeftArg(topOperator.triplet[TT.Post], out msg);
                         if (topInOpValid)
                             if (newInOpValid)
-                                IO.Error("Ambiguous operator combination: '{0}' followed by '{1}'",
-                                          topOperator.triplet, newOperator.triplet);
+                                IO.ErrorConsult($"Ambiguous operator combination: '{topOperator.triplet}' followed by '{newOperator.triplet}'", newOperator);
                             else
                             {
                                 topOperator.SetRole(TT.In);
@@ -443,16 +454,16 @@ namespace Prolog
                     case TC.InPo_EoS:
                         topOperator.SetRole(TT.Post);
                         if (!ProcessIfStandAloneOperator())
-                            if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.Error(msg);
+                            if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg)) IO.ErrorConsult( msg, topOperator);
                         break;
                     default:
-                        IO.Fatal("TokenCombi case '{0}' not covered", combi);
+                        IO.Fatal(MessageKind.Consult, "TokenCombi case '{0}' not covered", combi);
                         break;
                 }
             }
 
 
-            bool ProcessIfStandAloneOperator()
+            private bool ProcessIfStandAloneOperator()
             {
                 bool result = (IS.Count == 2);
 
@@ -463,13 +474,13 @@ namespace Prolog
             }
 
 
-            public void ConstructPrefixTerm(out BaseTerm term)
+            public void ConstructPrefixTerm(Symbol symbol, out BaseTerm term)
             {
                 CheckTokenPair(SeqEndToken); // force a check on the last token added
                                              //DumpIS ();
                 term = null;
                 InfixToPrefix();
-                term = PrefixToTerm();
+                term = PrefixToTerm(symbol);
             }
 
 
@@ -515,7 +526,7 @@ namespace Prolog
 
             */
 
-            void InfixToPrefix()
+            private void InfixToPrefix()
             {
                 while (topToken != SeqStartToken)
                 {
@@ -535,16 +546,14 @@ namespace Prolog
                                 if (OSOperator.LeftRelOp == RelOp.LT) // (IS, OS) = (?fx, xf?)
                                 {
                                     if (topOperator.RightRelOp == RelOp.LT) // IS top ?fx
-                                        IO.Error("Operator clash: '{0}' with '{1}'",
-                                                 topOperator.od, OSOperator.od);
+                                        IO.ErrorConsult($"Operator clash: '{topOperator.od}' with '{OSOperator.od}'", topToken);
                                     else
                                         OS.MoveTopTo(PS);
                                 }
                                 else // OSOperator.LeftRelOp == RelOp.LE
                                 {
                                     if (topOperator.RightRelOp == RelOp.LE) // (IS, OS) = (?fy, yf?)
-                                        IO.Error("Ambiguous operator combination: '{0}' and '{1}'",
-                                                   topOperator.od, OSOperator.od);
+                                        IO.ErrorConsult($"Ambiguous operator combination: '{topOperator.od}' with '{OSOperator.od}'", topToken);
                                 }
                             }
 
@@ -567,7 +576,7 @@ namespace Prolog
             }
 
 
-            BaseTerm PrefixToTerm()
+            private BaseTerm PrefixToTerm(Symbol symbol)
             {
                 BaseTerm t0, t1;
                 BaseToken token = null;
@@ -578,7 +587,7 @@ namespace Prolog
                 }
                 catch // should not occur -- please report if it does
                 {
-                    IO.Error("PrefixToTerm (): Unanticipated error in expression -- please report");
+                    IO.ErrorConsult("PrefixToTerm (): Unanticipated error in expression -- please report", symbol);
                 }
 
                 if (token is OperandToken)
@@ -587,18 +596,18 @@ namespace Prolog
                 OperatorToken oprToken = (OperatorToken)token;
 
                 if (oprToken.IsZerofix) // operator as operand; no arguments
-                    return new OperatorTerm(oprToken.triplet.Name);
+                    return new OperatorTerm(symbol, oprToken.triplet.Name);
 
-                t0 = PrefixToTerm();
+                t0 = PrefixToTerm(symbol);
 
                 if (oprToken.IsInfix)
                 {
-                    t1 = PrefixToTerm(); // get the second operand from the PS-stack
+                    t1 = PrefixToTerm(symbol); // get the second operand from the PS-stack
 
-                    return new OperatorTerm(oprToken.od, t0, t1);
+                    return new OperatorTerm(symbol, oprToken.od, t0, t1);
                 }
                 else // prefix or postfix
-                    return new OperatorTerm(oprToken.od, t0);
+                    return new OperatorTerm(symbol, oprToken.od, t0);
             }
 
 

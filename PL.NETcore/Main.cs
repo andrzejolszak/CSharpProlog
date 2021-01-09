@@ -67,10 +67,6 @@ namespace Prolog
                   x.GetBaseException().Message + Environment.NewLine + x.StackTrace);
                 Console.ReadLine();
             }
-            finally
-            {
-                if (e != null) e.PersistCommandHistory(); // cf. CSProlog.exe.config
-            }
         }
 
 

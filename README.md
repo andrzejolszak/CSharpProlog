@@ -23,6 +23,17 @@ class Program
     }
 }
 ```
+## About this fork
+
+This fork of jsakamoto's repository that breaks backwards compatibility with earlier versions. Backwards compatibility will not be a priority here also in the future, so if you are looking for API stability, then by all means head to jsakamoto.
+
+Differences from the original fork:
+
+- The focus here is on only the library-based and IDE-based usages - the IDE is completely overhauled, and REPL-specific features will get gradually removed
+- Various existing features that duplicate existing .net functionality or are not being "core Prolog" will be aggressively removed, e.g. sql db access, json support, xml support, etc.
+- Unused code gets removed, naming conventions refreshed to modern standards
+- Unit tests and benchmarks
+
 ## Installation
 
 Run the following command from the Visual Studio Package Manager Console to install the latest version:

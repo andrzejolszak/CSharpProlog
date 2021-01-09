@@ -18,42 +18,41 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Xml;
+using System.Threading.Tasks;
 
 namespace Prolog
 {
-#if NETSTANDARD
-    using ApplicationException = Exception;
-    using Stack = Stack<object>;
-#endif
 
-    #region Exceptions
-    enum PrologException { ioException }
 
-    public class AbortQueryException : ApplicationException
+    internal enum PrologException { ioException }
+
+    public class AbortQueryException : Exception
     {
-        public AbortQueryException() : base("\r\n  Execution terminated by user") { }
+        public AbortQueryException() : base(" Execution terminated by user") { }
     }
-    #endregion Exceptions
 
-    #region Engine
     public partial class PrologEngine
     {
-        static string IOException = "ioException";
+        public delegate void CurrentTerm(TermNode termNode);
+        public event CurrentTerm OnCurrentTermChanged;
+        public event Action FoundAllSolutions;
+        public event Func<TermNode, TermNode, bool, VarStack, Stack<CallReturn>, bool> DebugEventBlocking;
+
+        private static string IOException = "ioException";
         //static string XmlException = "xmlException";
 
-        #region ChoicePoint
         public class ChoicePoint
         {
             protected TermNode goalListHead;
             protected ClauseNode nextClause; // next clause to be tried for goalListHead
             protected bool active;
-            public TermNode GoalListHead { get { return goalListHead; } }
+            public TermNode GoalListHead => goalListHead;
             public ClauseNode NextClause { get { return nextClause; } set { nextClause = value; } }
-            public bool IsActive { get { return active; } }
+            public bool IsActive => active;
 
             public ChoicePoint(TermNode goal, ClauseNode nextClause)
             {
@@ -69,46 +68,27 @@ namespace Prolog
 
             public override String ToString()
             {
-                return String.Format("choicepoint\r\ngoal {0}\r\nclause {1}\r\nactive {2}", goalListHead, nextClause, active);
+                return $"choicepoint\r\ngoal {goalListHead}\r\nclause {nextClause}\r\nactive {active}";
             }
         }
-        #endregion ChoicePoint
 
-        #region CacheCheckPoint
-        // pushed on the VarStack for determining whether or not to store an answer in the cache
-        class CacheCheckPoint : TermNode
+        public class CallReturn : TermNode
         {
-            CachePort port;
-            TermNode saveGoal;
+            public TermNode SavedGoal { get; }
 
-            public CachePort Port { get { return port; } }
-            public TermNode SaveGoal { get { return saveGoal; } }
-
-            public CacheCheckPoint(CachePort port, TermNode saveGoal)
-              : base()
+            public CallReturn(TermNode goal)
             {
-                this.port = port;
-                this.saveGoal = saveGoal;
-                level = saveGoal.Level;
-            }
-
-
-            public override string ToString()
-            {
-                return "[" + port + "-cachecheckpoint] " + saveGoal.Term.ToString() + " ...";
+                this.SavedGoal = goal;
             }
         }
-        #endregion CacheCheckPoint
 
-        #region VarStack
-        public class VarStack : Stack
+        public class VarStack : Stack<object>
         {
-            Stack swap;
+            private Stack<object> swap;
 
             public VarStack()
-              : base()
             {
-                swap = new Stack();
+                swap = new Stack<object>();
             }
 
             //public override void Push (object o)
@@ -138,16 +118,11 @@ namespace Prolog
                 {
                     if (i-- == n) return;
 
-                    if (o is SpyPoint)
-                        ((SpyPoint)o).Kill(); // do not retain (failure) spypoints
-                    else if (o is ChoicePoint)
-                        ((ChoicePoint)o).Kill();
+                    (o as ChoicePoint)?.Kill();
                 }
             }
         }
-        #endregion VarStack
 
-        #region VarValues
         public interface IVarValue
         {
             string Name { get; }
@@ -159,18 +134,17 @@ namespace Prolog
         {
             public string name;
             public BaseTerm value;
-            public string Name { get { return name; } }
-            public ITermNode Value { get { return value; } }
-            public string DataType { get { return value.TermType.ToString().ToLower(); } }
-            bool isSingleton;
-            public bool IsSingleton { get { return isSingleton; } set { isSingleton = value; } }
+            public string Name => name;
+            public ITermNode Value => value;
+            public string DataType => value.TermType.ToString().ToLower();
+            public bool IsSingleton { get; set; }
 
 
             public VarValue(string name, BaseTerm value)
             {
                 this.name = name;
                 this.value = value;
-                isSingleton = true;
+                IsSingleton = true;
             }
 
             public override string ToString()
@@ -179,7 +153,7 @@ namespace Prolog
                 {
                     bool mustPack = (value.Precedence >= 700);
 
-                    return String.Format("{0} = {1}", name, value.ToString().Packed(mustPack));
+                    return $"{name} = {value.ToString().Packed(mustPack)}";
                 }
 
                 return null;
@@ -197,9 +171,7 @@ namespace Prolog
             }
 
         }
-        #endregion VarValues
 
-        #region Solution
         public interface ISolution
         {
             IEnumerable<IVarValue> VarValuesIterator { get; }
@@ -210,22 +182,22 @@ namespace Prolog
         // contains the answer to a query or the response to a history command
         public class Solution : ISolution
         {
-            VarValues variables;
-            PrologEngine engine;
-            bool solved;
-            bool isLast;
-            public bool Solved { get { return solved; } set { solved = value; } }
-            public bool IsLast { get { return isLast; } set { isLast = value; } }
-            string msg;
-            IEnumerable<IVarValue> varValuesIterator;
-            public IEnumerable<IVarValue> VarValuesIterator { get { return varValuesIterator; } }
+            public VarValues variables;
+            private PrologEngine engine;
+            public RuntimeException Error { get; set; }
+            public bool Solved { get; set; }
+
+            public bool IsLast { get; set; }
+
+            public string msg;
+            public IEnumerable<IVarValue> VarValuesIterator { get; }
 
             public Solution(PrologEngine engine)
             {
                 this.engine = engine;
                 variables = new VarValues();
-                varValuesIterator = GetEnumerator();
-                solved = true;
+                VarValuesIterator = GetEnumerator();
+                Solved = true;
                 msg = null;
             }
 
@@ -234,7 +206,7 @@ namespace Prolog
             {
                 foreach (IVarValue varValue in variables.Values)
                 {
-                    if (engine.halted) yield break;
+                    if (engine.Halted) yield break;
 
                     yield return (varValue);
                 }
@@ -318,40 +290,34 @@ namespace Prolog
 
             public override string ToString()
             {
-                if (engine.halted) return null;
+                if (engine.Halted) return null;
 
                 if (msg != null) return msg;
 
-                double totSecs = engine.ProcessorTime().TotalSeconds;
+                double totSecs = engine.ProcessorTime() / 1000.0;
 
-                string time = (totSecs > 0.2)  // arbitrary threshold, show 'interesting' values only
-                  ? string.Format(" ({0:f3} sec)", totSecs)
-                  : null;
+                string time = (engine.eventDebug || totSecs < 0.1) ? "" : $" ({totSecs:f3} s)";
 
-                if (!solved) return NO + time;
+                if (!Solved) return NO + time;
 
                 StringBuilder sb = new StringBuilder();
-                string answer = null;
-                BaseTerm term;
 
                 foreach (VarValue varValue in variables.Values)
-                    if (!(term = varValue.value).IsVar && varValue.name[0] != '_')
-                        sb.AppendFormat("\r\n {0}", varValue.ToString());
+                    if (!(varValue.value).IsVar && varValue.name[0] != '_')
+                        sb.AppendFormat("{0}", varValue);
 
-                return answer = (sb.Length == 0 ? YES : sb.ToString()) + time;
+                return (sb.Length == 0 ? YES : sb.ToString()) + time;
             }
         }
-        #endregion Solution
 
-        static readonly string WELCOME =
+        private static readonly string WELCOME =
     @"|
 | Copyright (C) 2007-2014 John Pool
 |
 | C#Prolog comes with ABSOLUTELY NO WARRANTY. This is free software, licenced
 | under the GNU General Public License, and you are welcome to redistribute it
 | under certain conditions. Enter 'license.' at the command prompt for details.";
-        static string VERSION = "4.1.0";
-        static string RELEASE = PrologParser.VersionTimeStamp;
+        public static string VERSION = "4.1 + 2i";
         static public string IntroText;
 
         /* The parser's terminalTable is associated with the engine, not with the parser.
@@ -360,29 +326,24 @@ namespace Prolog
          * previously consulted files would get lost (operators are symbols that must be
          * recognized by the parser and hence they are stored in the terminalTable)
          */
-        BaseParser<OpDescrTriplet>.BaseTrie terminalTable;
-        string query;
-        Solution solution;
-        static OperatorDescr CommaOpDescr;
-        static OpDescrTriplet CommaOpTriplet;
-        static OperatorDescr SemiOpDescr;
-        static OperatorDescr EqualOpDescr;
-        static OperatorDescr ColonOpDescr;
-        bool halted;
-        PredicateCallOptions predicateCallOptions;
-#if !NETSTANDARD
-        DbCommandSet dbCommandSet;
-#endif
-        OpenFiles openFiles;
-        const int INF = Int32.MaxValue;
-        VarStack varStack; // stack of variable bindings and choice points
-        OperatorTable opTable;
-        BracketTable wrapTable;
-        BracketTable altListTable;
-        GlobalTermsTable globalTermsTable;
-        PredicateTable predTable;
-        Stack<int> catchIdStack;
-        int tryCatchId;
+        private BaseParser.BaseTrie terminalTable;
+        private string query;
+        public Solution solution;
+        private static OperatorDescr CommaOpDescr;
+        private static OpDescrTriplet CommaOpTriplet;
+        private static OperatorDescr SemiOpDescr;
+        private static OperatorDescr EqualOpDescr;
+        private static OperatorDescr ColonOpDescr;
+        private PredicateCallOptions predicateCallOptions;
+        private OpenFiles openFiles;
+        private const int INF = Int32.MaxValue;
+        public VarStack varStack; // stack of variable bindings and choice points
+        public Stack<CallReturn> CallStack { get; private set; }
+        private GlobalTermsTable globalTermsTable;
+        public PredicateTable PredTable;
+        public List<AtomTerm> UserAtoms;
+        public Stack<int> catchIdStack;
+        public int tryCatchId;
 
         public class OpenFiles : Dictionary<string, FileTerm>
         {
@@ -413,10 +374,10 @@ namespace Prolog
             }
         }
 
-        class GlobalTermsTable
+        private class GlobalTermsTable
         {
-            Dictionary<string, int> counterTable;
-            Dictionary<string, BaseTerm> globvarTable;
+            private Dictionary<string, int> counterTable;
+            private Dictionary<string, BaseTerm> globvarTable;
 
             public GlobalTermsTable()
             {
@@ -427,7 +388,7 @@ namespace Prolog
             public void getctr(string a, out int value)
             {
                 if (!counterTable.TryGetValue(a, out value))
-                    IO.Error("Value of counter '{0}' is not set", a);
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
             }
 
             public void setctr(string a, int value)
@@ -442,7 +403,7 @@ namespace Prolog
                 if (counterTable.TryGetValue(a, out value))
                     counterTable[a] = value + 1;
                 else
-                    IO.Error("Value of counter '{0}' is not set", a);
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
             }
 
             public void decctr(string a)
@@ -452,87 +413,68 @@ namespace Prolog
                 if (counterTable.TryGetValue(a, out value))
                     counterTable[a] = value - 1;
                 else
-                    IO.Error("Value of counter '{0}' is not set", a);
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
             }
 
             public void getvar(string name, out BaseTerm value)
             {
                 if (!globvarTable.TryGetValue(name, out value))
-                    IO.Error("Value of '{0}' is not set", name);
+                    IO.ErrorRuntime($"Value of '{name}' is not set", null, null);
             }
 
             public void setvar(string name, BaseTerm value)
             {
                 globvarTable[name] = value;
             }
-
-            public bool varhasvalue(string name)
-            {
-                BaseTerm value;
-
-                return globvarTable.TryGetValue(name, out value);
-            }
         }
 
-        TermNode goalListHead;
-        BasicIo io;
-        bool userInterrupted;
-        bool error;
-        bool trace;
-        bool debug;
-        bool redo; // set by CanBacktrack if a choice point was found
-        bool qskip;
-        bool rushToEnd;
-        bool xmlTrace;
-        bool reporting;  // debug (also set by 'trace') || xmlTrace
-        bool profiling;
-#if !NETSTANDARD
-        XmlTextWriter xtw;
-        string xmlFile;
-        int xmlElCount; // current approximate Number of elements in the XML trace file
-        int xmlMaxEl;   // maximum allowed value of xmlElCount
-        bool firstGoal; // set in ExecuteGoalList() to be able to check whether a goal in the command is the very first
-        bool goalListProcessed;
-        bool goalListResult;
-        ManualResetEvent sema;
-#endif
-        ClauseNode retractClause;
-        int levelMin; // lowest recursion level while spying -- for determining left margin
-        int levelMax; // used while spying for determining end of skip
-        int prevLevel;
-        ChoicePoint currentCp;
-        object lastCp;
-        long startTime;
-        Stopwatch procTime;
-        CommandHistory cmdBuf;
-        static int maxWriteDepth; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
-        int queryTimeout = 0; // maximum Number of milliseconds that a command may run -- 0 means unlimited
-        bool findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
-        bool csharpStrings = ConfigSettings.CSharpStrings;
-        bool userSetShowStackTrace = ConfigSettings.OnErrorShowStackTrace; // default value
-        bool showSingletonWarnings = true; // want to be able to turn off singleton warnings at the file level (default to true and will need to add to reset code to make sure it isn't persisting across files)
+        private TermNode goalListHead;
+        public bool userInterrupted;
+        public bool error;
+        public bool trace;
+        public bool debug;
+        private bool firstGoal; // set in ExecuteGoalList() to be able to check whether a goal in the command is the very first
+        private bool redo; // set by CanBacktrack if a choice point was found
+        private bool qskip;
+        private bool rushToEnd;
+        public bool eventDebug;
+        public bool reporting;  // debug (also set by 'trace') || xmlTrace
+        public bool profiling;
+        private ClauseNode retractClause;
+        public int levelMin; // lowest recursion level while spying -- for determining left margin
+        public int levelMax; // used while spying for determining end of skip
+        private ChoicePoint currentCp;
+        private object lastCp;
+        public long startTime;
+        public long procTime;
+        private bool goalListProcessed;
+        private ManualResetEvent sema;
+        public static int maxWriteDepth; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
+        private bool goalListResult;
+        private int queryTimeout = 0; // maximum Number of milliseconds that a command may run -- 0 means unlimited
+        private bool findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
+        public bool csharpStrings = false;
+        public bool userSetShowStackTrace = true; // default value
 
-        #region unique number generators
-        static int unifyCount; // total number of unifications - for tabling ('cost calculation') only
-        static void NextUnifyCount() { unifyCount++; }
-        static int CurrUnifyCount { get { return unifyCount; } }
-        static int UnifyDelta(int refUnifyCount) { return unifyCount - refUnifyCount; }
-        #endregion
+        public DateTime? LastConsulted;
 
-        public bool Error { get { return error; } }
-        public OperatorTable OpTable { get { return opTable; } }
-        public BracketTable WrapTable { get { return wrapTable; } }
-        public BracketTable AltListTable { get { return altListTable; } }
-        public PredicateTable Ps { get { return predTable; } }
+
+        private static void NextUnifyCount() { CurrUnifyCount++; }
+        private static int CurrUnifyCount { get; set; }
+
+
+
+        public bool Error => error;
+        public OperatorTable OpTable { get; private set; }
+        public BracketTable WrapTable { get; private set; }
+        public BracketTable AltListTable { get; private set; }
         public string Query { get { return query; } set { query = value.Trim(); } }
 
 
         static PrologEngine()
         {
-            IntroText = string.Format(
-              "|\r\n| Welcome to C#Prolog MS-Windows version {0}, parser {1}\r\n{2}",
-              VERSION, RELEASE, WELCOME);
-            unifyCount = 0; // running total number of unifications
+            IntroText = $"|\r\n| Welcome to C#Prolog MS-Windows version {VERSION}\r\n{WELCOME}";
+            CurrUnifyCount = 0; // running total number of unifications
         }
 
 
@@ -553,20 +495,19 @@ namespace Prolog
 
         public PrologEngine(BasicIo io, bool persistentCommandHistory)
         {
-            IO.BasicIO = this.io = io;
+            IO.BasicIO = io;
             Reset();
-            cmdBuf = new CommandHistory(persistentCommandHistory);
             PostBootstrap();
         }
 
-        public int CmdNo { get { return cmdBuf.cmdNo; } }
-        public bool Debugging { get { return debug; } }
-        public bool Halted { get { return halted; } set { halted = value; } }
+        public int CmdNo = 0;
+        public bool Debugging => debug;
+        public bool Halted { get; set; }
 
-        PrologParser parser = null;
-        static string YES = "\r\n" + ConfigSettings.AnswerTrue;
-        static string NO = "\r\n" + ConfigSettings.AnswerFalse;
-        int gensymInt;
+        private PrologParser parser = null;
+        private static string YES = "\r\n" + "Yes";
+        private static string NO = "\r\n" + "No";
+        private int gensymInt;
 
         static public bool MaxWriteDepthExceeded(int level)
         {
@@ -574,7 +515,6 @@ namespace Prolog
         }
 
 
-        #region Engine initialization and finalization
         public void Reset()
         {
             Initialize();
@@ -582,95 +522,98 @@ namespace Prolog
         }
 
 
-        void Initialize() // also called by ClearAll command
+        private void Initialize() // also called by ClearAll command
         {
             varStack = new VarStack();
+            CallStack = new Stack<CallReturn>();
             solution = new Solution(this);
             SolutionIterator = GetEnumerator();
-            opTable = new OperatorTable();
-            wrapTable = new BracketTable();
-            altListTable = new BracketTable();
+            OpTable = new OperatorTable();
+            WrapTable = new BracketTable();
+            AltListTable = new BracketTable();
             globalTermsTable = new GlobalTermsTable();
-            predTable = new PredicateTable(this);
+            PredTable = new PredicateTable(this);
+            UserAtoms = new List<AtomTerm>();
             catchIdStack = new Stack<int>();
             openFiles = new OpenFiles();
             tryCatchId = 0;
 
             error = false;
-            halted = false;
+            Halted = false;
             trace = false;
             qskip = false;
-            xmlTrace = false;
+            eventDebug = false;
             startTime = -1;
-            procTime = Stopwatch.StartNew();
+            procTime = 0;
             currentFileReader = null;
             currentFileWriter = null;
             maxWriteDepth = -1; // i.e. no max depth
             predicateCallOptions = new PredicateCallOptions();
-#if !NETSTANDARD
-            xmlFile = null;
-            dbCommandSet = null;
-#endif
-            terminalTable = new BaseParser<OpDescrTriplet>.BaseTrie(PrologParser.terminalCount, true);
+            terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
             PrologParser.FillTerminalTable(terminalTable);
             parser = new PrologParser(this); // now this.terminalTable is passed on as well
         }
 
-        void PostBootstrap()
+        private void PostBootstrap()
         {
-            if (!opTable.IsBinaryOperator(PrologParser.EQ, out EqualOpDescr))
-                IO.Error("No definition found for binary operator '{0}'", PrologParser.EQ);
-            else if (!opTable.IsBinaryOperator(PrologParser.COLON, out ColonOpDescr))
-                IO.Error("No definition found for binary operator '{0}'", PrologParser.COLON);
+            if (!OpTable.IsBinaryOperator(PrologParser.EQ, out EqualOpDescr))
+                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.EQ}'", varStack, null);
+            else if (!OpTable.IsBinaryOperator(PrologParser.COLON, out ColonOpDescr))
+                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.COLON}'", varStack, null);
         }
 
 
-        void ReadBuiltinPredicates()
+        private void ReadBuiltinPredicates()
         {
-            predTable.Reset();
+            PredTable.Reset();
             parser.SetDollarAsPossibleUnquotedAtomChar(true);
             parser.StreamIn = Bootstrap.PredefinedPredicates;
             parser.SetDollarAsPossibleUnquotedAtomChar(false);
-            predTable.Predefineds["0!"] = true;
-            predTable.Predefineds["0true"] = true;
-            predTable.Predefineds["0fail"] = true;
-            predTable.Predefineds["2;"] = true;
-            predTable.Predefineds["2,"] = true;
-            retractClause = predTable[BaseTerm.MakeKey("retract", 1)].ClauseList;
-            predTable.ResolveIndices();
+            PredTable.Predefined.Add("0!");
+            PredTable.Predefined.Add("0true");
+            PredTable.Predefined.Add("0fail");
+            PredTable.Predefined.Add("2;");
+            PredTable.Predefined.Add("2,");
+            retractClause = PredTable[BaseTerm.MakeKey("retract", 1)].ClauseList;
+            PredTable.ResolveIndices();
         }
-        #endregion Engine initialization and finalization
 
-        #region Query execution preparation and finalization
         public IEnumerable<ISolution> SolutionIterator;
 
-        public IEnumerable<ISolution> GetEnumerator()
+        public IEnumerable<Solution> GetEnumerator()
         {
-            try
+            if (query != null)
             {
-                if (PrepareSolutions(query))
-                    do
-                    {
-                        Execute(); // run the query
-
-                        solution.IsLast = halted || !FindChoicePoint();
-
-                        yield return (ISolution)solution;
-                    }
-                    while (!halted && CanBacktrack(false));
-                else // history command
+                try
                 {
-                    solution.IsLast = true;
+                    if (PrepareSolutions(query))
+                        do
+                        {
+                            RuntimeException ex = Execute(); // run the query
 
-                    yield return (ISolution)solution;
+                            solution.Error = ex;
+                            solution.IsLast = Halted || !FindChoicePoint();
+
+                            yield return solution;
+                        } while (!Halted && CanBacktrack(false));
+                    else // history command
+                    {
+                        solution.IsLast = true;
+
+                        yield return solution;
+                    }
+                }
+                finally
+                {
+                    PostQueryTidyUp(); // close all potentially open files and SQL connections
+
+                    if (query != null)
+                    {
+                        FoundAllSolutions?.Invoke();
+                    }
                 }
             }
-            finally
-            {
-                PostQueryTidyUp(); // close all potentially open files and SQL connections
-            }
         }
-
 
         public ISolution GetFirstSolution(string query)
         {
@@ -690,37 +633,21 @@ namespace Prolog
                 solution.Solved = true;
                 varStack.Clear();
                 catchIdStack.Clear();
-                predTable.Uncacheall();
                 tryCatchId = 0;
                 findFirstClause = true;
-
-                if (cmdBuf.CheckForHistoryCommands(ref query, this))
-                    return false;
-
                 userInterrupted = false;
                 parser.StreamIn = query;
                 rushToEnd = false;
-                xmlTrace = false;
                 levelMin = 0;
                 levelMax = INF;
-                prevLevel = -1;
+                firstGoal = true;
                 lastCp = null;
                 gensymInt = 0;
-                io.Reset(); // clear input character buffer
+                IO.Reset(); // clear input character buffer
                 goalListHead = parser.QueryNode;
-#if !NETSTANDARD
-                xmlFile = null;
-                xmlMaxEl = INF;
-                firstGoal = true;
-#endif
+
                 if (goalListHead == null) return false;
 
-            }
-            catch (UserException x)
-            {
-                error = true;
-                solution.SetMessage(x.Message);
-                solution.Solved = false;
             }
             catch (Exception x)
             {
@@ -738,89 +665,71 @@ namespace Prolog
         public void PostQueryTidyUp()
         {
             openFiles.CloseAllOpenFiles();
-#if !NETSTANDARD
-            XmlTraceClose();
-#endif
             currentFileReader = null;
             currentFileWriter = null;
-
-#if !NETSTANDARD
-            if (dbCommandSet != null)
-                dbCommandSet.CloseAllConnections();
-#endif
         }
-        #endregion Query execution preparation and finalization
 
-        #region Goal last execution
-        void Execute()
+
+        private RuntimeException Execute()
         {
             ElapsedTime();
             ProcessorTime();
 
             try
             {
-#if NETSTANDARD
-        solution.Solved = ExecuteGoalList ();
-#else
                 solution.Solved = (queryTimeout == 0) ? ExecuteGoalList() : StartExecuteGoalListThread();
-#endif
             }
             catch (AbortQueryException x)
             {
                 solution.SetMessage(x.Message);
                 solution.Solved = true;
             }
-            catch (UserException x)
-            {
-                error = true;
-                solution.SetMessage(x.Message);
-                solution.Solved = false;
-            }
             catch (Exception x)
             {
                 error = true;
-                solution.SetMessage("{0}{1}\r\n",
-                  x.Message, (userSetShowStackTrace ? Environment.NewLine + x.StackTrace : ""));
                 solution.Solved = false;
+                string msg = $"{x.Message}{(userSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}\r\n";
+                solution.SetMessage(msg);
+
+                RuntimeException rex = x as RuntimeException ?? new RuntimeException(msg, null, this.varStack);
+
+                if (rex.VarStack == null)
+                {
+                    rex.VarStack = this.varStack;
+                }
+
+                return rex;
             }
+
+            return null;
         }
 
-#if !NETSTANDARD
-        bool StartExecuteGoalListThread()
+
+        private bool StartExecuteGoalListThread()
         {
-            ThreadStart startExecuteGoalList = new ThreadStart(RunExecuteGoalList);
-            Thread run = new Thread(startExecuteGoalList);
-            run.SetApartmentState(ApartmentState.MTA);
-            run.Name = "ExecuteGoalList";
-            run.IsBackground = true;
             sema = new ManualResetEvent(false);
             goalListProcessed = false;
             goalListResult = false;
-            run.Start(); // run will fall through to WaitOne
-            sema.WaitOne(queryTimeout, false); // wait for timeOutMSecs (while the RunExecuteGoalList thread runs)
+            Task t = Task.Run(RunExecuteGoalList);
+            sema.WaitOne(queryTimeout); // wait for timeOutMSecs (while the RunExecuteGoalList thread runs)
 
             if (!goalListProcessed) // goalListProcessed is set by RunExecuteGoalList()
             {
-                run.Abort();
                 solution.Solved = false;
 
-                return IO.Error("Query execution timed out after {0} milliseconds", queryTimeout);
+                return IO.ErrorRuntime($"Query execution timed out after {queryTimeout} milliseconds", varStack, null);
             }
 
             return goalListResult;
         }
 
 
-        void RunExecuteGoalList()
+        private void RunExecuteGoalList()
         {
             try
             {
                 goalListResult = ExecuteGoalList();
                 goalListProcessed = true;
-            }
-            catch (ThreadAbortException) // time-out
-            {
-                return;
             }
             catch (Exception e) // any other exception
             {
@@ -835,7 +744,6 @@ namespace Prolog
                 sema.Set();
             }
         }
-#endif
 
         /*  Although in the code below a number of references is made to 'caching' (storing
             intermediate results of a calculation) this feature is currently not available.
@@ -849,22 +757,20 @@ namespace Prolog
         // The ExecuteGoalList() algorithm is the standard algorithm as for example
         // described in Ivan Bratko's "Prolog Programming for Artificial Intelligence",
         // 3rd edition p.45+
-        bool ExecuteGoalList()
+        private bool ExecuteGoalList()
         {
             // variables declaration used in goal loop to save stack space
             int stackSize;
-            TermNode currClause;
+            TermNode currClause = null;
             BaseTerm cleanClauseHead;
             BI builtinId;
-            int level;
             BaseTerm t;
-            TermNode saveGoal;
+            TermNode saveGoal = null;
             TermNode p;
             TermNode pHead;
             TermNode pTail;
             TermNode tn0;
             TermNode tn1;
-            bool caching = false;
             redo = false; // set by CanBacktrack if a choice point was found
 
             while (goalListHead != null) // consume the last of goalNodes until it is exhausted
@@ -898,23 +804,15 @@ namespace Prolog
                         continue;
                     }
                 }
-                else if (goalListHead is CacheCheckPoint) // check whether there was a successful exit of a cacheable predicate ...
+
+                if (goalListHead is CallReturn)
                 {
-                    CacheCheckPoint ccp = (CacheCheckPoint)goalListHead;
-                    saveGoal = ccp.SaveGoal;
-                    saveGoal.PredDescr.Cache(saveGoal.Term.Copy(), true);
-                    goalListHead = saveGoal.NextGoal;
+                    TermNode sp = ((CallReturn)goalListHead).SavedGoal;
 
-                    continue;
-                }
+                    if (reporting) Debugger(sp, sp, true);
+                    CallStack.Pop();
 
-                if (goalListHead is SpyPoint)
-                {
-                    TermNode sp = ((SpyPoint)goalListHead).SaveGoal;
-
-                    // debugger resets saveGoal and returns true if user enters r(etry) or f(ail)
-                    if (!Debugger(SpyPort.Exit, sp, null, false, 1))
-                        goalListHead = sp.NextGoal;
+                    goalListHead = sp.NextGoal;
 
                     continue;
                 }
@@ -925,24 +823,29 @@ namespace Prolog
                 // functor+arity of goalNode.Term. This definition is stored in goalListHead.NextClause
                 if (findFirstClause)
                 {
-                    if (!goalListHead.FindPredicateDefinition(predTable)) // undefined predicate
+
+                    // CALL, REDO
+                    //if (reporting)
+                    //    Debugger(goalListHead, currClause, false);
+                        
+                    if (!goalListHead.FindPredicateDefinition(PredTable)) // undefined predicate
                     {
                         BaseTerm goal = goalListHead.Head;
 
-                        switch (predTable.ActionWhenUndefined(goal.FunctorToString, goal.Arity))
+                        switch (PredTable.ActionWhenUndefined(goal.FunctorToString, goal.Arity))
                         {
                             case UndefAction.Fail: // pretend the predicate exists, with 'fail' as first and only clause
-                                goalListHead.PredDescr = predTable[BaseTerm.FAIL.Key];
+                                goalListHead.PredDescr = PredTable[BaseTerm.FAIL.Key];
                                 goalListHead.NextClause = goalListHead.PredDescr.ClauseList;
                                 break;
                             case UndefAction.Error:
-                                return IO.Error("Undefined predicate: {0}", goal.Name);
+                                return IO.ErrorRuntime($"Undefined predicate: {goal.Name}", varStack, goal);
                             default:
-                                PredicateDescr pd = predTable.FindClosestMatch(goal.Name);
+                                PredicateDescr pd = PredTable.FindClosestMatch(goal.Name);
                                 string suggestion = (pd == null)
                                 ? null
-                                : string.Format(". Maybe '{0}' is what you mean?", pd.Name);
-                                IO.Error("Undefined predicate: {0}{1}", goal.Name, suggestion);
+                                : $". Maybe '{pd.Name}' is what you mean?";
+                                IO.ErrorRuntime($"Undefined predicate: {goal.Name}{suggestion}", varStack, goal);
                                 break;
                         }
                     }
@@ -953,53 +856,35 @@ namespace Prolog
                 if (profiling && goalListHead.PredDescr != null)
                 {
                     goalListHead.PredDescr.IncProfileCount();
-                    caching = goalListHead.PredDescr.IsCacheable;
                 }
 
                 currClause = goalListHead.NextClause; // the first or next clause of the predicate definition
 
-                // in order to be able to retry goal etc.
-                if (reporting) varStack.Push(new SpyPoint(SpyPort.Call, goalListHead));
+                OnCurrentTermChanged?.Invoke(currClause);
 
                 saveGoal = goalListHead; // remember the original saveGoal (which may be NextGoal-ed, see below)
 
-                if (currClause.NextClause == null) // no redo possible => fail, make explicit when tracing
-                {
-                    if (reporting) // to be able to detect failure (i.e. when we have to pop beyond this entry) in CanBacktrack
-                        varStack.Push(new SpyPoint(SpyPort.Fail, goalListHead));
-
-                    if (caching)
-                        varStack.Push(new CacheCheckPoint(CachePort.Fail, goalListHead));
-                }
-                else  // currClause.NextClause will be tried upon backtracking
+                if (currClause.NextClause != null) // no redo possible => fail, make explicit when tracing
                     varStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
 
                 cleanClauseHead = currClause.Head.Copy(); // instantiations must be retained for clause body -> create newVars
-                level = goalListHead.Level;
 
-                if (reporting &&
-                    Debugger(redo ?
-                    SpyPort.Redo :
-                    SpyPort.Call, saveGoal, cleanClauseHead, currClause.NextGoal == null, 2))
-                    continue;  // Debugger may return some previous version of saveGoal (retry- or fail-command)
+                // CALL, REDO
+                if (reporting)
+                    Debugger(saveGoal, currClause, false);
 
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
                 if (cleanClauseHead.Unify(goalListHead.Term, varStack))
                 {
-                    bool currCachedClauseMustFail =
-                      (currClause is CachedClauseNode && !((CachedClauseNode)currClause).Succeeds);
-
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
+
+                    if (reporting)
+                        Debugger(saveGoal, currClause, false);
 
                     // FACT
                     if (currClause == null) // body is null, so matching was against a fact
                     {
-                        if (reporting && Debugger(SpyPort.Exit, goalListHead, null, false, 3)) continue;
-
-                        if (currCachedClauseMustFail) // act as if the clause has a (!, fail) body
-                            InsertCutFail();
-                        else
-                            goalListHead = goalListHead.NextGoal;
+                        goalListHead = goalListHead.NextGoal;
 
                         findFirstClause = true;
                     }
@@ -1010,7 +895,8 @@ namespace Prolog
                         {
                             t = goalListHead.Head.Arg(0);
 
-                            if (t.IsVar) return IO.Error("Unbound variable '{0}' in goal list", ((Variable)t).Name);
+                            if (t.IsVar) return IO.ErrorRuntime(
+                                $"Unbound variable '{((Variable)t).Name}' in goal list", varStack, t);
 
                             if (goalListHead.Head.Arity > 1) // implementation of SWI call/1..8
                             {
@@ -1020,20 +906,17 @@ namespace Prolog
 
                             tn0 = t.ToGoalList(stackSize, goalListHead.Level + 1);
 
+                            CallReturn callReturn = new CallReturn(saveGoal);
+                            CallStack.Push(callReturn);
+
                             if (reporting)
-                                tn0.Append(new SpyPoint(SpyPort.Exit, saveGoal));
+                               tn0.Append(callReturn);
 
                             goalListHead = (goalListHead == null) ? tn0 : tn0.Append(goalListHead.NextGoal);
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.or)
                         {
-                            if (reporting)
-                            {
-                                varStack.Pop();
-                                varStack.Pop();
-                            }
-
                             tn1 = goalListHead.Head.Arg(1).ToGoalList(stackSize, goalListHead.Level);
                             varStack.Push(new ChoicePoint((goalListHead == null)
                               ? tn1
@@ -1055,12 +938,7 @@ namespace Prolog
                         }
                         else if (DoBuiltin(builtinId, out findFirstClause))
                         {
-                            if (reporting && Debugger(SpyPort.Exit, saveGoal, null, false, 5))
-                            {
-                                findFirstClause = true;
 
-                                continue;
-                            }
                         }
                         else if (!(redo = CanBacktrack()))
                             return false;
@@ -1087,7 +965,7 @@ namespace Prolog
                                 p = new TermNode(currTerm.Copy(false), null, 0);
                             }
                             else if (currTerm is Cut)
-                                p = new TermNode(new Cut(stackSize), null, goalListHead.Level + 1); // save the pre-unification state
+                                p = new TermNode(new Cut(currTerm.Symbol, stackSize), null, goalListHead.Level + 1); // save the pre-unification state
                             else // Copy (false): keep the varNo constant over all terms of the predicate head+body
                                  // (otherwise each term would get new variables, independent of their previous incarnations)
                                 p = new TermNode(currTerm.Copy(false), currClause.PredDescr, goalListHead.Level + 1); // gets the newVar version
@@ -1101,19 +979,12 @@ namespace Prolog
                             currClause = currClause.NextNode;
                         }
 
-                        // If caching is on for this predicate, insert a CacheCheck Exitpoint, which will be
-                        // picked up at the start of the loop loop if and when saveGoal has succeeded.
-                        // It will only be picked up if the goal has actually succeeded, because a failure would
-                        // have changed the goal last (and effectively removed the exit point)
-                        if (caching)
-                        {
-                            pTail.NextGoal = new CacheCheckPoint(CachePort.Exit, saveGoal);
-                            pTail = pTail.NextNode;
-                        }
+                        CallReturn callReturn = new CallReturn(saveGoal);
+                        CallStack.Push(callReturn);
 
                         if (reporting)
                         {
-                            pTail.NextGoal = new SpyPoint(SpyPort.Exit, saveGoal);
+                            pTail.NextGoal = callReturn;
                             pTail = pTail.NextNode;
                         }
 
@@ -1124,31 +995,29 @@ namespace Prolog
                 }
                 else if (!(redo = CanBacktrack())) // unify failed - try backtracking
                     return false;
-#if !NETSTANDARD
+
                 firstGoal = false;
-#endif
             } // end of while
 
             return true;
         }
 
 
-        void InsertCutFail()
+        private void InsertCutFail()
         {
             ClauseNode fail = new ClauseNode(BaseTerm.FAIL, null);
             fail.NextGoal = goalListHead.NextGoal;
-            ClauseNode cut = new ClauseNode(BaseTerm.CUT, null);
-            cut.NextGoal = fail;
+            ClauseNode cut = new ClauseNode(BaseTerm.CUT, null) { NextGoal = fail };
             goalListHead = cut;
         }
 
 
-        bool CanBacktrack() // returns true if choice point was found
+        private bool CanBacktrack() // returns true if choice point was found
         {
             return CanBacktrack(true);
         }
 
-        bool CanBacktrack(bool local) // local = false if user wants more (so as not to trigger the debugger)
+        private bool CanBacktrack(bool local) // local = false if user wants more (so as not to trigger the debugger)
         {
             Object o;
             ChoicePoint cp;
@@ -1160,19 +1029,7 @@ namespace Prolog
                 o = varStack.Pop();
                 lastCp = o;
 
-                if (o is CacheCheckPoint) // goal failed (otherwise we would not find this entry) -- cache a failure
-                {
-                    TermNode saveGoal = ((CacheCheckPoint)o).SaveGoal;
-                    PredicateDescr pd = saveGoal.PredDescr;
-                    pd.Cache(saveGoal.Term.Copy(), false);
-                }
-                else
-                  if (reporting && o is SpyPoint)
-                {
-                    if (local && ((SpyPoint)o).Port == SpyPort.Fail)
-                        Debugger(SpyPort.Fail, ((SpyPoint)o).SaveGoal, null, false, 6); // may reset saveGoal
-                }
-                else if (o is Variable)
+                if (o is Variable)
                     ((Variable)o).Unbind();
                 else if (o is ChoicePoint && ((ChoicePoint)o).IsActive)
                 {
@@ -1191,7 +1048,7 @@ namespace Prolog
         }
 
 
-        bool FindChoicePoint()
+        private bool FindChoicePoint()
         {
             foreach (Object o in varStack)
                 if (o is ChoicePoint && ((ChoicePoint)o).IsActive)
@@ -1199,27 +1056,31 @@ namespace Prolog
 
             return false;
         }
-        #endregion Goal last execution
 
-        #region TRY/CATCH
-        void Throw(string exceptionClass, string exceptionMessage)
+
+        /// <summary>
+        /// Prolog throw.
+        /// </summary>
+        private void Throw(string exceptionClass, string exceptionMessage)
         {
             if (!SearchMatchingCatchClause(exceptionClass, exceptionMessage))
             {
                 string comma = (exceptionClass == null || exceptionMessage == null) ? null : ", ";
-                string msg = string.Format("No CATCH found for throw( {0}{1}\"{2}\")",
-                                            exceptionClass, comma, exceptionMessage);
-                IO.Error(msg);
+                string msg = $"No CATCH found for throw( {exceptionClass}{comma}\"{exceptionMessage}\")";
+                IO.ErrorRuntime(msg, varStack, null);
             }
         }
 
-        void Throw(string exceptionClass, string exceptionFmtMessage, params object[] args)
+        /// <summary>
+        /// Prolog throw.
+        /// </summary>
+        private void Throw(string exceptionClass, string exceptionFmtMessage, params object[] args)
         {
             Throw(exceptionClass, string.Format(exceptionFmtMessage, args));
         }
 
 
-        void AddCallArgs(TermNode GoalListHead)
+        private void AddCallArgs(TermNode GoalListHead)
         {
             BaseTerm callPred = GoalListHead.Head.Arg(0);
             int arity0 = callPred.Arity;
@@ -1232,13 +1093,13 @@ namespace Prolog
             for (int i = arity0; i < arity; i++)
                 callArgs[i] = GoalListHead.Head.Arg(1 + i - arity0);
 
-            GoalListHead.Head = new CompoundTerm(callPred.Functor, callArgs);
+            GoalListHead.Head = new CompoundTerm(callPred.Symbol, callPred.Functor, callArgs);
         }
 
 
-        enum Status { NextCatchId, CompareIds, NextGoalNode, TestGoalNode, TryMatch }
+        private enum Status { NextCatchId, CompareIds, NextGoalNode, TestGoalNode, TryMatch }
 
-        bool SearchMatchingCatchClause(string exceptionClass, string exceptionMessage)
+        private bool SearchMatchingCatchClause(string exceptionClass, string exceptionMessage)
         {
             /* A TRY/CATCH predicate has the following format:
 
@@ -1324,7 +1185,7 @@ namespace Prolog
                     case Status.TryMatch:
                         if (t.ExceptionClass == null || t.ExceptionClass == exceptionClass)
                         {
-                            t.MsgVar.Unify(new StringTerm(exceptionMessage), varStack);
+                            t.MsgVar.Unify(new StringTerm(t.Symbol, exceptionMessage), varStack);
 
                             return true;
                         }
@@ -1333,322 +1194,21 @@ namespace Prolog
                 }
             }
         }
-        #endregion TRY/CATCH
 
-        #region Debugging
-        bool Debugger(SpyPort port, TermNode goalNode, BaseTerm currClause, bool isFact, int callNo)
+
+        private bool Debugger(TermNode goalNode, TermNode currClause, bool isReturn)
         {
             if (!reporting) return false;
 
-            // only called if reporting = true. This means that at least one of the following conditions hold:
-            // (1) debug is true. This means that trace = true and/or we must check whether this port has a spypoint
-            // (2) xmlTrace = true.
-            // Console-interaction will only occur if debug && (trace || spied)
-            bool spied = false;
-            bool console;
-            string s;
-            int free = 0;
-            string lmar;
-
-            if (!trace) // determine spied-status
-            {
-                if (goalNode.PredDescr == null) goalNode.FindPredicateDefinition(predTable);
-
-                spied = (goalNode.Spied && (goalNode.SpyPort | port) == goalNode.SpyPort);
-            }
-
-            console = debug && (trace || spied);
-
-            // continue only if either trace or spied, or if an XML-trace is to be constructed
-            if (!console && !xmlTrace) return false;
-
-            lmar = null;
-            BaseTerm goal = goalNode.Head;
-            int level = goalNode.Level;
-
-            if (@"\tdebug\tnodebug\tspy\tnospy\tnospyall\tconsult\ttrace\tnotrace\txmltrace\t".
-              IndexOf(goal.FunctorToString) != -1) return false;
-
-            if (console) // this part is not required for xmlTrace
-            {
-                if (!qskip && level >= levelMax) return false;
-
-                levelMax = INF;   // recover from (q)s(kip) command
-                qskip = false; // ...
-                const int widthMin = 20; // minimal width of writeable portion of line
-#if mswindows
-                int width = Utils.NumCols - 10;
-#else
-        int width = 140;
-#endif
-                int indent = 3 * (level - levelMin);
-                int condensedLevel = 0;
-
-                while (indent > width - widthMin)
-                {
-                    indent -= width - widthMin;
-                    condensedLevel++;
-                }
-
-                if (condensedLevel == 0)
-                {
-                    lmar = "|  ".Repeat(level).Substring(0, indent);
-                    free = width - indent;
-                }
-                else
-                {
-                    string dots = "| ... ";
-                    lmar = dots + "|  ".Repeat(level).Substring(0, indent);
-                    free = width - indent - dots.Length;
-                }
-
-                IO.Write(lmar);
-            }
-
-            switch (port)
-            {
-                case SpyPort.Call:
-                    if (console)
-                    {
-                        s = Utils.WrapWithMargin(goal.ToString(), lmar + "|     ", free);
-                        IO.Write("{0,2:d2} Goal: {1}", level, s);
-                        s = Utils.WrapWithMargin(currClause.ToString(), lmar, free);
-                        IO.Write("{0}{1,2:d2} {2}: {3}", lmar, level, "Try ", s);
-                    }
-#if !NETSTANDARD
-                    if (xmlTrace)
-                    {
-                        if (level > prevLevel)
-                        {
-                            xtw.WriteStartElement("body");
-                            xtw.WriteAttributeString("goal", goal.ToString());
-                            xtw.WriteAttributeString("level", level.ToString());
-                        }
-                        else if (level < prevLevel)
-                            xtw.WriteEndElement();
-                        else
-                            XmlTraceWriteTerm("goal", "goal", goal);
-                        XmlTraceWriteTerm("try", isFact ? "fact" : "pred", currClause);
-                    }
-#endif
-                    break;
-                case SpyPort.Redo:
-                    if (console)
-                    {
-                        s = Utils.WrapWithMargin(currClause.ToString(), lmar + "|     ", free);
-                        IO.Write("{0,2:d2} {1}: {2}", level, "Try ", s); // fact or clause
-                    }
-#if !NETSTANDARD
-                    if (xmlTrace)
-                    {
-                        if (level < prevLevel) xtw.WriteEndElement();
-                        XmlTraceWriteTerm("try", isFact ? "fact" : "clause", currClause);
-                    }
-#endif
-                    break;
-                case SpyPort.Fail:
-                    if (console)
-                    {
-                        s = Utils.WrapWithMargin(goal.ToString(), lmar + "|     ", free);
-                        IO.Write("{0,2:d2} Fail: {1}", level, s);
-                    }
-#if !NETSTANDARD
-                    if (xmlTrace)
-                    {
-                        if (level < prevLevel) xtw.WriteEndElement();
-                        XmlTraceWriteTerm("fail", "goal", goal);
-                    }
-#endif
-                    break;
-                case SpyPort.Exit:
-                    if (console)
-                    {
-                        s = Utils.WrapWithMargin(goal.ToString(), lmar + "         ", free);
-                        IO.Write("{0,2:d2} Exit: {1}", level, s);
-                    }
-#if !NETSTANDARD
-                    if (xmlTrace)
-                    {
-                        if (level < prevLevel) xtw.WriteEndElement();
-                        XmlTraceWriteTerm("exit", "match", goal);
-                    }
-#endif
-                    break;
-            }
-
-            prevLevel = level;
-
             redo = false;
 
-            if (rushToEnd || !console) return false;
-
-            return DoDebuggingAction(port, lmar, goalNode);
-        }
-
-
-        bool DoDebuggingAction(SpyPort port, string lmar, TermNode goalNode)
-        {
-            const string prompt = "|  TODO: ";
-            const string filler = "|        ";
-            int level;
-            string cmd;
-            int n = INF;
-            int leap = 0; // difference between current level and new level
-
-            while (true)
+            if (eventDebug)
             {
-                level = goalNode.Level;
-
-                while (true)
-                {
-                    IO.Write(lmar + prompt);
-                    cmd = IO.ReadLine().Replace(" ", "");
-
-                    if (cmd.Length > 1)
-                    {
-                        string cmd0 = cmd.Substring(0, 1);
-
-                        try
-                        {
-                            n = Int32.Parse(cmd.Substring(1));
-                        }
-                        catch
-                        {
-                            break;
-                        }
-
-                        if ("sr".IndexOf(cmd0) != -1 && Math.Abs(n) > level)
-                            IO.WriteLine(lmar + filler + "*** Illegal value {0} -- must be in the range -{1}..{1}", n, level);
-                        else
-                        {
-                            if (n != INF && "cloqfgan+-.?h".IndexOf(cmd0) != -1)
-                                IO.WriteLine(lmar + filler + "*** Unexpected argument {0}", n);
-                            else
-                            {
-                                if (n < 0) { level += n; leap = -n; } else { leap = level - n; level = n; }
-
-                                cmd = cmd0;
-
-                                break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        leap = 0;
-
-                        if (cmd != "") cmd = cmd.Substring(0, 1);
-
-                        break;
-                    }
-                }
-
-                switch (cmd)
-                {
-                    case "":   // creap
-                    case "c":  // ...
-                        return false;
-                    case "l":  // leap
-                        SetSwitch("Tracing", ref trace, false);
-                        return false;
-                    case "value":  // skip
-                        if (n == INF) levelMax = level; else levelMax = n + 1;
-                        return false;
-                    case "t":  // out (skip to Exit or Fail)
-                        IO.WriteLine(lmar + filler + "*** NOT YET IMPLEMENTED");
-                        break;
-                    case "q":  // q-skip (skip subgoals except if a spypoint was set)
-                        levelMax = level;
-                        qskip = true;
-                        return false;
-                    case "r":  // retry
-                        if (port == SpyPort.Call && leap == 0)
-                        {
-                            IO.WriteLine(lmar + filler + "*** retry command has no effect here");
-
-                            return false;
-                        }
-                        else
-                        {
-                            RetryCurrentGoal(level);
-#if !NETSTANDARD
-                            if (xmlTrace)
-                            {
-                                XmlTraceWriteElement("RETRY",
-                                  (n == INF) ? "Retry entered by user" : String.Format("Retry to level {0} entered by user", level));
-                                XmlTraceWriteEnds(leap);
-                            }
-#endif
-                            return true;
-                        }
-                    case "f":  // Fail
-                        if (port == SpyPort.Fail)
-                        {
-                            IO.WriteLine(lmar + filler + "*** fail command has no effect here");
-
-                            return false;
-                        }
-                        else
-                        {
-                            if (!CanBacktrack()) throw new AbortQueryException();
-#if !NETSTANDARD
-                            if (xmlTrace)
-                            {
-                                XmlTraceWriteElement("FAILED",
-                                  (n == INF) ? "Goal failed by user" : String.Format("Retry to level {0} entered by user", level));
-                                XmlTraceWriteEnds(leap);
-                            }
-#endif
-                            return true;
-                        }
-                    case "i":  // ancestors
-                        ShowAncestorGoals(lmar + filler);
-                        break;
-                    case "n":  // nodebug
-                        SetSwitch("Debugging", ref debug, false);
-                        return false;
-                    case "a":
-#if !NETSTANDARD
-                        if (xmlTrace) XmlTraceWriteElement("ABORT", "Session aborted by user");
-#endif
-                        throw new AbortQueryException();
-                    case "+":  // spy this
-                        goalNode.PredDescr.SetSpy(true, goalNode.Term.FunctorToString, goalNode.Term.Arity, SpyPort.Full, false);
-                        return false;
-                    case "-":  // nospy this
-                        goalNode.PredDescr.SetSpy(false, goalNode.Term.FunctorToString, goalNode.Term.Arity, SpyPort.Full, false);
-                        return false;
-                    case ".":  // run to completion
-                        rushToEnd = true;
-                        return false;
-                    case "?":  // help
-                    case "h":  // ...
-                        string[] help = new string[] {
-              "c, CR       creep       Single-step to the next port",
-              "l           leap        Resume running, switch tracing off; stop at the next spypoint.",
-              "value [<N>] skip        If integer N provided: skip to Exit or Fail port of level N.",
-              "t           out         NOT YET IMPLEMENTED. Skip to the Exit or Fail port of the ancestor.",
-              "q           quasi-skip  Same as skip, but will stop if an intermediate spypoint is found.",
-              "r [<N>]     retry       Transfer control back to the Call port at level N.",
-              "f           fail        Fail the current goal.",
-              "i           ancestors   Show ancestor goals.",
-              "n           nodebug     Switch the debugger off.",
-              "a           abort       Abort the execution of the current query.",
-              "+           spy this    Set a spypoint on the current goal.",
-              "-           nospy this  Remove the spypoint for the current goal, if it exists.",
-              ".           rush        Run to completion without furder prompting.",
-              "?, h        help        Show this text."
-            };
-                        foreach (string line in help)
-                            IO.WriteLine(lmar + filler + line);
-                        break;
-                    default:
-                        IO.WriteLine(lmar + filler + "*** Unknown command '{0}' -- enter ? or h for help", cmd);
-                        break;
-                }
+                return DebugEventBlocking?.Invoke(goalNode, currClause, isReturn, varStack, CallStack) ?? false;
             }
-        }
 
+            return false;
+        }
 
         public void RetryCurrentGoal(int level)
         {
@@ -1658,352 +1218,11 @@ namespace Prolog
             {
                 o = varStack.Pop();
 
-                if (o is SpyPoint && ((SpyPoint)o).Port == SpyPort.Call)
-                {
-                    goalListHead = ((SpyPoint)o).SaveGoal;
-
-                    if (goalListHead.Level == level)
-                    {
-                        goalListHead.FindPredicateDefinition(predTable); // clause had been forwarded -- reset it
-
-                        return;
-                    }
-                }
-                else if (o is Variable)
+                if (o is Variable)
                     ((Variable)o).Unbind();
             }
         }
 
-
-        void ShowAncestorGoals(string lmar)
-        {
-            Stack<TermNode> ancestors = new Stack<TermNode>();
-            TermNode g;
-            int l;
-            int lPrev = INF;
-
-            foreach (object o in varStack) // works from the top down to the bottom
-            {
-                if (o is SpyPoint && ((SpyPoint)o).Port == SpyPort.Call)
-                {
-                    if ((l = (g = ((SpyPoint)o).SaveGoal).Level) < lPrev) // level decreases or stays equal at each step
-                    {
-                        ancestors.Push(g);
-                        lPrev = l;
-                    }
-                }
-            }
-
-            while (ancestors.Count != 0) // revert the order
-            {
-                g = ancestors.Pop();
-                IO.WriteLine(lmar + "{0}>{1}", Spaces(g.Level), g.Term);
-            }
-        }
-
-#if !NETSTANDARD // Disable XML Trace feature.
-
-        void XmlTraceOpen(string tag, int maxEl)
-        {
-            xmlMaxEl = maxEl;
-            xmlElCount = 0;
-            xmlTrace = true;
-            reporting = true;
-            xtw = new XmlTextWriter(xmlFile, null);
-            xtw.Formatting = Formatting.Indented;
-            xtw.WriteStartDocument();
-            xtw.WriteStartElement(tag);
-        }
-
-
-        void XmlTraceWriteTerm(string tag, string attr, BaseTerm term)
-        {
-            xtw.WriteStartElement(tag);
-            if (term != null) xtw.WriteAttributeString(attr, term.ToString());
-            xtw.WriteEndElement();
-            XmlTraceCheckMaxElement();
-        }
-
-
-        void XmlTraceWriteElement(string tag, string content)
-        {
-            xtw.WriteStartElement(tag);
-            xtw.WriteString(content);
-            xtw.WriteEndElement();
-            XmlTraceCheckMaxElement();
-        }
-
-
-        void XmlTraceCheckMaxElement()
-        {
-            if (xmlElCount++ < xmlMaxEl) return;
-
-            xtw.WriteStartElement("MAX_EXCEEDED");
-            xtw.WriteString(String.Format("Maximum number of elements ({0}) written", xmlMaxEl));
-            xtw.WriteEndElement();
-
-            XmlTraceClose();
-        }
-
-
-        void XmlTraceWriteEnds(int leap)
-        {
-            for (int i = 0; i < leap; i++) xtw.WriteEndElement();
-        }
-
-
-        void XmlTraceClose()
-        {
-            if (!xmlTrace) return;
-
-            xtw.WriteEndElement();
-            xtw.WriteEndDocument();
-            xtw.Flush();
-            xtw.Close();
-            IO.Message("XML trace file {0} created", xmlFile);
-            xmlFile = null;
-            xmlTrace = false;
-        }
-#endif
-        #endregion Debugging
-
-        #region Command history
-        static string HistoryHelpText =
-    @"
-  Command history commands:
-  ========================
-  !!                : show numbered list of previous commands
-  !                 : repeat previous command
-  !<n>              : repeat command number <n>
-  !/<old>/<new>/    : repeat previous command, with <old> replaced by <new>.
-                     / may be any char, and the end / may be omitted.
-  !<n>/<old>/<new>/ : same for command number <n>
-  !c                : clear the history
-  !?                : help (this text)
-
-  History commands must not be followed by a '.'
-";
-#if !NETSTANDARD
-        [Serializable] // in order to be able to the retain history between sessions
-#endif
-        class CommandHistory : List<string>
-        {
-#if !NETSTANDARD
-            ApplicationStorage persistentSettings;
-#endif
-            public int cmdNo { get { return Count + 1; } }
-            int maxNo; // maximum number of commands to be retained
-
-            public CommandHistory()
-#if NETSTANDARD
-          : this(enablePersistence: false)
-#else
-          : this(enablePersistence: true)
-#endif
-            {
-            }
-
-            public CommandHistory(bool enablePersistence)
-            {
-                maxNo = Math.Abs(ConfigSettings.HistorySize);
-#if NETSTANDARD
-          if (enablePersistence)
-          {
-            //TODO: enable persistence
-            throw new NotImplementedException();
-          }
-#else
-                if (enablePersistence)
-                {
-                    persistentSettings = new ApplicationStorage();
-                    List<string> history;
-
-                    try
-                    {
-                        history = persistentSettings.Get<List<string>>("CommandHistory", null);
-                    }
-                    catch
-                    {
-                        history = null;
-                    }
-
-                    if (history == null) return;
-
-                    foreach (string cmd in history) Add(cmd);
-                }
-#endif
-            }
-
-
-            new void Add(string cmd)
-            {
-                if (Count == 0 || cmd != this[Count - 1]) base.Add(cmd);
-            }
-
-
-            // returns true if a history command was entered
-            public bool CheckForHistoryCommands(ref string query, PrologEngine engine)
-            {
-                string s = query.Trim();
-                int i;
-
-                if (s.Length == 0) return true;
-
-                if (s.EndsWith("."))
-                {
-                    Add(query);
-
-                    return false;
-                }
-                else if (s[0] == '!')
-                {
-                    int len = s.Length;
-
-                    if (s == "!!")
-                    {
-                        engine.solution.SetMessage(HistoryList);
-                        query = null;
-
-                        return true;
-                    }
-                    else if (s == "!c")
-                    {
-                        ClearHistory();
-                        engine.solution.SetMessage("\r\n--- Command history cleared");
-                        query = null;
-
-                        return true;
-                    }
-                    else if (s == "!?")
-                    {
-                        engine.solution.SetMessage(HistoryHelpText);
-                        query = null;
-
-                        return true;
-                    }
-
-                    if (len == 1)
-                    {
-                        if (Count > 0) Add(query = this[Count - 1].ToString());
-                    }
-                    else if (int.TryParse(s.Substring(1, len - 1), out i))
-                    {
-                        if (i < 1 || i > Count)
-                        {
-                            query = null;
-
-                            return true;
-                        }
-
-                        Add(query = this[i - 1].ToString());
-                    }
-                    else
-                    {
-                        // check for find/replace: ![commandno]<sepchar><findstr><sepchar><replacestr>[<sepchar>]
-                        Regex r = new Regex(@"^!(?<cno>\d+)?(?<sep>\S).{3,}$"); // find the command nr, the separator char, and check on length
-                        Match m = r.Match(query);
-
-                        if (!m.Success)
-                        {
-                            IO.Error("Unrecognized history command '{0}'", s);
-                            query = null;
-
-                            return true;
-                        }
-
-                        char sep = m.Groups["sep"].Value[0];
-                        int cmdNo = (m.Groups["cno"].Captures.Count > 0) ?
-                          Convert.ToInt32(m.Groups["cno"].Value) : Count;
-
-                        if (cmdNo < 1 || cmdNo > Count)
-                        {
-                            IO.Error("No command {0}", cmdNo);
-                            query = null;
-
-                            return true;
-                        }
-
-                        // replace oldSep in command by newSep some char that is bound not to occur in command
-
-                        r = new Regex(@"^!\d*(?:\f(?<str>[^\f]*)){2}\f?$"); // 2 occurances of str
-                        m = r.Match(query.Replace(sep, '\f'));
-
-                        CaptureCollection cc;
-
-                        if (!m.Success || (cc = m.Groups["str"].Captures)[0].Value.Length == 0)
-                        {
-                            IO.Error("Unrecognized history command '{0}'", s);
-                            query = null;
-
-                            return true;
-                        }
-
-                        Add(query = this[cmdNo - 1].ToString().Replace(cc[0].Value, cc[1].Value));
-                    }
-
-                    IO.WriteLine("?- " + query);
-
-                    return false;
-                }
-                else if (query.Trim().EndsWith("/")) // TEMP
-                {
-                    query = "/";
-                    engine.halted = true;
-
-                    return true;
-                }
-                else
-                    return false;
-            }
-
-
-            string HistoryList
-            {
-                get
-                {
-                    StringBuilder sb = new StringBuilder();
-
-                    for (int i = 0; i < Count; i++) sb.AppendFormat("\r\n{0,2} {1}", i + 1, this[i]);
-
-                    return sb.ToString();
-                }
-            }
-
-
-            void ClearHistory()
-            {
-                Clear();
-#if !NETSTANDARD
-                if (persistentSettings != null) persistentSettings["CommandHistory"] = null;
-#endif
-            }
-
-
-            public void Persist()
-            {
-#if !NETSTANDARD
-                int maxNum = Math.Min(Count, maxNo);
-                if (persistentSettings != null) persistentSettings["CommandHistory"] = GetRange(Count - maxNum, maxNum);
-#endif
-            }
-        }
-
-
-        public void PersistCommandHistory()
-        {
-            try
-            {
-                if (ConfigSettings.HistorySize > 0)
-                    cmdBuf.Persist();
-            }
-            catch (Exception x)
-            {
-                IO.Error("Unable to save command history. System message is:\r\n{0}", x.Message);
-            }
-        }
-        #endregion Command history
-
-        #region Named variables
         public BaseTerm GetVariable(string s)
         {
             return solution.GetVar(s);
@@ -2030,9 +1249,7 @@ namespace Prolog
         {
             solution.ReportSingletons(c, lineNo, ref firstReport);
         }
-        #endregion Named variables
 
-        #region Miscellaneous
         public void SetProfiling(bool mode)
         {
             profiling = mode;
@@ -2046,13 +1263,7 @@ namespace Prolog
         }
 
 
-        public string Prompt
-        {
-            get
-            {
-                return string.Format("\r\n{0}{1} ?- ", (Debugging ? "[d]" : ""), CmdNo);
-            }
-        }
+        public string Prompt => $"\r\n{(Debugging ? "[d]" : "")}{CmdNo} ?- ";
 
 
         public int ElapsedTime() // returns numer of milliseconds since last Call
@@ -2063,12 +1274,11 @@ namespace Prolog
         }
 
 
-        public TimeSpan ProcessorTime() // returns numer of milliseconds since last Call
+        public long ProcessorTime() // returns numer of milliseconds since last Call
         {
-            var processorTime = procTime.Elapsed;
-            procTime.Reset();
-            procTime.Start();
-            return processorTime;
+            long prevProcTime = (procTime == 0) ? Stopwatch.GetTimestamp() : procTime;
+
+            return (long)(1000 * ((procTime = Stopwatch.GetTimestamp()) - prevProcTime) / (double)Stopwatch.Frequency);
         }
 
 
@@ -2077,45 +1287,6 @@ namespace Prolog
             return DateTime.Now.Ticks / 10000;
         }
 
-
-        public void CheckInitialConsultFile()
-        {
-            string initialConsultFileName = PrologEngine.ConfigSettings.InitialConsultFile;
-
-            if (string.IsNullOrEmpty(initialConsultFileName)) return;
-
-            if (File.Exists(initialConsultFileName))
-            {
-                IO.WriteLine();
-                Consult(initialConsultFileName);
-            }
-            else
-            {
-                string msg = string.Format(
-                  "Initial file to be consulted not found (config file says: '{0}')\r\n",
-                    initialConsultFileName);
-
-                IO.Warning(msg);
-            }
-        }
-
-
-        public void CheckConfigFile()
-        {
-#if !NETSTANDARD
-            string configFileName = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile;
-
-            if (!File.Exists(configFileName))
-            {
-                string msg = string.Format(
-                  "No config file ({0}) found: default settings used", configFileName);
-
-                IO.Warning(msg);
-            }
-#endif
-        }
-
-
         public void Consult(string fileName)
         {
             bool csharpStringsSave = csharpStrings;
@@ -2123,7 +1294,8 @@ namespace Prolog
 
             try
             {
-                predTable.Consult(fileName);
+                Globals.ConsultedFiles.Clear();
+                PredTable.Consult(fileName);
             }
             finally
             {
@@ -2138,11 +1310,13 @@ namespace Prolog
 
             try
             {
-                predTable.Consult(stream, streamName);
+                Globals.ConsultedFiles.Clear();
+                PredTable.Consult(stream, streamName);
             }
             finally
             {
                 csharpStrings = csharpStringsSave;
+                LastConsulted = DateTime.Now;
             }
         }
 
@@ -2152,10 +1326,11 @@ namespace Prolog
                 Consult(ms, codeTitle);
         }
 
-        public void CreateFact(string functor, BaseTerm[] args)
-        {
-            predTable.Assert(new CompoundTerm(functor, args), true);
-        }
+        // TODO: remove
+        //        public void CreateFact(string functor, BaseTerm[] args)
+        //        {
+        //            predTable.Assert(new CompoundTerm(null, functor, args), true);
+        //        }
 
 
         public void SetStringStyle(BaseTerm t)
@@ -2163,13 +1338,13 @@ namespace Prolog
             string arg = t.FunctorToString;
 
             if (!(arg == "csharp" || arg == "iso"))
-                IO.Error("Illegal argument '{0}' for setstringstyle/1 -- must be 'iso' or 'csharp'", t);
+                IO.ErrorRuntime($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'", varStack, t);
 
             csharpStrings = (arg == "csharp");
         }
 
 
-        void SetSwitch(string switchName, ref bool switchVar, bool mode)
+        private void SetSwitch(string switchName, ref bool switchVar, bool mode)
         {
             bool current = switchVar;
 
@@ -2178,8 +1353,6 @@ namespace Prolog
             else
                 IO.Message("{0} switched {1}", switchName, (mode ? "on" : "off"));
         }
-        #endregion Miscellaneous
 
     }
-    #endregion Engine
 }
