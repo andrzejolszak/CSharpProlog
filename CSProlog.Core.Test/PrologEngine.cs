@@ -2,7 +2,7 @@ using System;
 using Xunit;
 using Prolog;
 
-namespace CSProlog.Core.Test
+namespace CSPrologTest
 {
     public class PrologEngineTest
     {
