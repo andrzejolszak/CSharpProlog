@@ -53,36 +53,14 @@ Unit Tests
 ### PL.NETCore
 Dotnet Core Console Interactive Interpreter (tested in linux and windows)
 
-### PLd
-DOS Console Interactive Interpreter
-
-### PLw
-Windows Forms Example
-
-### PLx
-An example of how to use the engine within another Program
+### IDE
+Windows Forms IDE
 
 
 ## For more documents
 
 Earlier release documents can be found in [README (2007-2014).pdf](README%20(2007-2014).pdf).
 
-## Release Notes
-
-### v.6.0.0
-
-- BREAKING CHANGE: Remove "SAMPLES, TESTING & EXPERIMENTAL" predefined predicates. (including CHAT-80 support)
-- Fix: "help" predefined predicate dose not work.
-- Enhance: GetAllSolutions can work with null file name.
-
-### v.5.0.0.1
-
-- Support: .NET Standard 1.4 (.NET Core) and UWP
-
-### v.5.0.0
-
-- BREAKING CHANGE: Remove dependency of "System.Windows.Forms".
-- NuGet package release
 
 ### Older versions
 

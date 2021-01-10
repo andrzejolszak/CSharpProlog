@@ -20,7 +20,7 @@ Right click on consulted term - inspect parsed term
 %
 foo(A, B, C, D, E, F) :- A = myFooAtom, fail.
 
-% Unit testing example:
+% Unit testing example - using SWI-Prolog style directives:
 :- begin_tests(arithm).
     testSimpleAdd :- 1 + 2 =:= 3.
     testSub :- 2 - 1 =:= 1.
