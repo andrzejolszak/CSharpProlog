@@ -1030,8 +1030,6 @@ namespace Prolog
        regex_replace(S, P, R, T) :== regex_replace. % String T is the result of replacing all ...
                                                      % ... occurances of pattern P in S with R
 
-       numcols(N)              :== numcols. % number of columns in the DOS-box
-
 %% statistics(+Key, -Value)
 %
 % Unify system statistics determined by Key with Value. 

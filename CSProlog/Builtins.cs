@@ -36,7 +36,7 @@ namespace Prolog
         leapyear, length, license, list, listing, listing0, listing0X, listing0XN, listingX,
         listingXN, lt_num, lt_ord, maxwritedepth, member, name, ne_num,
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
-        noverbose, now, number, numbervars, numcols, or, permutation, pp_defines,
+        noverbose, now, number, numbervars, or, permutation, pp_defines,
         predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
         readatom, readeof, readln, regex_match, regex_replace, retract, retractall,
         reverse, see, seeing, seen, set_counter, setvar,
@@ -2151,11 +2151,6 @@ namespace Prolog
 
                     if (!t3.Unify(new StringTerm(term.Symbol, Regex.Replace(input, pattern, replacement)), varStack))
                         return false;
-
-                    break;
-
-                case BI.numcols: // numcols( N) -- Number of columns in the DOS-box
-                    if (!term.Arg(0).Unify(new DecimalTerm(term.Symbol, Utils.NumCols), varStack)) return false;
 
                     break;
 

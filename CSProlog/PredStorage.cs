@@ -46,7 +46,6 @@ namespace Prolog
             private const string SLASH = "/";
             public HashSet<string> Predefined { get; }
             public Stack<string> consultFileStack;
-            private Stack<PrologParser> consultParserStack;
             public string ConsultFileName => (consultFileStack.Count == 0) ? null : consultFileStack.Peek();
 
             public PredicateTable(PrologEngine engine)
@@ -61,7 +60,6 @@ namespace Prolog
                 isDiscontiguous = new Dictionary<string, string>();
                 actionWhenUndefined = new Dictionary<string, UndefAction>();
                 consultFileStack = new Stack<string>();
-                consultParserStack = new Stack<PrologParser>();
                 AllConsultedTerms = new List<BaseTerm>();
             }
 
@@ -76,7 +74,6 @@ namespace Prolog
                 actionWhenUndefined.Clear();
                 prevIndex = null;
                 consultFileStack.Clear();
-                consultParserStack.Clear();
             }
 
 
@@ -168,12 +165,9 @@ namespace Prolog
                 // string as ISO-style charcode lists or as C# strings
                 var fileName = streamName ?? Guid.NewGuid().ToString("N");
                 consultFileStack.Push(fileName);
-                consultParserStack.Push(Globals.CurrentParser);
-                PrologParser parser = Globals.CurrentParser = new PrologParser(engine);
+                PrologParser parser = new PrologParser(engine);
                 allDiscontiguous = false;
 
-                try
-                {
                     prevIndex = null;
                     definedInCurrFile.Clear();
                     isDiscontiguous.Clear();
@@ -207,12 +201,6 @@ namespace Prolog
                     }
 
                     SetupCrossRefTable();
-                }
-                finally
-                {
-                    Globals.CurrentParser = consultParserStack.Pop(); ;
-                    //Globals.ConsultModuleName = null; // Currently not used
-                }
 
                 return parser.LineCount;
             }

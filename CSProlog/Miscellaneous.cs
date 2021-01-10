@@ -26,28 +26,11 @@ using System.Runtime.InteropServices;
 namespace Prolog
 {
     public partial class PrologEngine
-    {        
-                public class Globals
-        {
-                        public static readonly string DefaultExtension = ".pl";
-            
+    {
+        public Dictionary<string, bool> ConsultedFiles = new Dictionary<string, bool>();
 
-
-            
-            
-
-                        public static CultureInfo CI = CultureInfo.InvariantCulture;
-            public static Dictionary<string, bool> ConsultedFiles = new Dictionary<string, bool>();
-            public static PrologParser CurrentParser { get; set; } = null;
-        }
-        
-        
         public static class Utils
         {
-            private static readonly string logFileName = "PL" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
-            private static StreamWriter logFile;
-            private static bool showMode = true;
-
             private static string WDF(string fileName)
             {
                 if (fileName.IndexOf(Path.DirectorySeparatorChar) == -1)
@@ -61,14 +44,6 @@ namespace Prolog
                 if (t.IsVar) return null;
 
                 return ExtendedFileName(t.FunctorToString, defExt);
-            }
-
-
-            public static string DirectoryNameFromTerm(BaseTerm t)
-            {
-                if (!t.IsAtomOrString) return null;
-
-                return GetFullDirectoryName(t.FunctorToString.Dequoted());
             }
 
 
@@ -207,22 +182,6 @@ namespace Prolog
             }
 
 
-            public static string Format(ListTerm lt)
-            {
-                if (!lt.IsProperList || lt.ProperLength != 2)
-                {
-                    IO.ErrorRuntime( "Format list must be a proper list of length 2", null, lt);
-
-                    return null;
-                }
-
-                BaseTerm fstring = lt.Arg(0);
-                BaseTerm args = lt.Arg(1).Arg(0);
-
-                return Format(fstring, args);
-            }
-
-
             public static string Format(BaseTerm t, BaseTerm args)
             {
                 if (!(t is StringTerm))
@@ -313,40 +272,6 @@ namespace Prolog
             }
 
 
-            public static void Assert(bool b, string s) // testing only
-            {
-                if (!b)
-                    IO.WriteLine("Assertion violated:\r\n" + s);
-                //throw new Exception ("Assertion violated:\r\n" + s);
-            }
-
-
-            public static void Assert(bool b, string s, params object[] o)
-            {
-                if (!b)
-                    IO.WriteLine("Assertion violated:\r\n" + string.Format(s, o));
-                //throw new Exception ("Assertion violated:\r\n" + string.Format (s, o));
-            }
-
-
-            public static void Check(bool b, string s)
-            {
-                if (!b)
-                {
-                    IO.Warning("Warning -- Check violated:\r\n" + s);
-                }
-            }
-
-
-            public static void Check(bool b, string s, params object[] o)
-            {
-                if (!b)
-                {
-                    IO.Warning("Warning -- Check violated:\r\n" + string.Format(s, o));
-                }
-            }
-
-
             public static string ForceSpaces(string s, int lenMax)
             // Break up a string into pieces that are at most lenMax characters long, by
             // inserting spaces that are at most lenMax positions apart from each other.
@@ -418,179 +343,6 @@ namespace Prolog
                 // Calculate the Number of days between the given date and the start
                 // date of week 1 and (integer) divide that by 7. This is the weekno-1.
                 return 1 + (date - startWk1).Days / 7;
-            }
-
-            [DllImport("netapi32.dll")]
-            private static extern short NetMessageBufferSend(IntPtr server, IntPtr recipient, IntPtr reserved, IntPtr message, int size);
-
-            public static void SendNetBios(string server, string recipient, string text)
-            {
-                IntPtr srv = IntPtr.Zero, rcp = IntPtr.Zero, txt = IntPtr.Zero, res = IntPtr.Zero;
-
-                try
-                {
-                    srv = Marshal.StringToBSTR(server);
-                    rcp = Marshal.StringToBSTR(recipient);
-                    txt = Marshal.StringToBSTR(text = $"{server}/{recipient}: {text}");
-
-                    NetMessageBufferSend(srv, rcp, res, txt, (text.Length + 1) * 2);
-                }
-                catch (Exception /*engine*/)
-                {
-                    ;
-                }
-                finally
-                {
-                    if (srv != IntPtr.Zero)
-                        Marshal.FreeBSTR(srv);
-                    if (rcp != IntPtr.Zero)
-                        Marshal.FreeBSTR(rcp);
-                    if (txt != IntPtr.Zero)
-                        Marshal.FreeBSTR(txt);
-                }
-            }
-
-
-            // Console
-
-            private class Constants
-            {
-                // Standard input, output, and Error
-                internal const int STD_INPUT_HANDLE = -10;
-                internal const int STD_OUTPUT_HANDLE = -11;
-                internal const int STD_ERROR_HANDLE = -12;
-
-                // Returned by GetStdHandle when an Error occurs
-                internal static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
-            }
-
-            private struct COORD
-            {
-                internal short X;
-                internal short Y;
-            }
-
-            private struct SMALL_RECT
-            {
-                internal short Left;
-                internal short Top;
-                internal short Right;
-                internal short Bottom;
-            }
-
-            private struct CONSOLE_SCREEN_BUFFER_INFO
-            {
-                internal COORD dwSize;
-                internal COORD dwCursorPosition;
-                internal ushort wAttributes;
-                internal SMALL_RECT srWindow;
-                internal COORD dwMaximumWindowSize;
-            }
-
-            [DllImport("kernel32.dll", SetLastError = true)]
-            private static extern bool GetConsoleScreenBufferInfo(
-              IntPtr hConsoleOutput,
-              out CONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo
-            );
-
-            [DllImport("kernel32.dll", SetLastError = true)]
-            private static extern IntPtr GetStdHandle(
-              int whichHandle
-            );
-
-            [DllImport("kernel32.dll", SetLastError = true)]
-            private static extern IntPtr GetConsoleWindow();
-
-            private static IntPtr GetHandle(int WhichHandle)
-            {
-                IntPtr h = GetStdHandle(WhichHandle);
-
-                if (h == Constants.INVALID_HANDLE_VALUE)
-                {
-                    switch (WhichHandle)
-                    {
-                        case Constants.STD_INPUT_HANDLE:
-                            throw new Exception("Can't get standard input handle");
-                        //break;
-                        case Constants.STD_OUTPUT_HANDLE:
-                            throw new Exception("Can't get standard output handle");
-                        //break;
-                        case Constants.STD_ERROR_HANDLE:
-                            throw new Exception("Can't get standard error handle");
-                        //break;
-                        default:
-                            throw new Exception("Apparently invalid parameter to GetHandle");
-                    }
-                }
-                return h;
-            }
-
-
-            public static short NumCols => 80;
-
-
-            // Log file, debugging
-            public static void SetShow(bool mode)
-            {
-                showMode = mode;
-            }
-
-            public static void WriteLogLine(bool abort, string s, params object[] pa)
-            {
-                if (abort)
-                {
-                    try
-                    {
-                        logFile.WriteLine(s, pa);
-                        throw new Exception(String.Format(s, pa));
-                    }
-                    finally
-                    {
-                        CloseLog();
-                    }
-                }
-                else
-                {
-                    IO.WriteLine(s, pa);
-                    logFile.WriteLine(s, pa);
-                }
-            }
-
-
-            public static void WriteLogLine(string s, params object[] pa)
-            {
-                WriteLogLine(false, s, pa);
-            }
-
-
-            public static void WriteLine(string s, params object[] pa)
-            {
-                WriteLogLine(false, s, pa);
-            }
-
-
-            public static void WriteLine(string s)
-            {
-                WriteLogLine(false, s);
-            }
-
-
-            public static void Show(string s, params object[] pa)
-            {
-                if (showMode) WriteLogLine(false, s, pa);
-            }
-
-
-            public static void Show(string s)
-            {
-                if (showMode) WriteLogLine(false, s);
-            }
-
-
-            public static void CloseLog()
-            {
-                logFile.Flush();
-                logFile.Dispose();
             }
         }
 
@@ -700,12 +452,6 @@ namespace Prolog
 
     public static class Extensions
     {
-        // StringBuilder
-        public static void AppendPacked(this StringBuilder sb, string s)
-        {
-            sb.Append(s.Packed());
-        }
-
         public static void AppendPacked(this StringBuilder sb, string s, bool mustPack)
         {
             if (mustPack)
@@ -777,11 +523,6 @@ namespace Prolog
             return new string(a);
         }
 
-        public static bool Contains(this string s, char c)
-        {
-            return s.IndexOf(c) >= 0;
-        }
-
         private static Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
           @"^([+\-*/\\^<=>`~:.?@#$&]+|\p{Ll}[\w_]*|('[^']*')+)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
@@ -801,11 +542,6 @@ namespace Prolog
           @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?i?)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
-
-        public static bool HasUnsignedIntegerFormat(this string s)
-        {
-            return unsignedInteger.Match(s).Success;
-        }
 
         public static bool HasSignedRealNumberFormat(this string s)
         {
@@ -879,15 +615,6 @@ namespace Prolog
             return s.ToAtom();
         }
 
-
-        public static string MakeAtomic(this string s)
-        {
-            TermType type;
-
-            return s.ToAtomic(out type);
-        }
-
-
         public static string Dequoted(this string s) // remove ' or " quotes (if any)
         {
             if (s == null) return null;
@@ -920,13 +647,6 @@ namespace Prolog
 
             return (s == null) ? q + q : q + s.Replace(q, q + q) + q;
         }
-
-
-        public static string EscapeDoubleQuotes(this string s) // replace " by \"
-        {
-            return s.Replace(@"""", @"\""");
-        }
-
 
         public static string Packed(this string s)
         {

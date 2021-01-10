@@ -1279,7 +1279,7 @@ namespace Prolog
 
             try
             {
-                Globals.ConsultedFiles.Clear();
+                ConsultedFiles.Clear();
                 PredTable.Consult(fileName);
             }
             finally
@@ -1295,7 +1295,7 @@ namespace Prolog
 
             try
             {
-                Globals.ConsultedFiles.Clear();
+                ConsultedFiles.Clear();
                 PredTable.Consult(stream, streamName);
             }
             finally

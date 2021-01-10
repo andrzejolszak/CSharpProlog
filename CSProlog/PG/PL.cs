@@ -435,10 +435,10 @@ namespace Prolog
                                 symbol.SetProcessed();
                             }
                             string fileName = Utils.ExtendedFileName(symbol.ToString().ToLower(), ".pl");
-                            if (Globals.ConsultedFiles[fileName] == null)
+                            if (engine.ConsultedFiles[fileName] == null)
                             {
                                 predTable.Consult(fileName);
-                                Globals.ConsultedFiles[fileName] = true;
+                                engine.ConsultedFiles[fileName] = true;
                             }
                             GetSymbol(new TerminalSet(terminalCount, RightParen), true, true);
                         }
