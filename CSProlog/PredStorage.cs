@@ -288,7 +288,7 @@ namespace Prolog
 
             public void SetModuleName(string n, Symbol symbol)
             {
-                object o = moduleName[n];
+                moduleName.TryGetValue(n, out string o);
                 string currFile = ConsultFileName;
 
                 if (o == null)
@@ -322,14 +322,14 @@ namespace Prolog
                 {
                     PredicateDescr pd = this[key];
 
-                    if (definedInCurrFile[key] == null) //  very first clause of this predicate in this file -- reset at start of consult
+                    if (!definedInCurrFile.ContainsKey(key)) //  very first clause of this predicate in this file -- reset at start of consult
                     {
                         if (pd != null && pd.DefinitionFile != ConsultFileName)
                             IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}", clause.Term);
 
                         definedInCurrFile[key] = "true";
                         pd = SetClauseList(head.FunctorToString, head.Arity, clause); // implicitly erases all previous definitions
-                        pd.IsDiscontiguous = (isDiscontiguous[key] != null || allDiscontiguous);
+                        pd.IsDiscontiguous = isDiscontiguous.ContainsKey(key) || allDiscontiguous;
                         prevIndex = key;
                     }
                     else // not the first clause. First may be from another definitionFile (which is an error).

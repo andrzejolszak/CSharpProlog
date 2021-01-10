@@ -55,13 +55,5 @@ namespace CSProlog.Core.Test
             }
 
         }
-
-        [Fact]
-        public void HelpTest()
-        {
-            var prolog = new PrologEngine(persistentCommandHistory: false);
-            var s1 = prolog.GetFirstSolution("help.");
-            Assert.True(s1.Solved); // = "True" (Yes) [help atleast ran]
-        }
     }
 }
