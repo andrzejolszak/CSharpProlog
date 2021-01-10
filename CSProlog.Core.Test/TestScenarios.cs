@@ -49,103 +49,74 @@ namespace CSPrologTest
         }
 
         [Theory]
-        [InlineData("T call(!)")]
-        [InlineData("F call(fail)")]
-        [InlineData("F call((fail, _X))")]
-        [InlineData("F call((fail, call(1)))")]
-        [InlineData("R call(_X)")]
-        [InlineData("R call(1)")]
-        [InlineData("R call((fail, 1))")]
-        [InlineData("R call((1; true))")]
+        [InlineData("T: call(!)")]
+        [InlineData("F: call(fail)")]
+        [InlineData("F: call((fail, _X))")]
+        [InlineData("F: call((fail, call(1)))")]
+        [InlineData("R: call(_X)")]
+        [InlineData("R: call(1)")]
+        [InlineData("R: call((fail, 1))")]
+        [InlineData("R: call((1; true))")]
         public void call(string test)
         {
-            Evaluate(test);
+            test.Evaluate();
         }
 
         [Theory]
-        [InlineData("T !")]
-        [InlineData("F (!,fail;true)")]
-        [InlineData("T (call(!),fail;true)")]
-        [InlineData("T call(!),fail;true")]
+        [InlineData("T: !")]
+        [InlineData("F: (!,fail;true)")]
+        [InlineData("T: (call(!),fail;true)")]
+        [InlineData("T: call(!),fail;true")]
         public void cut(string test)
         {
-            Evaluate(test);
+            test.Evaluate();
         }
 
         [Theory]
-        [InlineData("T ';'(true, fail)")]
-        [InlineData("F ';'((!, fail), true)")]
-        [InlineData("T ';'(!, call(3))")]
-        [InlineData("T ';'((X=1, !), X=2)")]
-        [InlineData("T X=1; X=2")]
-        [InlineData("T (X=1; X=2), X=2")]
-        [InlineData("F (fail; fail), true")]
-        [InlineData("T X=2, (Y=3 ; Y=2), X=Y")]
-        [InlineData("F X=2, (Y=3 ; Y=1), X=Y")]
+        [InlineData("T: ';'(true, fail)")]
+        [InlineData("F: ';'((!, fail), true)")]
+        [InlineData("T: ';'(!, call(3))")]
+        [InlineData("T: ';'((X=1, !), X=2)")]
+        [InlineData("T: X=1; X=2")]
+        [InlineData("T: (X=1; X=2), X=2")]
+        [InlineData("F: (fail; fail), true")]
+        [InlineData("T: X=2, (Y=3 ; Y=2), X=Y")]
+        [InlineData("F: X=2, (Y=3 ; Y=1), X=Y")]
         public void or(string test)
         {
-            Evaluate(test);
+            test.Evaluate();
         }
 
         [Theory]
-        [InlineData("T true")]
-        [InlineData("F fail")]
+        [InlineData("T: true")]
+        [InlineData("F: fail")]
         public void trueFail(string test)
         {
-            Evaluate(test);
+            test.Evaluate();
         }
 
         [Theory]
-        [InlineData("F X=1, var(X)")]
-        [InlineData("T var(X), X=1")]
-        [InlineData("T (var(X), X=1), Y=2")]
-        [InlineData("T (var(X)), X=1")]
-        [InlineData("F fail, call(3)")]
-        [InlineData("F nofoo(X), call(X)")]
-        [InlineData("T X = true, call(X)")]
+        [InlineData("F: X=1, var(X)")]
+        [InlineData("T: var(X), X=1")]
+        [InlineData("T: (var(X), X=1), Y=2")]
+        [InlineData("T: (var(X)), X=1")]
+        [InlineData("F: fail, call(3)")]
+        [InlineData("F: nofoo(X), call(X)")]
+        [InlineData("T: X = true, call(X)")]
         public void and(string test)
         {
-            Evaluate(test);
+            test.Evaluate();
         }
 
         [Theory]
-        [InlineData("T '=\\='(0,1)")]
-        [InlineData("F '=\\='(1.0,1)")]
-        [InlineData("F '=\\='(3 * 2,7 - 1)")]
-        [InlineData("R '=\\='(N,5)")]
-        [InlineData("R '=\\='(floot(1),5)")]
+        [InlineData("T: '=\\='(0,1)")]
+        [InlineData("F: '=\\='(1.0,1)")]
+        [InlineData("F: '=\\='(3 * 2,7 - 1)")]
+        [InlineData("R: '=\\='(N,5)")]
+        [InlineData("R: '=\\='(floot(1),5)")]
         public void ari_cmp(string test)
         {
-            Evaluate(test);
-        }
-
-        private static void Evaluate(string test)
-        {
-            string expectation = test.Substring(0, 2);
-            string query = test.Substring(2);
-
-            switch (expectation)
-            {
-                case "T ":
-                    query.True();
-                    break;
-
-                case "F ":
-                    query.False();
-                    break;
-
-                case "P ":
-                    query.Error();
-                    break;
-
-                case "R ":
-                    query.Error();
-
-                    break;
-
-                default:
-                    throw new InvalidOperationException("Not supported expectation: " + expectation);
-            }
+            test.Evaluate();
         }
     }
 }

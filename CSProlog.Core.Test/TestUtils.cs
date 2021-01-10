@@ -16,6 +16,7 @@ namespace CSPrologTest
     public static class PrologSourceStringExtensions
     {
         private static string Dynamics = @"
+%nofoo(1).
 %:- dynamic( nofoo/1 ).
 %:- dynamic( undef_pred/0 ).
 %:- dynamic( '\='/2 ).
@@ -33,10 +34,7 @@ namespace CSPrologTest
         {
             PrologEngine e = new PrologEngine(persistentCommandHistory: false);
 
-            if (consult != null)
-            {
-                e.ConsultFromString(Dynamics + consult);
-            }
+            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             CleanTables(e);
 
@@ -59,10 +57,8 @@ namespace CSPrologTest
         {
             PrologEngine e = new PrologEngine(persistentCommandHistory: false);
 
-            if (consult != null)
-            {
-                e.ConsultFromString(Dynamics + consult);
-            }
+            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
+
             CleanTables(e);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
@@ -85,15 +81,41 @@ namespace CSPrologTest
         {
             PrologEngine e = new PrologEngine(persistentCommandHistory: false);
 
-            if (consult != null)
-            {
-                e.ConsultFromString(consult);
-            }
+            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
+
             CleanTables(e);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
             Assert.True(ss.HasError && !ss.Success, $"{query} NOT ERROR @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+        }
+
+        public static void Evaluate(this string test)
+        {
+            string expectation = test.Substring(0, 3);
+            string query = test.Substring(3);
+
+            switch (expectation)
+            {
+                case "T: ":
+                    query.True();
+                    break;
+
+                case "F: ":
+                    query.False();
+                    break;
+
+                case "P: ":
+                    query.Error();
+                    break;
+
+                case "R: ":
+                    query.Error();
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Not supported expectation: " + expectation);
+            }
         }
 
         public static void CleanTables(PrologEngine e)

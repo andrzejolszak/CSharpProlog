@@ -290,5 +290,178 @@ namespace CSPrologTest
         {
             test.CanParse();
         }
+
+
+        [Fact]
+        public void MultiHeadRecursive()
+        {
+            string def = @"
+%% This is a comment
+% This is a comment line 2
+fooBar(X).
+
+% Baz comm
+baz(a).
+
+baz(F).
+
+concatenate([], L, L).
+
+% More comment
+% Second line
+concatenate([X|L1], L2, [X|L3]) :-
+    concatenate(L1, L2, L3).";
+
+            "concatenate([], [], [])".True(def);
+            "concatenate([a,b], [c,d], [a,b,c,d])".True(def);
+            "concatenate([a,b], [], [a,b])".True(def);
+            "concatenate([], [c], [c])".True(def);
+            "concatenate([], [c,d], [c,d])".True(def);
+            "concatenate([s], [], [s])".True(def);
+            "concatenate([a,b], [], [a,b])".True(def);
+        }
+
+        [Fact]
+        public void MultiHeadRecursiveCall()
+        {
+            string def = @"
+concatenate([], L, L).
+concatenate([X|L1], L2, [X|L3]) :-
+    concatenate(L1, L2, L3).";
+
+            "call(concatenate([], [], []))".True(def);
+            "call(concatenate([a,b], [c,d], [a,b,c,d]))".True(def);
+            "call(concatenate([a,b], [], [a,b]))".True(def);
+            "call(concatenate([], [c], [c]))".True(def);
+            "call(concatenate([], [c,d], [c,d]))".True(def);
+            "call(concatenate([s], [], [s]))".True(def);
+            "call(concatenate([a,b], [], [a,b]))".True(def);
+        }
+
+        [Fact]
+
+        public void SubAtom()
+        {
+            //TODO
+            "sub_atom(abracadabra, 0, 5, _, S2), S2='abrac'".True();
+
+            @"test([])".False(@"test(X):- '\='(X, []).");
+            @"test(1)".True(@"test(X):- '\='(X, []).");
+            @"true".True(@"test(X):- X \= [].");
+            @"atom(atom)".True("foo(GAR, foobar(DEDAL), [KAIN, ABEL], banan) :- GAR = IAR, IAR = [DEDAL], DEDAL = abc.");
+
+            /*
+            'sub_atom', [sub_atom(abracadabra, _, 5, 0, S2), [[S2<-- 'dabra']]]).
+'sub_atom', [sub_atom(abracadabra, 3, Length, 3, S2), [[Length<-- 5, S2<-- 'acada']]]).
+'sub_atom', [sub_atom(abracadabra, Before, 2, After, ab),
+
+                     [[Before <-- 0, After <-- 9],
+                     [Before<-- 7, After<-- 2]]]).
+'sub_atom', [sub_atom('Banana', 3, 2, _, S2), [[S2<-- 'an']]]).
+'sub_atom', [sub_atom('charity', Before, 3, After, S2),
+
+            [[Before <-- 0, After <-- 4, S2 <-- 'cha'],
+                     [Before<-- 1, After<-- 3, S2<-- 'har'],
+                     [Before<-- 2, After<-- 2, S2<-- 'ari'],
+                     [Before<-- 3, After<-- 1, S2<-- 'rit'],
+                     [Before<-- 4, After<-- 0, S2<-- 'ity']]]).
+'sub_atom', [sub_atom('ab', Before, Length, After, Sub_atom),
+
+                    [[Before <-- 0, Length <-- 0, After <-- 2, Sub_atom <-- ''],
+                     [Before<-- 0, Length<-- 1, After<-- 1, Sub_atom<-- 'a'],
+                     [Before<-- 0, Length<-- 2, After<-- 0, Sub_atom<-- 'ab'],
+                     [Before<-- 1, Length<-- 0, After<-- 1, Sub_atom<-- ''],
+                     [Before<-- 1, Length<-- 1, After<-- 0, Sub_atom<-- 'b'],
+                     [Before<-- 2, Length<-- 0, After<-- 0, Sub_atom<-- '']]]).
+'sub_atom', [sub_atom(Banana, 3, 2, _, S2), instantiation_error]).
+'sub_atom', [sub_atom(f(a), 2, 2, _, S2), type_error(atom, f(a))]).
+'sub_atom', [sub_atom('Banana', 4, 2, _, 2), type_error(atom, 2)]).
+'sub_atom', [sub_atom('Banana', a, 2, _, S2), type_error(integer, a)]).
+'sub_atom', [sub_atom('Banana', 4, n, _, S2), type_error(integer, n)]).
+'sub_atom', [sub_atom('Banana', 4, _, m, S2), type_error(integer, m)]).
+             */
+        }
+
+        [Fact]
+        public void SetPrologFlag()
+        {
+            "set_prolog_flag(unknown, fail), current_prolog_flag(unknown, V), V=fail".True();
+            /*
+'set_prolog_flag', [set_prolog_flag(X, warning), instantiation_error]).
+'set_prolog_flag', [set_prolog_flag(5, decimals), type_error(atom,5)]).
+'set_prolog_flag', [set_prolog_flag(date, 'July 1999'), domain_error(prolog_flag,date)]).
+'set_prolog_flag', [set_prolog_flag(debug, no), domain_error(flag_value,debug+no)]).
+'set_prolog_flag', [set_prolog_flag(max_arity, 40), permission_error(modify, flag, max_arity)]).
+'set_prolog_flag', [set_prolog_flag(double_quotes, atom), success]).
+%'set_prolog_flag', [X = ""fred"", [[X <-- fred]]]).
+%Use read/2 because the fileContents predicate is already parsed.
+'set_prolog_flag', [read(""\""fred\"". "", X), [[X<-- fred]]]).
+'set_prolog_flag', [set_prolog_flag(double_quotes, chars), success]).
+%'set_prolog_flag', [X = ""fred"", [[X<-- [f, r, e, d]]]]).
+'set_prolog_flag', [read(""\""fred\"". "", X), [[X<-- [f, r, e, d]]]]).
+'set_prolog_flag', [set_prolog_flag(double_quotes, codes), success]).
+%'set_prolog_flag', [X = ""fred"", [[X<-- [102,114,101,100]]]]).
+'set_prolog_flag', [read(""\""fred\"". "", X), [[X<-- [102,114,101,100]]]]).
+             */
+        }
+
+        [Fact]
+
+        public void NumberChars()
+        {
+            //TODO
+            "number_chars(33,L), L = ['3', '3']".True();
+            "number_chars(33,['3','3'])".True();
+            "number_chars(33.0,L), L =['3', '3', '.', '0]".True();
+            "number_chars(X,['3','.','3','E','+','0']), X=3.3".True();
+            "number_chars(3.3,['3','.','3'])".True();
+
+            var d = @"'number_chars', [number_chars(A,['-','2','5']), [[A <-- (-25)]]]).
+'number_chars', [number_chars(A,['\n',' ','3']), [[A <-- 3]]]).
+'number_chars', [number_chars(A,['3',x]), syntax_error(_)]).
+'number_chars', [number_chars(A,['0',x,f]), [[A <-- 15]]]).
+'number_chars', [number_chars(A,['0','''','A']), [[A <-- 65]]]).
+'number_chars', [number_chars(A,['4','.','2']), [[A <-- 4.2]]]).
+'number_chars', [number_chars(A,['4','2','.','0','e','-','1']), [[A <-- 4.2]]]).
+'number_chars', [number_chars(A,L), instantiation_error]).
+'number_chars', [number_chars(a,L), type_error(number, a)]).
+'number_chars', [number_chars(A,4), type_error(list, 4)]).
+'number_chars', [number_chars(A,['4',2]), type_error(character, 2)]).
+%'number_codes', [number_codes(33,L), [[L <-- [0'3,0'3]]]]).
+%'number_codes', [number_codes(33,[0'3,0'3]), success]).
+'number_codes', [number_codes(33.0,L), [[L <-- [51,51,46,48]]]]) :- intAndFloatAreDifferent.
+%'number_codes', [number_codes(33.0,[0'3,0'3,0'.,0'0]), success]) :- intAndFloatAreDifferent.
+%'number_codes', [number_codes(A,[0'-,0'2,0'5]), [[A <-- (-25)]]]).
+%'number_codes', [number_codes(A,[0' ,0'3]), [[A <-- 3]]]).
+%'number_codes', [number_codes(A,[0'0,0'x,0'f]), [[A <-- 15]]]).
+%'number_codes', [number_codes(A,[0'0,39,0'a]), [[A <-- 97]]]).
+%'number_codes', [number_codes(A,[0'4,0'.,0'2]), [[A <-- 4.2]]]).
+%'number_codes', [number_codes(A,[0'4,0'2,0'.,0'0,0'e,0'-,0'1]), [[A <-- 4.2]]]).
+'number_codes', [number_codes(A,L), instantiation_error]).
+'number_codes', [number_codes(a,L), type_error(number,a)]).
+'number_codes', [number_codes(A,4), type_error(list,4)]).
+%'number_codes', [number_codes(A,[ 0'1, 0'2, '3']), representation_error(character_code)]).";
+        }
+
+        [Fact]
+
+        public void AtomCodes()
+        {
+            //TODO
+            "atom_codes('',L), L=[]".True();
+
+            /*
+%'atom_codes', [atom_codes([],L), [[L <-- [ 0'[, 0'] ]]]]).
+'atom_codes', [atom_codes('''',L), [[L <-- [ 39 ]]]]).
+%'atom_codes', [atom_codes('iso',L), [[L <-- [ 0'i, 0's, 0'o ]]]]).
+%'atom_codes', [atom_codes(A,[ 0'p, 0'r, 0'o, 0'l, 0'o, 0'g]), [[A <-- 'prolog']]]).
+%'atom_codes', [atom_codes('North',[0'N | L]), [[L <-- [0'o, 0'r, 0't, 0'h]]]]).
+%'atom_codes', [atom_codes('iso',[0'i, 0's]), failure]).
+'atom_codes', [atom_codes(A,L), instantiation_error]).
+'atom_codes', [atom_codes(f(a),L), type_error(atom,f(a))]).
+%'atom_codes', [atom_codes(A, 0'x), type_error(list,0'x)]).
+%'atom_codes', [atom_codes(A,[ 0'i, 0's, o]), representation_error(character_code)]).
+             */
+        }
     }
 }
