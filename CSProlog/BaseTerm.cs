@@ -237,19 +237,19 @@ namespace Prolog
 // i.e. if it can be evaluated by is/2
             public virtual bool IsUnified => false;
             public virtual string ToWriteString(int level) { return FunctorToString; }
-
+            
+            // TODO: statics
             private static int verNoMax;
             protected static int varNoMax;
-            protected static string NUMVAR;
-            public static int unboundVarCount;
-            public static ListTerm EMPTYLIST;
-            public static DcgTerm NULLCURL;
-            public static Variable VAR;
-            public static BaseTerm TREEROOT;
-            public static BaseTerm CUT;
-            public static BaseTerm FAIL;
-            public static BaseTerm DBNULL;
-            public static bool trace;
+
+            protected static readonly string NUMVAR;
+            public static readonly ListTerm EMPTYLIST;
+            public static readonly DcgTerm NULLCURL;
+            public static readonly Variable VAR;
+            public static readonly BaseTerm TREEROOT;
+            public static readonly BaseTerm CUT;
+            public static readonly BaseTerm FAIL;
+            public static readonly BaseTerm DBNULL;
             public static string MakeKey(string f, int a) { return a + f; }
 
             public bool IsVar => (ChainEnd() is Variable);
@@ -368,7 +368,6 @@ namespace Prolog
                 NUMVAR = "'$VAR'";
                 CUT = new Cut(null, 0);
                 FAIL = new AtomTerm(null, "fail");
-                trace = false;
             }
 
 

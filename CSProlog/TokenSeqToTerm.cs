@@ -139,8 +139,8 @@ namespace Prolog
             }
             
             private TokenStack IS, OS, PS;
-            private static OperandToken SeqStartToken;
-            private static OperandToken SeqEndToken;
+            private static readonly OperandToken SeqStartToken;
+            private static readonly OperandToken SeqEndToken;
             private BaseToken topToken => IS.Top;
             private bool inOpAtBoS; // special case: infix operator (no pre- or post definition) at BoS,
                             // ... only allowed if it is stand-alone or immediately followed by an argument list
@@ -313,7 +313,7 @@ namespace Prolog
                 EoS_BoS, EoS_Term, EoS_In, EoS_Pr, EoS_Po, EoS_InPr, EoS_InPo, EoS_EoS
             }
 
-            private static TC[,] TokenCombi = new TC[,] // possible combinations
+            private static readonly TC[,] TokenCombi = new TC[,] // possible combinations
             {
         { TC.In_In  , TC.In_Pr  , TC.In_Po  , TC.In_BoS  , TC.In_Term  , TC.In_InPr  , TC.In_InPo  , TC.In_EoS   },
         { TC.Pr_In  , TC.Pr_Pr  , TC.Pr_Po  , TC.Pr_BoS  , TC.Pr_Term  , TC.Pr_InPr  , TC.Pr_InPo  , TC.Pr_EoS   },

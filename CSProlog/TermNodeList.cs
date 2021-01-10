@@ -294,8 +294,6 @@ namespace Prolog
                     first = false;
                 }
             }
-
-            public static ClauseNode FAIL = new ClauseNode(BaseTerm.FAIL, null);
         }
     }
 }

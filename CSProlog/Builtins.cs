@@ -34,7 +34,7 @@ namespace Prolog
         get, get_counter, get0, getvar, ground, gt_num, gt_ord, halt,
         inc_counter, integer, is_, le_num, le_ord,
         leapyear, length, license, list, listing, listing0, listing0X, listing0XN, listingX,
-        listingXN, lt_num, lt_ord, maxwritedepth, member, name, ne_num,
+        listingXN, lt_num, lt_ord, member, name, ne_num,
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
         noverbose, now, number, numbervars, or, permutation, pp_defines,
         predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
@@ -308,7 +308,7 @@ namespace Prolog
                     break;
 
                 case BI.version: // version(V, R)
-                    if (!term.Arg(0).Unify(new AtomTerm(term.Symbol, VERSION), varStack)) return false;
+                    if (!term.Arg(0).Unify(new AtomTerm(term.Symbol, "1"), varStack)) return false;
                     if (!term.Arg(1).Unify(new AtomTerm(term.Symbol, ""), varStack)) return false;
                     break;
 
@@ -1090,18 +1090,6 @@ namespace Prolog
                     }
                     else
                         IO.WriteLine("{0}", term.Arg(0));
-
-                    break;
-
-                case BI.maxwritedepth:
-                    t0 = term.Arg(0);
-
-                    if (t0.IsVar)
-                        term.Arg(0).Unify(new DecimalTerm(term.Symbol, maxWriteDepth), varStack);
-                    else if (t0.IsNatural)
-                        maxWriteDepth = t0.To<int>();
-                    else
-                        return false;
 
                     break;
 

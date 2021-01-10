@@ -20,9 +20,7 @@ namespace Prolog
     /// </summary>
     public class Bootstrap
     {
-        public static string LicenseUrl = "http://www.gnu.org/licenses/lgpl-3.0.html";
-
-        public static string PredefinedPredicates =
+        public static readonly string PredefinedPredicates =
           @"&builtin
        :- op(900,  fy, [\+, not, once, help]).
        :- op(700, xfx, [=, \=, ==, \==, is, :=, =:, =:=, =\=, <, >, =<, >=, @<, @>, @=<, @>=, =.., ?=]).
@@ -700,13 +698,6 @@ namespace Prolog
        told              :== told.
        cls               :== cls. % clear screen
        errorlevel(N)    :== errorlevel. % set DOS ERRORLEVEL (for batch processing)
-
-%% maxwritedepth(N
-%
-% subterms beyond level N are written as '...'.
-% If set to -1 (default): no limit. The effect remains for the duration of the query.
-%
-       maxwritedepth(N) :== maxwritedepth.
 
     /* Backtrackable predicates
        ------------------------

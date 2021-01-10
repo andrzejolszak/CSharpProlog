@@ -29,7 +29,7 @@ namespace Prolog
             public TryCatchTerm(Symbol symbol, string a) : base(symbol, a) { }
         }
 
-        private static TryCatchTerm TC_CLOSE = new TryCatchTerm(null, ")");
+        private static readonly TryCatchTerm TC_CLOSE = new TryCatchTerm(null, ")");
 
         public class TryOpenTerm : TryCatchTerm
         {
@@ -735,9 +735,9 @@ namespace Prolog
             public decimal Value { get; }
             public double ValueD => (double)Value;
             public override string FunctorToString => Value.ToString(CIC);
-            public static DecimalTerm ZERO;
-            public static DecimalTerm ONE;
-            public static DecimalTerm MINUS_ONE;
+            public static readonly DecimalTerm ZERO;
+            public static readonly DecimalTerm ONE;
+            public static readonly DecimalTerm MINUS_ONE;
             private const double EPS = 1.0e-6; // arbitrary, cosmetic
 
             public DecimalTerm(Symbol symbol) // required for ComplexTerm
@@ -903,7 +903,7 @@ namespace Prolog
                 public class FileTerm : BaseTerm
         {
             // in order to be able to close all open streams after command termination:
-            public static AtomTerm END_OF_FILE;
+            public static readonly AtomTerm END_OF_FILE;
             protected PrologEngine engine;
             protected string fileName;
             public virtual bool IsOpen => false;
@@ -916,7 +916,6 @@ namespace Prolog
             public FileTerm(Symbol symbol)
                 :base(symbol)
             {
-                END_OF_FILE = new AtomTerm(symbol, "end_of_file");
             }
 
             public virtual void Close()

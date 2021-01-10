@@ -38,9 +38,7 @@ namespace Prolog
         public event Action FoundAllSolutions;
         public event Func<TermNode, TermNode, bool, VarStack, Stack<CallReturn>, bool> DebugEventBlocking;
 
-        private static string IOException = "ioException";
-        //static string XmlException = "xmlException";
-
+        private static readonly string IOException = "ioException";
         public class ChoicePoint
         {
             protected TermNode goalListHead;
@@ -306,16 +304,6 @@ namespace Prolog
             }
         }
 
-        private static readonly string WELCOME =
-    @"|
-| Copyright (C) 2007-2014 John Pool
-|
-| C#Prolog comes with ABSOLUTELY NO WARRANTY. This is free software, licenced
-| under the GNU General Public License, and you are welcome to redistribute it
-| under certain conditions. Enter 'license.' at the command prompt for details.";
-        public static string VERSION = "4.1 + 2i";
-        static public string IntroText;
-
         /* The parser's terminalTable is associated with the engine, not with the parser.
          * For each consult (or read), a new instance of the parser is created. However,
          * when each parser would have a new terminalTable, any operator definitions from
@@ -325,11 +313,12 @@ namespace Prolog
         private BaseParser.BaseTrie terminalTable;
         private string query;
         public Solution solution;
+
+        // TODO: statics
         private static OperatorDescr CommaOpDescr;
         private static OpDescrTriplet CommaOpTriplet;
         private static OperatorDescr SemiOpDescr;
-        private static OperatorDescr EqualOpDescr;
-        private static OperatorDescr ColonOpDescr;
+
         private PredicateCallOptions predicateCallOptions;
         private OpenFiles openFiles;
         private const int INF = Int32.MaxValue;
@@ -445,7 +434,7 @@ namespace Prolog
         public long procTime;
         private bool goalListProcessed;
         private ManualResetEvent sema;
-        public static int maxWriteDepth; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
+        public static readonly int maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
         private bool goalListResult;
         private int queryTimeout = 0; // maximum Number of milliseconds that a command may run -- 0 means unlimited
         private bool findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
@@ -454,7 +443,7 @@ namespace Prolog
 
         public DateTime? LastConsulted;
 
-
+        // TODO: statics
         private static void NextUnifyCount() { CurrUnifyCount++; }
         private static int CurrUnifyCount { get; set; }
 
@@ -469,7 +458,6 @@ namespace Prolog
 
         static PrologEngine()
         {
-            IntroText = $"|\r\n| Welcome to C#Prolog MS-Windows version {VERSION}\r\n{WELCOME}";
             CurrUnifyCount = 0; // running total number of unifications
         }
 
@@ -490,8 +478,8 @@ namespace Prolog
         public bool Halted { get; set; }
 
         private PrologParser parser = null;
-        private static string YES = "\r\n" + "Yes";
-        private static string NO = "\r\n" + "No";
+        private static readonly string YES = "\r\n" + "Yes";
+        private static readonly string NO = "\r\n" + "No";
         private int gensymInt;
 
         static public bool MaxWriteDepthExceeded(int level)
@@ -532,7 +520,6 @@ namespace Prolog
             procTime = 0;
             currentFileReader = null;
             currentFileWriter = null;
-            maxWriteDepth = -1; // i.e. no max depth
             predicateCallOptions = new PredicateCallOptions();
             terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
             PrologParser.FillTerminalTable(terminalTable);
@@ -541,9 +528,9 @@ namespace Prolog
 
         private void PostBootstrap()
         {
-            if (!OpTable.IsBinaryOperator(PrologParser.EQ, out EqualOpDescr))
+            if (!OpTable.IsBinaryOperator(PrologParser.EQ, out _))
                 IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.EQ}'", varStack, null);
-            else if (!OpTable.IsBinaryOperator(PrologParser.COLON, out ColonOpDescr))
+            else if (!OpTable.IsBinaryOperator(PrologParser.COLON, out _))
                 IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.COLON}'", varStack, null);
         }
 
