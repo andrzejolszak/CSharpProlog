@@ -26,10 +26,6 @@ using System.Threading.Tasks;
 
 namespace Prolog
 {
-
-
-    internal enum PrologException { ioException }
-
     public class AbortQueryException : Exception
     {
         public AbortQueryException() : base(" Execution terminated by user") { }
@@ -477,19 +473,8 @@ namespace Prolog
             CurrUnifyCount = 0; // running total number of unifications
         }
 
-
-        public PrologEngine()
-          : this(new DosIO())
-        {
-        }
-
-        public PrologEngine(BasicIo io)
-          : this(io, persistentCommandHistory: true)
-        {
-        }
-
         public PrologEngine(bool persistentCommandHistory)
-          : this(new DosIO(), persistentCommandHistory)
+          : this(new SilentIO(), persistentCommandHistory)
         {
         }
 

@@ -259,11 +259,9 @@ namespace Prolog
             public bool IsDateTime => (ChainEnd() is DateTimeTerm);
             public bool IsTimeSpan => (ChainEnd() is TimeSpanTerm);
             public bool IsCompound => (ChainEnd() is CompoundTerm);
-            public bool IsOperator => (ChainEnd() is OperatorTerm);
             public bool IsNamedVar => (ChainEnd() is NamedVariable);
             public bool IsUnboundTerm => (ChainEnd() is Variable);
             public bool IsEmptyList => (ChainEnd() is ListTerm && Arity == 0);
-            public bool IsRange => (arity == 2 && functor as string == "..");
             public bool IsCut => (ChainEnd() is Cut);
             public bool IsAtom => (Arity == 0 && !(ChainEnd() is ValueTerm));
 // Var has -1

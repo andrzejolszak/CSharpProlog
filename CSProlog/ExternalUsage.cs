@@ -31,7 +31,7 @@ namespace Prolog
         public bool HasError => ErrMsg != null;
         private List<Solution> solutionSet;
         public List<PrologEngine.RuntimeException> Errors { get; } = new List<PrologEngine.RuntimeException>();
-        public int Count => solutionSet.Count;
+
         private Solution currVarSet;
 
         public SolutionSet()

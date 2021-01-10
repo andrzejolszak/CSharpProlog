@@ -21,7 +21,7 @@ namespace Prolog
 {
         public abstract class BasicIo
     {
-                public abstract string ReadLine();
+        public abstract string ReadLine();
 
         public abstract int ReadChar();
 
@@ -75,49 +75,6 @@ namespace Prolog
         }
 
         public override void WriteLine(string s)
-        {
-        }
-    }
-
-        public class DosIO : BasicIo
-    {
-        public override string ReadLine()
-        {
-            return Console.ReadLine();
-        }
-
-
-        public override int ReadChar()
-        {
-            return Console.ReadKey().KeyChar;
-        }
-
-
-        public override void Write(string s)
-        {
-            Console.Write(s);
-        }
-
-
-        public override void WriteLine(string s)
-        {
-            Console.WriteLine(s);
-        }
-
-
-        public override void WriteLine()
-        {
-            Console.WriteLine();
-        }
-
-
-        public override void Clear()
-        {
-            Console.Clear();
-        }
-
-
-        public override void Reset()
         {
         }
     }

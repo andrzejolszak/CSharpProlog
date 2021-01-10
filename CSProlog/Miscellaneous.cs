@@ -21,69 +21,12 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Reflection;
-using System.Resources;
 using System.Runtime.InteropServices;
 
 namespace Prolog
 {
     public partial class PrologEngine
     {        
-                public class ProdConsBuffer<T>
-        {
-            private Queue<T> queue;
-            private const int MAX_Q_SIZE = -1; // no limit
-            public int Count => queue.Count;
-
-            public ProdConsBuffer()
-            {
-                queue = new Queue<T>();
-            }
-
-            public void TryEnqueue(T item)
-            {
-                lock (this)
-                {
-                    if (queue.Count == MAX_Q_SIZE) Monitor.Wait(this);
-
-                    queue.Enqueue(item);
-                    Monitor.Pulse(this);
-                }
-            }
-
-            public T TryDequeue()
-            {
-                lock (this)
-                {
-                    if (queue.Count == 0)
-                    {
-                        Monitor.Wait(this);
-                    }
-
-                    T item = queue.Dequeue();
-                    Monitor.Pulse(this);
-
-                    return item;
-                }
-            }
-
-
-            public void Clear()
-            {
-                queue.Clear();
-            }
-
-            public T Peek()
-            {
-                return queue.Peek();
-            }
-
-            public bool Contains(T item)
-            {
-                return queue.Contains(item);
-            }
-        }
-        
                 public class Globals
         {
                         public static readonly string DefaultExtension = ".pl";
@@ -95,15 +38,7 @@ namespace Prolog
 
                         public static CultureInfo CI = CultureInfo.InvariantCulture;
             public static Dictionary<string, bool> ConsultedFiles = new Dictionary<string, bool>();
-            //TODO reconsider the use of the statics below
-            public static string ConsultFileName = null;   // file being currently consulted
-            public static string ConsultModuleName = null; // name of current module (if any) in file being consulted
             public static PrologParser CurrentParser { get; set; } = null;
-            public static int LineNo => (CurrentParser == null || CurrentParser.InQueryMode) ? -1 : CurrentParser.LineNo - 1;
-            public static int ColNo => (CurrentParser == null) ? -1 : CurrentParser.ColNo;
-
-            
-
         }
         
         
@@ -112,12 +47,6 @@ namespace Prolog
             private static readonly string logFileName = "PL" + DateTime.Now.ToString("yyyy-MM-dd") + ".log";
             private static StreamWriter logFile;
             private static bool showMode = true;
-
-            public static string AtomFromVarChar(string s)
-            {
-                return s.Replace("'", "''").ToAtom();
-            }
-
 
             private static string WDF(string fileName)
             {

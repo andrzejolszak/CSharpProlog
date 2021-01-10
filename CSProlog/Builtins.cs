@@ -14,13 +14,9 @@
 -------------------------------------------------------------------------------------------*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -36,7 +32,7 @@ namespace Prolog
         debug, dec_counter, display, eq_num, eq_str, errorlevel, expand_term,
         fail, fileexists, flat, float_, format, functor, ge_num, ge_ord, gensym, genvar,
         get, get_counter, get0, getvar, ground, gt_num, gt_ord, halt,
-        inc_counter, integer, is_, json_term, json_xml, le_num, le_ord,
+        inc_counter, integer, is_, le_num, le_ord,
         leapyear, length, license, list, listing, listing0, listing0X, listing0XN, listingX,
         listingXN, lt_num, lt_ord, maxwritedepth, member, name, ne_num,
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
@@ -1912,88 +1908,6 @@ namespace Prolog
                         return false;
 
                     break;
-
-                case BI.json_term: // json_term( ?J, ?T) converts between JSON file/string and Prolog representation
-                    int indentDelta = 2;
-                    int maxIndentLevel = int.MaxValue;
-                    bool noCommas = false;
-                    bool noQuotes = false;
-                    JsonTerm jt = null;
-
-                    if (term.Arity == 3)
-                        predicateCallOptions.Set(term.Arg(2));
-
-                    t0 = term.Arg(0);
-                    t1 = term.Arg(1);
-
-                    if (t0.IsVar)
-                    {
-                        if (t1 is JsonTerm)
-                            jt = (JsonTerm)t1;
-                        else
-                        {
-                            if (t1.IsProperList)
-                                jt = new JsonTerm((ListTerm)t1);
-                            else
-                                IO.ErrorRuntime(
-                                    $"json_term/2/3 -- second argument cannot be converted to a JSON-structure:\r\n'{t1}'", varStack, term);
-                        }
-
-                        predicateCallOptions.Get("indent", 1, ref indentDelta);
-                        predicateCallOptions.Get("indent", 2, ref maxIndentLevel);
-                        noCommas = predicateCallOptions.Get("nocommas");
-                        noQuotes = predicateCallOptions.Get("noquotes");
-
-                        if (!t0.Unify(
-                          new StringTerm(term.Symbol, jt.ToJsonString(indentDelta, maxIndentLevel, noCommas, noQuotes)),
-                          varStack)) return false;
-                        break;
-                    }
-                    else // t0 contains string in JSON-format (or file name of JSON text file)
-                    {
-                        //if (options != null)
-                        //  jt.Atomize = options.Get ("atomize");
-
-                        x = t0.FunctorToString;
-                        inFile = (t0.Arity == 1 && x == "see");  // is it the functor of a source file containing the XML structure?
-                        outFile = (t0.Arity == 1 && x == "tell"); // ... or the functor of a destination file containing the XML structure?
-
-                        if (inFile || outFile)
-                        {
-                            x = Utils.FileNameFromTerm(t0.Arg(0), ".json");
-
-                            if (x == null) return false;
-                        }
-
-                        if (outFile)
-                        {
-                            if (t1 is JsonTerm)
-                                jt = (JsonTerm)t1;
-                            else
-                            {
-                                if (t1.IsProperList)
-                                    jt = new JsonTerm((ListTerm)t1);
-                                else
-                                    IO.ErrorRuntime(
-                                        $"json_term/2/3 -- second argument cannot be converted to a JSON-structure:\r\n'{t1}'", varStack, term);
-                            }
-
-                            predicateCallOptions.Get("indent", 1, ref indentDelta);
-                            predicateCallOptions.Get("indent", 2, ref maxIndentLevel);
-                            noCommas = predicateCallOptions.Get("nocommas");
-                            noQuotes = predicateCallOptions.Get("noquotes");
-
-                            File.WriteAllText(x,
-                              (jt).ToJsonString(indentDelta, maxIndentLevel, noCommas, noQuotes));
-                        }
-                        else // parse JSON-string into JsonTerm
-                        {
-                            throw new NotImplementedException("Json parsing was removed");
-                        }
-
-                        break;
-                    }
-
 
                 case BI.listing: // listing
                     if (!PredTable.ListAll(null, -1, false, true)) return false; // i.e. no predefined, all user

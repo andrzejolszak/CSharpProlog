@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using Prolog;
 using Xunit;
 using static Prolog.PrologEngine;
@@ -16,7 +13,11 @@ namespace CSPrologTest
     public static class PrologSourceStringExtensions
     {
         private static string Dynamics = @"
-%nofoo(1).
+:- fail_if_undefined( nofoo/1 ).
+:- fail_if_undefined( undef_pred/0 ).
+:- fail_if_undefined( '\='/2 ).
+:- fail_if_undefined( foo/2 ).
+
 %:- dynamic( nofoo/1 ).
 %:- dynamic( undef_pred/0 ).
 %:- dynamic( '\='/2 ).
