@@ -456,13 +456,7 @@ namespace Prolog
         public string Query { get { return query; } set { query = value.Trim(); } }
 
         public PrologEngine(bool persistentCommandHistory)
-          : this(new SilentIO(), persistentCommandHistory)
         {
-        }
-
-        public PrologEngine(BasicIo io, bool persistentCommandHistory)
-        {
-            IO.BasicIO = io;
             Reset();
             PostBootstrap();
         }

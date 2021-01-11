@@ -222,7 +222,7 @@ namespace Prolog
 
             public static void Reset()
             {
-                BasicIO.Reset();
+                BasicIO?.Reset();
             }
 
             public static bool ErrorConsult(string msg, BaseTerm o)
@@ -261,28 +261,28 @@ namespace Prolog
             public static void Warning(string msg, params object[] o)
             {
                 Log.Warning(string.Format(msg, o));
-                BasicIO.WriteLine(string.Format("*** warning: " + msg, o));
+                BasicIO?.WriteLine(string.Format("*** warning: " + msg, o));
             }
 
 
             public static void Warning(string msg)
             {
                 Log.Warning(msg);
-                BasicIO.WriteLine("*** warning: " + msg);
+                BasicIO?.WriteLine("*** warning: " + msg);
             }
 
 
             public static void Message(string msg, params object[] o)
             {
                 Log.Warning(string.Format(msg, o));
-                BasicIO.WriteLine(string.Format("--- " + msg, o));
+                BasicIO?.WriteLine(string.Format("--- " + msg, o));
             }
 
 
             public static void Message(string msg)
             {
                 Log.Warning(msg);
-                BasicIO.WriteLine("--- " + msg);
+                BasicIO?.WriteLine("--- " + msg);
             }
 
 
@@ -302,49 +302,49 @@ namespace Prolog
 
             public static string ReadLine()
             {
-                return BasicIO.ReadLine();
+                return BasicIO?.ReadLine();
             }
 
 
             public static int ReadChar()
             {
-                return BasicIO.ReadChar();
+                return BasicIO?.ReadChar() ?? -1;
             }
 
 
             public static void Write(string s, params object[] o)
             {
-                BasicIO.Write(string.Format(s, o));
+                BasicIO?.Write(string.Format(s, o));
             }
 
 
             public static void Write(string s)
             {
-                BasicIO.Write(s);
+                BasicIO?.Write(s);
             }
 
 
             public static void WriteLine(string s, params object[] o)
             {
-                BasicIO.WriteLine(string.Format(s, o));
+                BasicIO?.WriteLine(string.Format(s, o));
             }
 
 
             public static void WriteLine(string s)
             {
-                BasicIO.WriteLine(s);
+                BasicIO?.WriteLine(s);
             }
 
 
             public static void WriteLine()
             {
-                BasicIO.WriteLine();
+                BasicIO?.WriteLine();
             }
 
 
             public static void ClearScreen()
             {
-                BasicIO.Clear();
+                BasicIO?.Clear();
             }
         }
     }

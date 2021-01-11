@@ -713,7 +713,7 @@ namespace Prolog
                     }
                 }
 
-                private static IComparer<KeyValuePair<int, string>> SortProfileCounts => (IComparer<KeyValuePair<int, string>>)new ProfileCountComparer();
+                private static readonly IComparer<KeyValuePair<int, string>> SortProfileCounts = (IComparer<KeyValuePair<int, string>>)new ProfileCountComparer();
 
                 public void Add(int count, string name)
                 {

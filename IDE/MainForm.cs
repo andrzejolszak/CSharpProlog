@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
+using static Prolog.PrologEngine;
 
 namespace Prolog
 {
@@ -35,7 +36,8 @@ namespace Prolog
 
             outputArea = new OutputArea();
 
-            pe = new PrologEngine(outputArea.GuiIO, false);
+            IO.BasicIO = outputArea.GuiIO;
+            pe = new PrologEngine(false);
 
             sourceArea = new SourceArea(pe, outputArea, outputArea.tbAnswer, outputArea.HandleProgressChanged);
             debuggerArea = new DebuggerArea(pe, sourceArea);

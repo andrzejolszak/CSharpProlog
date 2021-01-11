@@ -108,7 +108,8 @@ namespace Prolog
             {
                 ResetBackgroundWorker();
                 winIO.GuiIO.bgw = bgwLoadSource;
-                stoppedTypingEngine = new PrologEngine(winIO.GuiIO, false);
+                IO.BasicIO = winIO.GuiIO;
+                stoppedTypingEngine = new PrologEngine(false);
                 string text = sourceEditor.Editor.Text;
 
                 stoppedTypingParseTask = new Task(new Action(() =>

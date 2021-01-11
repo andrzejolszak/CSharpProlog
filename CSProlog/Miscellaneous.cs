@@ -523,22 +523,22 @@ namespace Prolog
             return new string(a);
         }
 
-        private static Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
+        private static readonly Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
           @"^([+\-*/\\^<=>`~:.?@#$&]+|\p{Ll}[\w_]*|('[^']*')+)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        private static Regex unsignedInteger = new Regex(
+        private static readonly Regex unsignedInteger = new Regex(
           @"^(\d+)?$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        private static Regex signedNumber = new Regex(
+        private static readonly Regex signedNumber = new Regex(
           @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
-        private static Regex signedImagNumber = new Regex(
+        private static readonly Regex signedImagNumber = new Regex(
           @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?i?)$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
@@ -553,7 +553,7 @@ namespace Prolog
             return signedImagNumber.Match(s).Success;
         }
 
-        private static Regex tokens = new Regex(
+        private static readonly Regex tokens = new Regex(
           // identifiers, signed numbers and sequences of non-whites, separated by whites
           @"\s*(?<token>([\p{L}_]+\d*|[+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?|\S+))\s*",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
@@ -668,14 +668,14 @@ namespace Prolog
         }
 
 
-        private static Regex stringLiteral = new Regex(
+        private static readonly Regex stringLiteral = new Regex(
           @"^(?<char>(\\('|""|\\|0|a|b|f|n|r|t|v|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{1,4}|U[0-9a-fA-F]{8}|.?))|[^\\])+$",
           RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
 
         //@"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8})|(?<h>.))",
 
-        private static Regex escapedChar = new Regex(
+        private static readonly Regex escapedChar = new Regex(
          @"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8}))",
          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
         );
