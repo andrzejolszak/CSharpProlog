@@ -251,7 +251,7 @@ namespace Prolog
 
             public override bool Unify(BaseTerm t, VarStack varStack)
             {
-                NextUnifyCount();
+                varStack.NextUnifyCount();
 
                 if (!((t = t.ChainEnd()) is ListPatternElem)) return false; // should never occur
 #if old
@@ -362,7 +362,7 @@ namespace Prolog
             {
                 if ((t = t.ChainEnd()) is Variable) // t not unified
                 {
-                    ((Variable)t).Bind(this);
+                    ((Variable)t).Bind(this, varStack);
                     varStack.Push(t);
 
                     return true;

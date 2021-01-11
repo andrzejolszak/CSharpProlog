@@ -483,7 +483,7 @@ namespace Prolog
                     else
                         result = new OperatorTerm(this.Symbol, SemiOpDescr, result, body.TermSeq());
 
-                    ((Variable)remainder).Bind(outVar);
+                    ((Variable)remainder).Bind(outVar, varStack);
                 }
 
                 return (result == null) ? null : result.ToGoalList(); // empty body treated similar to null
@@ -570,7 +570,7 @@ namespace Prolog
                         embedded = false;
                     }
                     else
-                        ((Variable)remainder).Bind(t);
+                        ((Variable)remainder).Bind(t, varStack);
                     // in this case, nothing is appended to body, which may be left empty (e.g. t-->[x])
 
                     remainder = temp;
@@ -596,13 +596,13 @@ namespace Prolog
             // refUnifyCount: can be used for calculating the 'cost' of a predicate Call
             public virtual bool Unify(BaseTerm t, VarStack varStack)
             {
-                NextUnifyCount();
+                varStack.NextUnifyCount();
 
                 if (t.IsUnified) return this.Unify(t.ChainEnd(), varStack);
 
                 if (t is Variable varT) // t not unified
                 {
-                    varT.Bind(this);
+                    varT.Bind(this, varStack);
                     varStack.Push(varT);
 
                     return true;

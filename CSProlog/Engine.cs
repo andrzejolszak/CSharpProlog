@@ -83,6 +83,11 @@ namespace Prolog
             public int verNoMax;
             public int varNoMax;
 
+            // TODO: statics
+            public void NextUnifyCount() { CurrUnifyCount++; }
+
+            public int CurrUnifyCount { get; set; }
+
             public VarStack()
             {
                 swap = new Stack<object>();
@@ -446,29 +451,16 @@ namespace Prolog
 
         public DateTime? LastConsulted;
 
-        // TODO: statics
-        private static void NextUnifyCount() { CurrUnifyCount++; }
-        private static int CurrUnifyCount { get; set; }
-
-
-
         public bool Error => error;
         public OperatorTable OpTable { get; private set; }
         public BracketTable WrapTable { get; private set; }
         public BracketTable AltListTable { get; private set; }
         public string Query { get { return query; } set { query = value.Trim(); } }
 
-
-        static PrologEngine()
-        {
-            CurrUnifyCount = 0; // running total number of unifications
-        }
-
         public PrologEngine(bool persistentCommandHistory)
           : this(new SilentIO(), persistentCommandHistory)
         {
         }
-
         public PrologEngine(BasicIo io, bool persistentCommandHistory)
         {
             IO.BasicIO = io;

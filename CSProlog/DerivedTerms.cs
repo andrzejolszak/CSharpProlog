@@ -128,20 +128,20 @@ namespace Prolog
 
                 if (t.IsUnified) return this.Unify(t.ChainEnd(), varStack);
 
-                NextUnifyCount();
-                this.Bind(t);
+                varStack.NextUnifyCount();
+                this.Bind(t, varStack);
                 varStack.Push(this);
 
                 return true;
             }
 
 
-            public void Bind(BaseTerm t)
+            public void Bind(BaseTerm t, VarStack varStack)
             {
                 if (this == t) return; // cannot bind to self
 
                 uLink = t;
-                unifyCount = CurrUnifyCount;
+                unifyCount = varStack.CurrUnifyCount;
             }
 
 
@@ -793,7 +793,7 @@ namespace Prolog
             {
                 if (t is Variable) return t.Unify(this, varStack);
 
-                NextUnifyCount();
+                varStack.NextUnifyCount();
 
                 if (t is DecimalTerm)
                     return (Value == ((DecimalTerm)t).Value);
