@@ -245,6 +245,8 @@ namespace Prolog
             public ClauseTerm(Symbol symbol, ClauseNode c)  // Create a BaseTerm from a NextClause (= Head + Body)
                 : base(symbol)
             {
+                this.ClauseNode = c;
+
                 if (c.NextNode == null) // fact
                     CopyValuesFrom(c.Head);
                 else
@@ -258,6 +260,8 @@ namespace Prolog
                     precedence = 1200;
                 }
             }
+
+            public ClauseNode ClauseNode { get; }
         }
         
         public class WrapperTerm : CompoundTerm

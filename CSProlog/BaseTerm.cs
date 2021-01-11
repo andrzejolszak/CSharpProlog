@@ -783,6 +783,8 @@ namespace Prolog
                         t = new ListPatternElem(this.Symbol, a, ((ListPatternElem)this).downRepFactor, ((ListPatternElem)this).IsNegSearch);
                     else if (this is CompoundTerm)
                         t = new CompoundTerm(this.Symbol, functor, a);
+                    else if (this is ClauseTerm asCt)
+                        t = new ClauseTerm(this.Symbol, asCt.ClauseNode);
                     else
                         IO.ErrorRuntime($"CopyEx(): type '{this.GetType()}' not handled explicitly", null, this);
 
