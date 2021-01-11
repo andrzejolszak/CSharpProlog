@@ -261,6 +261,8 @@ namespace Prolog
                 }
             }
 
+            public override bool IsCallable => true;
+
             public ClauseNode ClauseNode { get; }
         }
         

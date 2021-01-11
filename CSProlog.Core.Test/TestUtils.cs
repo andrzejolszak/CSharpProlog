@@ -41,7 +41,7 @@ namespace CSPrologTest
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
-            Assert.True(!ss.HasError && ss.Success, $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+            Assert.True(!ss.HasError && ss.Success, $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
 
             if (consult == null)
             {
