@@ -80,6 +80,9 @@ namespace Prolog
         {
             private Stack<object> swap;
 
+            public int verNoMax;
+            public int varNoMax;
+
             public VarStack()
             {
                 swap = new Stack<object>();
@@ -498,6 +501,9 @@ namespace Prolog
         private void Initialize() // also called by ClearAll command
         {
             varStack = new VarStack();
+            // Needed by BaseTerm.VAR which will get varNo = 0
+            varStack.varNoMax++;
+
             CallStack = new Stack<CallReturn>();
             solution = new Solution(this);
             SolutionIterator = GetEnumerator();
@@ -839,7 +845,7 @@ namespace Prolog
                 if (currClause.NextClause != null) // no redo possible => fail, make explicit when tracing
                     varStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
 
-                cleanClauseHead = currClause.Head.Copy(); // instantiations must be retained for clause body -> create newVars
+                cleanClauseHead = currClause.Head.Copy(varStack); // instantiations must be retained for clause body -> create newVars
 
                 // CALL, REDO
                 if (reporting)
@@ -934,13 +940,13 @@ namespace Prolog
                             else if (currTerm is CatchOpenTerm)
                             {
                                 ((CatchOpenTerm)currTerm).Id = tryCatchId; // same id as for corresponding TRY
-                                p = new TermNode(currTerm.Copy(false), null, 0);
+                                p = new TermNode(currTerm.Copy(false, varStack), null, 0);
                             }
                             else if (currTerm is Cut)
                                 p = new TermNode(new Cut(currTerm.Symbol, stackSize), null, goalListHead.Level + 1); // save the pre-unification state
                             else // Copy (false): keep the varNo constant over all terms of the predicate head+body
                                  // (otherwise each term would get new variables, independent of their previous incarnations)
-                                p = new TermNode(currTerm.Copy(false), currClause.PredDescr, goalListHead.Level + 1); // gets the newVar version
+                                p = new TermNode(currTerm.Copy(false, varStack), currClause.PredDescr, goalListHead.Level + 1); // gets the newVar version
 
                             if (pHead == null)
                                 pHead = p;

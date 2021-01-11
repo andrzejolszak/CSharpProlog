@@ -39,19 +39,6 @@ namespace Prolog
                 this.alternatives = alternatives.ToArray();
             }
 
-
-            public DisjunctiveSearchTerm(DisjunctiveSearchTerm t)
-            {
-                alternatives = new BaseTerm[t.Count];
-
-                for (int i = 0; i < t.Count; i++)
-                    alternatives[i] = t.alternatives[i].Copy();
-
-                bindVar = (Variable)(t.bindVar.Copy());
-                isNegSearch = t.isNegSearch;
-            }
-
-
             public override string ToString()
             {
                 StringBuilder sb = new StringBuilder();
@@ -91,13 +78,6 @@ namespace Prolog
                 this.bindVar = (Variable)bindVar;
                 this.minLenTerm = minLenTerm;
                 this.maxLenTerm = maxLenTerm;
-            }
-
-            public BaseRepFactor(BaseRepFactor b)
-            {
-                bindVar = (Variable)(b.bindVar.Copy());
-                minLenTerm = b.minLenTerm.Copy();
-                maxLenTerm = b.maxLenTerm.Copy();
             }
 
             public override string ToString()

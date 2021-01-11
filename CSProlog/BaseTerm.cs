@@ -238,10 +238,6 @@ namespace Prolog
             public virtual bool IsUnified => false;
             public virtual string ToWriteString(int level) { return FunctorToString; }
             
-            // TODO: statics
-            private static int verNoMax;
-            protected static int varNoMax;
-
             protected static readonly string NUMVAR;
             public static readonly ListTerm EMPTYLIST;
             public static readonly DcgTerm NULLCURL;
@@ -362,9 +358,7 @@ namespace Prolog
                 EMPTYLIST = new ListTerm(null);
                 NULLCURL = new DcgTerm((Symbol)null);
                 DBNULL = new AtomTerm(null, "db_null");
-                VAR = new Variable(null);
-                verNoMax = 0;
-                varNoMax = 0;
+                VAR = new Variable(null, new VarStack());
                 NUMVAR = "'$VAR'";
                 CUT = new Cut(null, 0);
                 FAIL = new AtomTerm(null, "fail");
@@ -458,15 +452,15 @@ namespace Prolog
 
             // DCG stuff
 
-            public TermNode ToDCG(ref BaseTerm lhs) // called from parser
+            public TermNode ToDCG(ref BaseTerm lhs, VarStack varStack) // called from parser
             {
                 TermNode body = new TermNode();
                 BaseTerm result = null;
 
-                BaseTerm inVar = new Variable(null);
+                BaseTerm inVar = new Variable(null, varStack);
                 BaseTerm inVarSave = inVar;
                 BaseTerm outVar = inVar;
-                lhs = new DcgTerm(this.Symbol, lhs, ref outVar); // outVar becomes new term
+                lhs = new DcgTerm(this.Symbol, lhs, ref outVar, varStack); // outVar becomes new term
                 BaseTerm remainder;
 
                 List<BaseTerm> alternatives = AlternativesToArrayList();
@@ -481,7 +475,7 @@ namespace Prolog
                     remainder = inVarSave;
 
                     for (int ii = 0; ii < terms.Count; ii++)
-                        DCGGoal(terms[ii], ref body, ref remainder, ref embedded);
+                        DCGGoal(terms[ii], ref body, ref remainder, ref embedded, varStack);
 
                     // create a term-tree from the array
                     if (i == 0)
@@ -549,7 +543,7 @@ namespace Prolog
                 return a;
             }
 
-            private static void DCGGoal(BaseTerm t, ref TermNode body, ref BaseTerm remainder, ref bool embedded)
+            private static void DCGGoal(BaseTerm t, ref TermNode body, ref BaseTerm remainder, ref bool embedded, VarStack varStack)
             {
                 BaseTerm temp;
 
@@ -566,7 +560,7 @@ namespace Prolog
                 }
                 else if (t.IsProperList)
                 {
-                    temp = new Variable(null);
+                    temp = new Variable(null, varStack);
 
                     t = (t.IsEmptyList) ? temp : ((ListTerm)t).Append(temp);
 
@@ -583,7 +577,7 @@ namespace Prolog
                 }
                 else if (t.IsAtom || t.IsCompound)
                 {
-                    t = new DcgTerm(t.Symbol, t, ref remainder);
+                    t = new DcgTerm(t.Symbol, t, ref remainder, varStack);
                     body.Append(t);
                 }
                 else if (t.IsNamedVar)
@@ -698,28 +692,28 @@ namespace Prolog
             // A new term is constructed by creating a new instance for each unbound term.
             // This new instance gets a version number that is one higher than its original.
 
-            public BaseTerm Copy()
+            public BaseTerm Copy(VarStack varstack)
             {
-                return Copy(true);
+                return Copy(true, varstack);
             }
 
-            public BaseTerm Copy(bool newVersion)
+            public BaseTerm Copy(bool newVersion, VarStack varstack)
             {
-                if (newVersion) verNoMax++;
+                if (newVersion) varstack.verNoMax++;
 
-                return CopyEx(verNoMax, true);
+                return CopyEx(varstack.verNoMax, true, varstack);
             }
 
-            public BaseTerm Copy(bool newVersion, bool mustBeNamed) // called by copy_term
+            public BaseTerm Copy(bool newVersion, bool mustBeNamed, VarStack varstack) // called by copy_term
             {
-                if (newVersion) verNoMax++;
+                if (newVersion) varstack.verNoMax++;
 
-                return CopyEx(verNoMax, mustBeNamed);
+                return CopyEx(varstack.verNoMax, mustBeNamed, varstack);
             }
 
-            private BaseTerm CopyEx(int newVerNo, bool mustBeNamed)
+            private BaseTerm CopyEx(int newVerNo, bool mustBeNamed, VarStack varStack)
             {
-                if (IsUnified) return ChainEnd().CopyEx(newVerNo, mustBeNamed);
+                if (IsUnified) return ChainEnd().CopyEx(newVerNo, mustBeNamed, varStack);
 
                 // A neater solution would be to use overrides for each term subtype.
                 if (this is Variable)
@@ -731,8 +725,8 @@ namespace Prolog
                     v.verNo = newVerNo;
 
                     v.newVar = (mustBeNamed && this is NamedVariable)
-                      ? new NamedVariable(v.Symbol, ((NamedVariable)v).Name)
-                      : new Variable(v.Symbol);
+                      ? new NamedVariable(v.Symbol, ((NamedVariable)v).Name, varStack)
+                      : new Variable(v.Symbol, varStack);
 
                     CopyDecoratedTermState(v.newVar, this);
 
@@ -742,7 +736,7 @@ namespace Prolog
                 {
                     CatchOpenTerm c = (CatchOpenTerm)this;
 
-                    var res = new CatchOpenTerm(c.Symbol, c.Id, c.ExceptionClass, c.MsgVar.CopyEx(newVerNo, mustBeNamed),
+                    var res = new CatchOpenTerm(c.Symbol, c.Id, c.ExceptionClass, c.MsgVar.CopyEx(newVerNo, mustBeNamed, varStack),
                       c.SeqNo, c.SaveStackSize);
 
                     CopyDecoratedTermState(res, this);
@@ -758,7 +752,7 @@ namespace Prolog
 
                     for (int i = 0; i < arity; i++)
                         if (args[i] != null) // may be null for a GapTerm
-                            a[i] = args[i].CopyEx(newVerNo, mustBeNamed); // recursively refresh arguments
+                            a[i] = args[i].CopyEx(newVerNo, mustBeNamed, varStack); // recursively refresh arguments
 
                     if (this is ListPatternTerm)
                         t = new ListPatternTerm(this.Symbol, a);

@@ -100,10 +100,10 @@ namespace Prolog
                 return ChainEnd() == v.ChainEnd();
             }
 
-            public Variable(BaseParser.Symbol symbol)
+            public Variable(BaseParser.Symbol symbol, VarStack varStack)
                 : base(symbol)
             {
-                varNo = varNoMax++;
+                varNo = varStack.varNoMax++;
                 verNo = 0;
                 unifyCount = 0;
                 termType = TermType.UnboundVar;
@@ -166,8 +166,8 @@ namespace Prolog
             protected string name;
             public override string Name => name;
 
-            public NamedVariable(Symbol symbol, string name)
-                : base(symbol)
+            public NamedVariable(Symbol symbol, string name, VarStack varStack)
+                : base(symbol, varStack)
             {
                 this.name = name;
                 termType = TermType.NamedVar;
@@ -179,8 +179,8 @@ namespace Prolog
         // not really necessary, but it can be convenient to recognize one
         public class AnonymousVariable : Variable
         {
-            public AnonymousVariable(Symbol symbol)
-                : base(symbol)
+            public AnonymousVariable(Symbol symbol, VarStack varStack)
+                : base(symbol, varStack)
             {
             }
         }
@@ -1557,13 +1557,13 @@ namespace Prolog
         
                 public class DcgTerm : CompoundTerm
         {
-            public DcgTerm(Symbol symbol, BaseTerm t, ref BaseTerm z)
+            public DcgTerm(Symbol symbol, BaseTerm t, ref BaseTerm z, VarStack varStack)
               : base(symbol, t.FunctorToString, new BaseTerm[t.Arity + 2])
             {
                 for (int i = 0; i < t.Arity; i++) args[i] = t.Arg(i);
 
                 args[arity - 2] = z;
-                args[arity - 1] = z = new Variable(symbol);
+                args[arity - 1] = z = new Variable(symbol, varStack);
             }
 
             public DcgTerm(BaseTerm t) : base(t.Symbol, PrologParser.CURL, t, NULLCURL) { }

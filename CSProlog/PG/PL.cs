@@ -373,7 +373,7 @@ namespace Prolog
                             readingDcgClause = true;
                             PrologTerm(new TerminalSet(terminalCount, Dot), out t);
                             readingDcgClause = false;
-                            body = t.ToDCG(ref head);
+                            body = t.ToDCG(ref head, engine.varStack);
                         }
                     }
                     c = new ClauseNode(head, body);
@@ -990,7 +990,7 @@ namespace Prolog
                             readingDcgClause = true;
                             PrologTerm(new TerminalSet(terminalCount, Dot), out term);
                             readingDcgClause = false;
-                            body = term.ToDCG(ref head);
+                            body = term.ToDCG(ref head, engine.varStack);
                             predTable.AddPredefined(new ClauseNode(head, body));
                             opt = false;
                         }
@@ -1120,7 +1120,7 @@ namespace Prolog
                         else if (symbol.TerminalId == Anonymous)
                         {
                             symbol.SetProcessed();
-                            tokenSeqToTerm.Add(new AnonymousVariable(symbol));
+                            tokenSeqToTerm.Add(new AnonymousVariable(symbol, engine.varStack));
                         }
                         else if (symbol.TerminalId == CutSym)
                         {
@@ -1246,7 +1246,7 @@ namespace Prolog
                 t = engine.GetVariable(id);
                 if (t == null)
                 {
-                    t = new NamedVariable(symbol, id);
+                    t = new NamedVariable(symbol, id, engine.varStack);
 
                     engine.SetVariable(t, id);
                 }
@@ -1599,7 +1599,7 @@ namespace Prolog
                         }
                     }
                     nullClass = nullClass || (exceptionClass == null);
-                    if (msgVar == null) msgVar = new AnonymousVariable(symbol);
+                    if (msgVar == null) msgVar = new AnonymousVariable(symbol, engine.varStack);
                     tokenSeqToTerm.Add(new CatchOpenTerm(symbol, exceptionClass, msgVar, catchSeqNo++));
                     tokenSeqToTerm.Add(symbol, CommaOpTriplet);
                     t = null;

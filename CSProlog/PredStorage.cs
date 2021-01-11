@@ -345,7 +345,7 @@ namespace Prolog
                 BaseTerm head;
                 TermNode body = null;
                 PredicateDescr pd;
-                BaseTerm assertionCopy = assertion.Copy(true);
+                BaseTerm assertionCopy = assertion.Copy(true, engine.varStack);
 
                 if (assertionCopy.HasFunctor(PrologParser.IMPLIES))
                 {
@@ -409,7 +409,7 @@ namespace Prolog
 
                 while (c != null)
                 {
-                    cleanTerm = c.Head.Copy();
+                    cleanTerm = c.Head.Copy(varStack);
 
                     top = varStack.Count;
 
@@ -477,7 +477,7 @@ namespace Prolog
 
                 while (c != null)
                 {
-                    BaseTerm cleanTerm = c.Term.Copy();
+                    BaseTerm cleanTerm = c.Term.Copy(varStack);
 
                     if (cleanTerm.IsUnifiableWith(t, varStack)) // match found -- remove this head from the chain
                     {

@@ -291,9 +291,9 @@ namespace Prolog
 
                     // t2 must be copied because it is unbound during backtracking
                     if (term.Arg(0).HasFunctor("setof"))
-                        ((CollectionTerm)term.Arg(1)).Insert(t2.Copy());
+                        ((CollectionTerm)term.Arg(1)).Insert(t2.Copy(varStack));
                     else
-                        ((CollectionTerm)term.Arg(1)).Add(t2.Copy());
+                        ((CollectionTerm)term.Arg(1)).Add(t2.Copy(varStack));
 
                     break;
 
@@ -444,7 +444,7 @@ namespace Prolog
                             t2 = ListTerm.EMPTYLIST;
 
                             for (int i = 0; i < n; i++)
-                                t2 = new ListTerm(term.Symbol, new Variable(term.Symbol), t2);
+                                t2 = new ListTerm(term.Symbol, new Variable(term.Symbol, varStack), t2);
 
                             t0.Unify(t2, varStack);
 
@@ -466,7 +466,7 @@ namespace Prolog
                         t1 = ListTerm.EMPTYLIST;
 
                         for (int i = 0; i < arity; i++)
-                            t1 = new ListTerm(term.Symbol, new Variable(term.Symbol), t1);
+                            t1 = new ListTerm(term.Symbol, new Variable(term.Symbol, varStack), t1);
 
                         t0.Unify(t1, varStack);
                     }
@@ -528,7 +528,7 @@ namespace Prolog
 
                         BaseTerm[] args = new BaseTerm[arity];
 
-                        for (int i = 0; i < arity; i++) args[i] = new Variable(term.Symbol);
+                        for (int i = 0; i < arity; i++) args[i] = new Variable(term.Symbol, varStack);
 
                         if (!t0.Unify(CreateNewTerm(t2, arity, functor, args), varStack)) return false;
 
@@ -1456,8 +1456,8 @@ namespace Prolog
                     t0 = term.Arg(0); // P-->Q
                     t1 = term.Arg(1); // R
                     BaseTerm head = t0.Arg(0);
-                    TermNode body = t0.Arg(1).ToDCG(ref head);
-                    t2 = new ClauseTerm(term.Symbol, new ClauseNode(head, body)).Copy();
+                    TermNode body = t0.Arg(1).ToDCG(ref head, varStack);
+                    t2 = new ClauseTerm(term.Symbol, new ClauseNode(head, body)).Copy(varStack);
 
                     if (!t1.Unify(t2, varStack)) return false;
                     break;
@@ -2005,7 +2005,7 @@ namespace Prolog
 
 
                 case BI.copy_term: // copy_term( X, Y)
-                    if (!term.Arg(1).Unify(term.Arg(0).Copy(true, false), varStack)) return false;
+                    if (!term.Arg(1).Unify(term.Arg(0).Copy(true, false, varStack), varStack)) return false;
                     break;
 
                 case BI.clearall: // clearall
@@ -2238,7 +2238,7 @@ namespace Prolog
                 case BI.setvar:
                     if (!(term.Arg(0) is AtomTerm)) return false;
 
-                    globalTermsTable.setvar(term.Arg(0).FunctorToString, term.Arg(1).Copy());
+                    globalTermsTable.setvar(term.Arg(0).FunctorToString, term.Arg(1).Copy(varStack));
                     break;
 
                 /* Main program sample
