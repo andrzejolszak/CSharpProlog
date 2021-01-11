@@ -844,7 +844,7 @@ namespace Prolog
                         if (bodyNode == null) // a fact
                             ClauseBody = new BoolTerm(clause.Term.Symbol, true);
                         else if (bodyNode.BuiltinId == BI.none)
-                            ClauseBody = bodyNode.TermSeq();
+                            ClauseBody = bodyNode.TermSeq(varStack);
                         else
                             ClauseBody = new StringTerm(clause.Term.Symbol, "<builtin>");
 

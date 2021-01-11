@@ -242,7 +242,7 @@ namespace Prolog
         
                 public class ClauseTerm : BaseTerm
         {
-            public ClauseTerm(Symbol symbol, ClauseNode c)  // Create a BaseTerm from a NextClause (= Head + Body)
+            public ClauseTerm(Symbol symbol, ClauseNode c, VarStack varStack)  // Create a BaseTerm from a NextClause (= Head + Body)
                 : base(symbol)
             {
                 this.ClauseNode = c;
@@ -256,7 +256,7 @@ namespace Prolog
                     args[0] = c.Head;
                     termType = TermType.Atom;
                     assocType = AssocType.xfx;
-                    args[1] = c.NextNode.TermSeq();
+                    args[1] = c.NextNode.TermSeq(varStack);
                     precedence = 1200;
                 }
             }

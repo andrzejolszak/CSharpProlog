@@ -83,7 +83,10 @@ namespace Prolog
             public int verNoMax;
             public int varNoMax;
 
-            // TODO: statics
+            public OperatorDescr CommaOpDescr;
+            public OpDescrTriplet CommaOpTriplet;
+            public OperatorDescr SemiOpDescr;
+
             public void NextUnifyCount() { CurrUnifyCount++; }
 
             public int CurrUnifyCount { get; set; }
@@ -322,11 +325,6 @@ namespace Prolog
         private string query;
         public Solution solution;
 
-        // TODO: statics
-        private static OperatorDescr CommaOpDescr;
-        private static OpDescrTriplet CommaOpTriplet;
-        private static OperatorDescr SemiOpDescr;
-
         private PredicateCallOptions predicateCallOptions;
         private OpenFiles openFiles;
         private const int INF = Int32.MaxValue;
@@ -461,6 +459,7 @@ namespace Prolog
           : this(new SilentIO(), persistentCommandHistory)
         {
         }
+
         public PrologEngine(BasicIo io, bool persistentCommandHistory)
         {
             IO.BasicIO = io;
@@ -522,6 +521,15 @@ namespace Prolog
             terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
             PrologParser.FillTerminalTable(terminalTable);
             parser = new PrologParser(this); // now this.terminalTable is passed on as well
+
+            parser.AddPrologOperator(1200, "xfx", PrologParser.IMPLIES, false);
+            parser.AddPrologOperator(1200, "fx", PrologParser.IMPLIES, false);
+            parser.AddPrologOperator(1200, "xfx", PrologParser.DCGIMPL, false);
+            parser.AddPrologOperator(1150, "xfy", PrologParser.ARROW, false);
+
+            this.varStack.CommaOpDescr = parser.AddPrologOperator(1050, "xfy", PrologParser.COMMA, false);
+            this.OpTable.Find(PrologParser.COMMA, out this.varStack.CommaOpTriplet);
+            this.varStack.SemiOpDescr = parser.AddPrologOperator(1100, "xfy", PrologParser.SEMI, false);
         }
 
         private void PostBootstrap()

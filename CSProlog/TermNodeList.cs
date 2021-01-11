@@ -191,11 +191,11 @@ namespace Prolog
             }
 
 
-            public BaseTerm TermSeq()
+            public BaseTerm TermSeq(VarStack varStack)
             {
                 return (NextNode == null)
                 ? Term  // last term of TermNode
-                : new OperatorTerm(Term?.Symbol, CommaOpDescr, Term, NextNode.TermSeq());
+                : new OperatorTerm(Term?.Symbol, varStack.CommaOpDescr, Term, NextNode.TermSeq(varStack));
             }
 
 

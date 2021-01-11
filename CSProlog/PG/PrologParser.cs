@@ -98,7 +98,7 @@ namespace Prolog
                 InQueryMode = true;
             }
             
-                        public OperatorDescr AddPrologOperator(int prec, string type, string name, bool user)
+            public OperatorDescr AddPrologOperator(int prec, string type, string name, bool user)
             {
                 AssocType assoc = AssocType.None;
 
@@ -191,19 +191,6 @@ namespace Prolog
 
                 return null;
             }
-
-
-            private void AddReservedOperators()
-            {
-                AddPrologOperator(1200, "xfx", IMPLIES, false);
-                AddPrologOperator(1200, "fx", IMPLIES, false);
-                AddPrologOperator(1200, "xfx", DCGIMPL, false);
-                AddPrologOperator(1150, "xfy", ARROW, false);
-                CommaOpDescr = AddPrologOperator(1050, "xfy", COMMA, false);
-                opTable.Find(COMMA, out CommaOpTriplet);
-                SemiOpDescr = AddPrologOperator(1100, "xfy", SEMI, false);
-            }
-
 
             private bool isReservedOperatorSetting;
 

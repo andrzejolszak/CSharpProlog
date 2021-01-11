@@ -174,7 +174,7 @@ namespace Prolog
             }
 
             
-                        public PrologParser(PrologEngine engine)
+            public PrologParser(PrologEngine engine)
             {
                 this.engine = engine;
                 predTable = engine.PredTable;
@@ -183,7 +183,6 @@ namespace Prolog
                 symbol = new Symbol(this);
                 streamInPrefix = "";
                 streamInPreLen = 0;
-                AddReservedOperators();
             }
             
             protected override bool GetSymbol(TerminalSet followers, bool done, bool genXCPN)
@@ -1227,7 +1226,7 @@ namespace Prolog
                             TryCatchClause(_TS.Union(terminalCount, LeftParen, Identifier, IntLiteral, RealLiteral, ImagLiteral,
                                                                       StringLiteral, Operator, Atom, Anonymous, CutSym, LSqBracket,
                                                                       LCuBracket, ListPatternOpen, TrySym, WrapOpen, WrapClose, AltListOpen,
-                                                                      AltListClose, VerbatimStringLiteral), tokenSeqToTerm, out t);
+                                                                      AltListClose, VerbatimStringLiteral), tokenSeqToTerm, out t, engine.varStack);
                         }
                     }
                     GetSymbol(_TS.Union(terminalCount, LeftParen, Identifier, IntLiteral, RealLiteral, ImagLiteral, StringLiteral,
@@ -1541,17 +1540,17 @@ namespace Prolog
             }
             
 
-                        private void TryCatchClause(TerminalSet _TS, TokenSeqToTerm tokenSeqToTerm, out BaseTerm t)
+            private void TryCatchClause(TerminalSet _TS, TokenSeqToTerm tokenSeqToTerm, out BaseTerm t, VarStack varStack)
             {
                 GetSymbol(new TerminalSet(terminalCount, TrySym), true, true);
                 bool nullClass = false;
                 tokenSeqToTerm.Add(new TryOpenTerm(symbol));
-                tokenSeqToTerm.Add(symbol, CommaOpTriplet);
+                tokenSeqToTerm.Add(symbol, varStack.CommaOpTriplet);
                 GetSymbol(new TerminalSet(terminalCount, LeftParen), true, true);
                 PrologTermEx(new TerminalSet(terminalCount, RightParen), out t);
                 GetSymbol(new TerminalSet(terminalCount, RightParen), true, true);
                 tokenSeqToTerm.Add(t);
-                tokenSeqToTerm.Add(symbol, CommaOpTriplet);
+                tokenSeqToTerm.Add(symbol, varStack.CommaOpTriplet);
                 List<string> ecNames = new List<string>();
                 int catchSeqNo = 0;
                 do
@@ -1601,7 +1600,7 @@ namespace Prolog
                     nullClass = nullClass || (exceptionClass == null);
                     if (msgVar == null) msgVar = new AnonymousVariable(symbol, engine.varStack);
                     tokenSeqToTerm.Add(new CatchOpenTerm(symbol, exceptionClass, msgVar, catchSeqNo++));
-                    tokenSeqToTerm.Add(symbol, CommaOpTriplet);
+                    tokenSeqToTerm.Add(symbol, varStack.CommaOpTriplet);
                     t = null;
                     GetSymbol(new TerminalSet(terminalCount, LeftParen), true, true);
                     GetSymbol(new TerminalSet(terminalCount, LeftParen, RightParen, Identifier, IntLiteral, RealLiteral, ImagLiteral,
@@ -1618,7 +1617,7 @@ namespace Prolog
                     if (t != null)
                     {
                         tokenSeqToTerm.Add(t);
-                        tokenSeqToTerm.Add(symbol, CommaOpTriplet);
+                        tokenSeqToTerm.Add(symbol, varStack.CommaOpTriplet);
                     }
                     GetSymbol(_TS.Union(terminalCount, CatchSym), false, true);
                 } while (!(_TS.Contains(symbol.TerminalId)));

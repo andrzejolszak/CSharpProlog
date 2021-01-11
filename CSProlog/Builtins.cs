@@ -1457,7 +1457,7 @@ namespace Prolog
                     t1 = term.Arg(1); // R
                     BaseTerm head = t0.Arg(0);
                     TermNode body = t0.Arg(1).ToDCG(ref head, varStack);
-                    t2 = new ClauseTerm(term.Symbol, new ClauseNode(head, body)).Copy(varStack);
+                    t2 = new ClauseTerm(term.Symbol, new ClauseNode(head, body), varStack).Copy(varStack);
 
                     if (!t1.Unify(t2, varStack)) return false;
                     break;

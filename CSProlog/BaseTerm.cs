@@ -479,9 +479,9 @@ namespace Prolog
 
                     // create a term-tree from the array
                     if (i == 0)
-                        result = body.TermSeq();
+                        result = body.TermSeq(varStack);
                     else
-                        result = new OperatorTerm(this.Symbol, SemiOpDescr, result, body.TermSeq());
+                        result = new OperatorTerm(this.Symbol, varStack.SemiOpDescr, result, body.TermSeq(varStack));
 
                     ((Variable)remainder).Bind(outVar, varStack);
                 }
@@ -778,7 +778,7 @@ namespace Prolog
                     else if (this is CompoundTerm)
                         t = new CompoundTerm(this.Symbol, functor, a);
                     else if (this is ClauseTerm asCt)
-                        t = new ClauseTerm(this.Symbol, asCt.ClauseNode);
+                        t = new ClauseTerm(this.Symbol, asCt.ClauseNode, varStack);
                     else
                         IO.ErrorRuntime($"CopyEx(): type '{this.GetType()}' not handled explicitly", null, this);
 
