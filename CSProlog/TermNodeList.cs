@@ -259,10 +259,6 @@ namespace Prolog
                 // the terms (connected by NextNode) of a single clause
         public class ClauseNode : TermNode
         {
-            public ClauseNode()
-            {
-            }
-
             public ClauseNode(BaseTerm t, TermNode body)
               : base(t, body)
             {

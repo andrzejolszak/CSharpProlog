@@ -424,77 +424,6 @@ namespace Prolog
                 }
             }
 
-
-            public void Warning(string msg)
-            {
-                if (parseAnyText) return;
-
-                positionMarker currPos;
-
-                InputStreamMark(out currPos);
-
-                if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
-
-                IO.WriteLine("{0}{1}{2}", symbol.Context, msg, Environment.NewLine);
-
-                if (errMark.Start != UNDEF) InputStreamRedo(currPos, 0);
-            }
-
-
-            public void Warning(string msg, params Object[] o)
-            {
-                Warning(String.Format(msg, o));
-            }
-
-
-            public void SemanticError(string msg)
-            {
-                if (parseAnyText) return;
-
-                if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
-
-                throw new ConsultException($"{symbol.Context}{msg}{Environment.NewLine}");
-            }
-
-
-            public void SemanticError(string msg, params Object[] o)
-            {
-                SemanticError(String.Format(msg, o));
-            }
-
-
-            protected void Error(string msg)
-            {
-                if (parseAnyText) return;
-
-                if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
-
-                throw new ConsultException($"{symbol.Context}{msg}{Environment.NewLine}", symbol: symbol);
-            }
-
-
-            protected void Error(string msg, params Object[] o)
-            {
-                Error(String.Format(msg, o));
-            }
-
-
-            public void Fatal(string msg)
-            {
-                if (parseAnyText) return;
-
-                if (errMark.Start != UNDEF) InputStreamRedo(errMark, 0);
-
-                throw new InvalidOperationException($"{symbol.Context}{msg}{Environment.NewLine}");
-            }
-
-
-            public void Fatal(string msg, params Object[] o)
-            {
-                Fatal(String.Format(msg, o));
-            }
-
-
             public string StreamIn
             {
                 get
@@ -509,11 +438,6 @@ namespace Prolog
                 }
             }
 
-
-            public void LoadFromFile(string fileName)
-            {
-                LoadFromStream(null, fileName);
-            }
 
             public void LoadFromStream(Stream stream, string streamName)
             {
@@ -544,15 +468,6 @@ namespace Prolog
                 return GetStreamInString(n, m);
             }
 
-            public string StreamInClip()
-            {
-                return GetStreamInString(clipBegin, clipEnd);
-            }
-
-            public bool AtEndOfInput => (inStream == null);
-
-            
-            
                         protected struct StreamPointer
             {
                 public int Position;
@@ -639,8 +554,6 @@ namespace Prolog
                 public int StartAdjusted => Start - 10;
                 public int FinalAdjusted => Final - 10;
 
-                public bool IsNumber => true;
-
                 public override string ToString()
                 {
                     if (this.Start == Final) return "";
@@ -656,12 +569,6 @@ namespace Prolog
 
 
                 public int ColNo => (Start >= LineStart) ? Start - LineStart + 1 : UNDEF;
-
-
-                public string ToName()
-                {
-                    return parser?.terminalTable.Name(TerminalId);
-                }
 
 
                 public string ToUnquoted()
@@ -692,33 +599,6 @@ namespace Prolog
                     }
                 }
 
-
-                public int ToShort()
-                {
-                    try
-                    {
-                        return Convert.ToInt16(ToString());
-                    }
-                    catch
-                    {
-                        throw new ConsultException($"*** Unable to convert '{this}' to a short value", symbol: this);
-                    }
-                }
-
-
-                public double ToDouble()
-                {
-                    try
-                    {
-                        return Double.Parse(ToString(), CIC);
-                    }
-                    catch
-                    {
-                        throw new ConsultException($"*** Unable to convert '{this}' to a real (double) value", symbol: this);
-                    }
-                }
-
-
                 public decimal ToDecimal()
                 {
                     try
@@ -730,12 +610,6 @@ namespace Prolog
                         throw new ConsultException($"*** Unable to convert '{this}' to a decimal value", symbol: this);
                     }
                 }
-
-                public string Dump()
-                {
-                    return $"Start={Start} Final={Final} LineStart={LineStart}";
-                }
-
 
                 public string Context
                 {
@@ -806,25 +680,6 @@ namespace Prolog
                     SetProcessed(true);
                 }
 
-
-                public string TextPlus()
-                {
-                    if (TerminalId == Undefined && this.Start > this.FinalPlus)
-                        return "<Undefined>";
-                    else
-                        return parser?.StreamInClip(this.Start, this.FinalPlus);
-                }
-
-
-                public string IntroText()
-                {
-                    if (TerminalId == Undefined && this.Start > this.FinalPlus)
-                        return "<Undefined>";
-                    else
-                        return parser?.StreamInClip(this.PrevFinal, this.Start);
-                }
-
-
                 public string InputLine
                 {
                     get
@@ -858,14 +713,6 @@ namespace Prolog
                 public string Image { get; set; }
 
                 public SymbolClass Class { get; set; }
-
-                public TerminalDescr(int iVal, OpDescrTriplet payload, string image)
-                {
-                    this.IVal = iVal;
-                    this.Payload = payload;
-                    this.Image = image;
-                    this.Class = 0;
-                }
 
                 public TerminalDescr(int iVal, OpDescrTriplet payload, string image, SymbolClass @class)
                 {
@@ -1161,13 +1008,6 @@ namespace Prolog
                     }
                 }
 
-
-                public string Name(int i)
-                {
-                    return (string)names[i];
-                }
-
-
                 public List<object> TerminalsOf(int i)
                 {
                     int k = indices.BinarySearch(i);
@@ -1189,14 +1029,6 @@ namespace Prolog
                         result.Add(indices[k--]);
 
                     return result;
-                }
-
-
-                public int IndexOf(string key)
-                {
-                    TerminalDescr td;
-
-                    return Find(key, out td) ? td.IVal : -1;
                 }
 
 
@@ -1229,36 +1061,6 @@ namespace Prolog
                     }
                     return result.ToString();
                 }
-
-                /*
-                        // public bool Remove (string key)
-
-                        Remove (keyChar)
-
-                        Stel je zit in een CacheTrieNode met KeyChar, Val, SubTrie. Huidige letter is keyChar[i]
-
-                        De volgende properties zijn gedefinieerd:
-
-                        ・CMatch   = (KeyChar == keyChar[i])
-                        ・IsTerm   = (CachedTerm != null)
-                        ・IsLeaf   = (SubTrie == null)
-                        ・IsKeyEnd = (i == imax)
-
-                        De vraag is nu bij welke combinaties van de bovenstaande properties een
-                        CacheTrieNode gedelete mag worden, dus dat een referentie ernaar in de CacheTrieNode
-                        hoger in de tree op null gezet mag worden.
-
-                        Het proces begint met het vinden van de keyChar(node). Als die er niet is,
-                        return met false.
-
-                        Vandaaruit (IsKeyEnd) terug naar de root (door terugkeer uit recursie).
-                        In een node wordt aangegeven of de parentnode hem mag deleten door in een
-                        node de outputparam mayDelete terug te geven aan de ancestor (= aanroeper).
-
-                        Een node mag weg als IsLeaf. Als de node de laatste is (IsEndKey) mag dit
-                        zonder meer, als hij niet de laatste is, mag het alleen wanneer hij geen
-                        terminal is (!IsTerm, d.w.z. een eindpunt van een kortere keyChar (subkey)).
-                */
 
                 public bool Remove(string key)
                 {
@@ -1304,25 +1106,6 @@ namespace Prolog
                     if (mayDelete) curr.SubTrie.RemoveAt(k);
 
                     mayDelete = (curr.SubTrie == null && curr.TermRec != null);
-                }
-
-
-                public void Remove(int i) // remove all entries with index i
-                {
-                    names.Remove(i);
-
-                    List<object> a = TerminalsOf(i);
-
-                    if (a != null) foreach (TerminalDescr td in a) Remove(td.Image);
-                }
-
-                public List<object> ToArrayList()
-                {
-                    List<object> a = new List<object>();
-
-                    TrieNode.ToArrayList(root, true, ref a);
-
-                    return a;
                 }
 
 
@@ -1658,83 +1441,6 @@ namespace Prolog
                 throw new Exception("GetSymbol must be overridden");
             }
 
-            protected void EOL(TerminalSet followers, bool GenXCPN)
-            {
-                GetSymbol(new TerminalSet(EndOfLine), true, GenXCPN);
-
-                while (symbol.TerminalId == EndOfLine)
-                {
-                    NextSymbol(null);
-                }
-                symbol.SetProcessed(false);
-            }
-
-            protected void ANYTEXT(TerminalSet followers)
-            {
-                StreamPointer anyStart;
-                StreamPointer follower;
-
-                if (symbol.IsProcessed)
-                    anyTextStart = streamInPtr.Position;
-                else
-                    anyTextStart = symbol.Start;
-
-                if (followers.Contains(symbol.TerminalId) && !symbol.IsProcessed)
-                {
-                    anyTextFinal = anyTextStart; // empty, nullstring
-                    anyTextFPlus = anyTextStart;
-
-                    return;
-                }
-
-                parseAnyText = true;
-                anyStart = streamInPtr;
-
-                do
-                {
-                    // Follower will eventually be a symbol from Followers
-                    follower = streamInPtr;
-                    NextSymbol(null);
-                    symbol.FinalPlus = symbol.Start; // up to next symbol
-                    anyTextFPlus = symbol.Start;
-                }
-
-                while (symbol.TerminalId != EndOfInput && !followers.Contains(symbol.TerminalId));
-
-                // "unread" last symbol
-                InitCh(follower);
-                // set AnyText "symbol" values
-                symbol.Start = anyTextStart;
-                symbol.LineNo = anyStart.LineNo;
-                symbol.LineStart = anyStart.LineStart;
-                symbol.Final = streamInPtr.Position;
-                symbol.TerminalId = Undefined;
-                symbol.SetProcessed(true);
-                anyTextFinal = streamInPtr.Position;
-                parseAnyText = false;
-            }
-
-
-            protected void InitPositionMarkers(positionMarker[] ma)
-            {
-                for (int i = 0; i < 4; i++) ma[i].Start = UNDEF;
-            }
-
-
-            protected void ReportParserProcEntry(string procName)
-            {
-                traceIndentLevel++;
-                Console.WriteLine("{0}=> {1} {2}", new string(' ', 2 * traceIndentLevel), procName, symbol.ToString());
-            }
-
-
-            protected void ReportParserProcExit(string procName)
-            {
-                Console.WriteLine("{0}<= {1} {2}", new string(' ', 2 * traceIndentLevel), procName, symbol.ToString());
-                traceIndentLevel--;
-            }
-
-
             protected void InputStreamMark(out positionMarker m)
             {
                 m.Pointer = streamInPtr;
@@ -1751,26 +1457,6 @@ namespace Prolog
                 m.LineStart = symbol.LineStart;
                 m.Processed = symbol.IsProcessed;
                 m.IsSet = true;
-            }
-
-
-            protected void InputStreamRedo(positionMarker m, int n)
-            {
-                if (!m.IsSet) throw new Exception("REDO Error: positionMarker " + n + " is not set");
-
-                InitCh(m.Pointer);
-                symbol.TerminalId = m.Terminal;
-                symbol.Class = m.Class;
-                symbol.Payload = m.Payload;
-                symbol.Start = m.Start;
-                symbol.Final = m.Final;
-                symbol.FinalPlus = m.FinalPlus;
-                symbol.PrevFinal = m.PrevFinal;
-                symbol.LineNo = m.LineNo;
-                symbol.AbsSeqNo = m.AbsSeqNo;
-                symbol.RelSeqNo = m.RelSeqNo;
-                symbol.LineStart = m.LineStart;
-                symbol.SetProcessed(m.Processed);
             }
             
                         public virtual void RootCall()
@@ -1863,54 +1549,6 @@ namespace Prolog
                 symbol.LineNo = UNDEF;
             }
             
-                        public void ClipStart()
-            {
-                clipBegin = symbol.Start;
-            }
-
-
-            public void ClipStart(int clipBegin)
-            {
-                clipBegin = symbol.Start;
-            }
-
-
-            public void ClipFinal()
-            {
-                clipEnd = symbol.Start;
-            }
-
-
-            public void ClipFinal(int clipBegin)
-            {
-                clipEnd = symbol.Start;
-            }
-
-
-            public void ClipFinalPlus() // includes current symbol
-            {
-                clipEnd = symbol.Final;
-            }
-
-
-            public void ClipFinalPlus(int clipEnd)
-            {
-                clipEnd = symbol.Final;
-            }
-
-
-            public void ClipFinalTrim()  /// exclude any text (i.e. comment) after last symbol
-            {
-                clipEnd = symbol.PrevFinal;
-            }
-
-
-            public void ClipFinalTrim(int clipEnd)
-            {
-                clipEnd = symbol.PrevFinal;
-            }
-
-
             public void GetStreamInChar(int n, out char c)
             {
                 if (n < streamInPreLen)
@@ -1954,9 +1592,6 @@ namespace Prolog
 
 
             public int LineNo => symbol.LineNo;
-
-
-            public int ColNo => symbol.ColNo;
 
 
             protected void NextCh()
@@ -2080,15 +1715,10 @@ namespace Prolog
             protected int rightMargin = -1; // i.e. not set
             public int indentLength = 0;
 
-            public int RightMargin { get { return rightMargin; } set { rightMargin = value; } }
-
             public virtual char this[int i] => '\0';
 
 
             public string Name => name;
-
-
-            public virtual string[] Lines => null;
 
 
             public virtual string Substring(int n, int len)
@@ -2103,27 +1733,6 @@ namespace Prolog
             public virtual void UpdateCache(int p)
             {
             }
-
-
-            public void Indent()
-            {
-                indentStack.Push(indentLength); // save current
-                indentLength += indentDelta;
-            }
-
-
-            public void Undent()
-            {
-                indentLength = (indentStack.Count == 0) ? 0 : (int)indentStack.Pop();
-            }
-
-
-            public void Indent(int i)
-            {
-                indentStack.Push(indentLength); // save current
-                indentLength = i;
-            }
-
 
             public virtual void Write(string s, params object[] pa)
             {
@@ -2144,18 +1753,6 @@ namespace Prolog
             {
             }
 
-
-            public bool AtLeftMargin // at beginning of line
-            {
-                get
-                {
-                    if (quietMode) return false;
-
-                    return (positionOnLine == 0);
-                }
-            }
-
-
             public virtual void Clear()
             {
             }
@@ -2169,17 +1766,6 @@ namespace Prolog
             public virtual void Close()
             {
             }
-
-
-            public bool QuietMode
-            {
-                get { return quietMode; }
-                set { quietMode = value; }
-            }
-
-
-            public virtual bool FirstSymbolOnLine => firstSymbolOnLine;
-
 
             public virtual int PositionOnLine => positionOnLine;
         }
@@ -2233,11 +1819,6 @@ namespace Prolog
             private int cacheLen; // cache length (normally CACHESIZE, less at eof)
             private bool little_endian;
             private StringBuilder sb;
-
-            public FileReadBuffer(string fileName)
-              : this(null, fileName)
-            {
-            }
 
             public FileReadBuffer(Stream stream, string streamName)
             {
@@ -2318,199 +1899,6 @@ namespace Prolog
 
 
             public override int Length => Convert.ToInt32(((little_endian) ? (fs.Length / 2 - 1) : fs.Length));
-        }
-        
-
-        // FileWriteBuffer
-
-                public class FileWriteBuffer : FileBuffer
-        {
-            private StreamWriter sw;
-            private bool isTemp;
-
-            public FileWriteBuffer(string fileName)
-            {
-                name = fileName;
-
-                try
-                {
-                    fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
-                    sw = new StreamWriter(fs);
-                    isTemp = false;
-                }
-                catch
-                {
-                    throw new ConsultException($"*** Could not create file '{fileName}'");
-                }
-            }
-
-
-            public FileWriteBuffer()
-            {
-                try
-                {
-                    name = Path.GetTempFileName();
-                    fs = new FileStream(name, FileMode.Create);
-                    sw = new StreamWriter(fs);
-                    isTemp = true;
-                }
-                catch
-                {
-                    throw new Exception("*** FileWriteBuffer constructor could not create temporary file");
-                }
-            }
-
-
-            ~FileWriteBuffer()
-            {
-                Close();
-            }
-
-
-            public override void SaveToFile(string fileName)
-            {
-                FileStream f = new FileStream(fileName, FileMode.Create);
-                byte[] b = new byte[fs.Length];
-                fs.Read(b, 0, b.Length);
-                f.Write(b, 0, b.Length);
-                f.Dispose();
-            }
-
-
-            public override string Substring(int n, int len)
-            {
-                byte[] b = new byte[len];
-                fs.Position = n;
-                fs.Read(b, 0, len);
-                return new ASCIIEncoding().GetString(b);
-            }
-
-
-            public override string ToString()
-            {
-                byte[] b = new byte[fs.Length];
-                fs.Read(b, 0, b.Length);
-                ASCIIEncoding enc = new ASCIIEncoding();
-                return enc.GetString(b);
-            }
-
-
-            public override void Close()
-            {
-                try { sw.Dispose(); }
-                catch { return; }
-
-                if (isTemp)
-                {
-                    try
-                    {
-                        File.Delete(name);
-                    }
-                    catch
-                    {
-                        throw new Exception("*** FileWriteBuffer Close() could not delete temporary file");
-                    }
-                }
-            }
-
-
-            public void Append(FileWriteBuffer f)  // f is assumed open for reading
-            {
-                byte[] b = new byte[f.fs.Length];
-                f.fs.Read(b, 0, b.Length);
-                fs.Position = fs.Length;
-                fs.Write(b, 0, b.Length);
-                firstSymbolOnLine = false;
-            }
-
-
-            public new int Length
-            {
-                get { return Convert.ToInt32(fs.Length); }
-                set { fs.SetLength(value); }
-            }
-
-
-            public override void Clear()
-            {
-                fs.SetLength(0);
-                firstSymbolOnLine = true;
-            }
-
-
-            public override void Write(string s, params object[] pa)
-            {
-                if (quietMode || s == "") return;
-
-                if (s == null) s = "";
-
-                if (firstSymbolOnLine)
-                {
-                    sw.Write(new String(indentChar, indentLength));
-                    firstSymbolOnLine = false;
-                    positionOnLine = indentLength;
-                }
-
-                string xs = (pa.Length == 0) ? s : string.Format(s, pa); // expanded s
-
-                if (rightMargin > 0 && positionOnLine + xs.Length > rightMargin)
-                {
-                    sw.Write("{0}{1}{2}", Environment.NewLine, new String(indentChar, indentLength), xs);
-                    positionOnLine = indentLength + xs.Length;
-                }
-                else
-                {
-                    sw.Write(xs);
-                    positionOnLine += xs.Length;
-                }
-            }
-
-
-            public override void WriteLine(string s, params object[] pa)
-            {
-                if (quietMode) return;
-
-                if (s == null) s = "";
-
-                if (firstSymbolOnLine) sw.Write(new String(indentChar, indentLength));
-
-                string xs = (pa.Length == 0) ? s : string.Format(s, pa); // expanded s
-
-                if (rightMargin > 0 && positionOnLine + xs.Length > rightMargin)
-                    sw.WriteLine("{0}{1}{0}{2}", Environment.NewLine, new String(indentChar, indentLength), xs);
-                else
-                    sw.WriteLine(xs, pa);
-
-                firstSymbolOnLine = true;
-                positionOnLine = 0;
-            }
-
-
-            public override void WriteChar(char c)
-            {
-                if (quietMode) return;
-
-                if (rightMargin > 0 && positionOnLine + 1 > rightMargin)
-                {
-                    sw.Write("{0}{1}{2}", Environment.NewLine, new String(indentChar, indentLength), c);
-                    positionOnLine = indentLength + 1;
-                }
-                else
-                {
-                    sw.Write(c);
-                    positionOnLine++;
-                }
-            }
-
-
-            public override void NewLine()
-            {
-                if (quietMode) return;
-
-                sw.Write(Environment.NewLine);
-                firstSymbolOnLine = true;
-                positionOnLine = 0;
-            }
         }
         
                     }

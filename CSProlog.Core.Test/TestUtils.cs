@@ -37,16 +37,13 @@ namespace CSPrologTest
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
-            CleanTables(e);
-
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
             Assert.True(!ss.HasError && ss.Success, $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
 
             if (consult == null)
             {
-                e = new PrologEngine(persistentCommandHistory: false);
-                CleanTables(e);
+                e.Reset();
                 e.ConsultFromString(Dynamics + "test :- " + query + ".");
                 ss = e.GetAllSolutions(null, "test", 0);
 
@@ -60,17 +57,14 @@ namespace CSPrologTest
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
-            CleanTables(e);
-
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
             Assert.True(!ss.HasError && !ss.Success, $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
 
             if (consult == null)
             {
-                e = new PrologEngine(persistentCommandHistory: false);
+                e.Reset();
                 e.ConsultFromString(Dynamics + "test :- " + query + ".");
-                CleanTables(e);
 
                 ss = e.GetAllSolutions(null, "test", 0);
 
@@ -83,8 +77,6 @@ namespace CSPrologTest
             PrologEngine e = new PrologEngine(persistentCommandHistory: false);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
-
-            CleanTables(e);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
@@ -117,20 +109,6 @@ namespace CSPrologTest
                 default:
                     throw new InvalidOperationException("Not supported expectation: " + expectation);
             }
-        }
-
-        public static void CleanTables(PrologEngine e)
-        {
-            // TODO
-            /*e.Engine.user_table.Clear();
-            e.PredTable.CrossRefTable.Clear();
-            e.PredTable.Predicates.Clear();
-            e.varStack.Engine.varTable.Clear();
-            e.Engine.entryCodes.Clear();
-            e.Engine.cloneVarTable.Clear();
-            e.Engine.current_table.Clear();
-            e.Engine.trail = new JJC.Psharp.Lang.Trail();
-            e.Engine.trail.SetEngine(e.Engine);*/
         }
     }
 }

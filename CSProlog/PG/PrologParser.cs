@@ -176,22 +176,6 @@ namespace Prolog
                     IO.ErrorConsult($"Operator not found: ({type}, {name})", symbol);
             }
 
-
-            public bool IsOperator(string key)
-            {
-                return (terminalTable[key] == Operator);
-            }
-
-
-            public OpDescrTriplet GetOperatorDescr(string key)
-            {
-                TerminalDescr td;
-
-                if (terminalTable.Find(key, out td)) return (OpDescrTriplet)td.Payload;
-
-                return null;
-            }
-
             private bool isReservedOperatorSetting;
 
             private void SetReservedOperators(bool asOpr)
@@ -238,26 +222,6 @@ namespace Prolog
                     terminalTable.AddOrReplace(WrapClose, "WrapClose", closeBracket);
                 }
             }
-
-
-            // specific method for interpreting '{' and '}' as list delimiters
-            public void SetJsonMode(bool mode)
-            {
-                if (jsonMode = mode)
-                    AddBracketPair("{", "}", true);
-                else
-                {
-                    terminalTable.AddOrReplace(LCuBracket, "LCuBracket", "{");
-                    terminalTable.AddOrReplace(RCuBracket, "RCuBracket", "}");
-                    engine.AltListTable.Remove("{");
-                }
-            }
-
-            public bool GetJsonMode()
-            {
-                return jsonMode;
-            }
-            
                         protected void ScanVerbatimString()
             {
                 do

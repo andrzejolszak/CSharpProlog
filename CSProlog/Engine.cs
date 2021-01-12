@@ -78,8 +78,6 @@ namespace Prolog
 
         public class VarStack : Stack<object>
         {
-            private Stack<object> swap;
-
             public int verNoMax;
             public int varNoMax;
 
@@ -90,30 +88,6 @@ namespace Prolog
             public void NextUnifyCount() { CurrUnifyCount++; }
 
             public int CurrUnifyCount { get; set; }
-
-            public VarStack()
-            {
-                swap = new Stack<object>();
-            }
-
-            //public override void Push (object o)
-            //{
-            //  base.Push (o);
-
-            //  if (o is Variable)
-            //    IO.WriteLine ("Pushed var functor={0} value={1}", ((Variable)o).Functor, o);
-            //  else
-            //    IO.WriteLine ("Pushed {0}", o);
-            //}
-
-            //public override object Pop ()
-            //{
-            //  object o = base.Pop ();
-
-            //  IO.WriteLine ("Popped {0}", o);
-
-            //  return o;
-            //}
 
             public void DisableChoices(int n)
             {
@@ -325,7 +299,6 @@ namespace Prolog
         private string query;
         public Solution solution;
 
-        private PredicateCallOptions predicateCallOptions;
         private OpenFiles openFiles;
         private const int INF = Int32.MaxValue;
         public VarStack varStack; // stack of variable bindings and choice points
@@ -424,10 +397,7 @@ namespace Prolog
         public bool error;
         public bool trace;
         public bool debug;
-        private bool firstGoal; // set in ExecuteGoalList() to be able to check whether a goal in the command is the very first
         private bool redo; // set by CanBacktrack if a choice point was found
-        private bool qskip;
-        private bool rushToEnd;
         public bool eventDebug;
         public bool reporting;  // debug (also set by 'trace') || xmlTrace
         public bool profiling;
@@ -505,13 +475,11 @@ namespace Prolog
             error = false;
             Halted = false;
             trace = false;
-            qskip = false;
             eventDebug = false;
             startTime = -1;
             procTime = 0;
             currentFileReader = null;
             currentFileWriter = null;
-            predicateCallOptions = new PredicateCallOptions();
             terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
             PrologParser.FillTerminalTable(terminalTable);
             parser = new PrologParser(this); // now this.terminalTable is passed on as well
@@ -539,7 +507,7 @@ namespace Prolog
         {
             PredTable.Reset();
             parser.SetDollarAsPossibleUnquotedAtomChar(true);
-            parser.StreamIn = Bootstrap.PredefinedPredicates;
+            parser.StreamIn = PredefinedPredicates;
             parser.SetDollarAsPossibleUnquotedAtomChar(false);
             PredTable.Predefined.Add("0!");
             PredTable.Predefined.Add("0true");
@@ -609,10 +577,8 @@ namespace Prolog
                 findFirstClause = true;
                 userInterrupted = false;
                 parser.StreamIn = query;
-                rushToEnd = false;
                 levelMin = 0;
                 levelMax = INF;
-                firstGoal = true;
                 lastCp = null;
                 gensymInt = 0;
                 IO.Reset(); // clear input character buffer
@@ -968,7 +934,6 @@ namespace Prolog
                 else if (!(redo = CanBacktrack())) // unify failed - try backtracking
                     return false;
 
-                firstGoal = false;
             } // end of while
 
             return true;
@@ -1227,17 +1192,6 @@ namespace Prolog
             profiling = mode;
         }
 
-
-        public void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
-        {
-            userInterrupted = true;
-            e.Cancel = true;
-        }
-
-
-        public string Prompt => $"\r\n{(Debugging ? "[d]" : "")}{CmdNo} ?- ";
-
-
         public int ElapsedTime() // returns numer of milliseconds since last Call
         {
             long prevStartTime = (startTime == -1) ? DateTime.Now.Ticks : startTime;
@@ -1297,13 +1251,6 @@ namespace Prolog
             using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(prologCode)))
                 Consult(ms, codeTitle);
         }
-
-        // TODO: remove
-        //        public void CreateFact(string functor, BaseTerm[] args)
-        //        {
-        //            predTable.Assert(new CompoundTerm(null, functor, args), true);
-        //        }
-
 
         public void SetStringStyle(BaseTerm t)
         {

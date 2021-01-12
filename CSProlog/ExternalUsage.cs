@@ -22,14 +22,14 @@ namespace Prolog
 {
         public class SolutionSet
     {
-        public string Query { get; internal set; }
-
         public bool Success { get; internal set; }
 
         public string ErrMsg { get; internal set; }
 
         public bool HasError => ErrMsg != null;
+
         private List<Solution> solutionSet;
+        
         public List<PrologEngine.RuntimeException> Errors { get; } = new List<PrologEngine.RuntimeException>();
 
         private Solution currVarSet;
@@ -50,15 +50,6 @@ namespace Prolog
         {
             currVarSet.Add(name, type, value);
             Success = true;
-        }
-
-        public IEnumerable<Solution> NextSolution
-        {
-            get
-            {
-                foreach (Solution s in solutionSet)
-                    yield return s;
-            }
         }
 
         public Solution this[int i] => solutionSet[i];
@@ -110,8 +101,6 @@ namespace Prolog
             }
         }
 
-        public Variable this[int i] => variables[i];
-
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -161,7 +150,7 @@ namespace Prolog
             {
                 if (sourceFileName != null) Consult(sourceFileName);
 
-                Query = solutions.Query = query + (query.EndsWith(".") ? null : "."); // append a dot if necessary
+                Query = query + (query.EndsWith(".") ? null : "."); // append a dot if necessary
                 int i = 0;
                 bool found = false;
                 bool varFound = false;

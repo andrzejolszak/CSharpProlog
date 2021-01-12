@@ -28,7 +28,6 @@ namespace Prolog
             protected int arity;
             public int Arity => arity;
             public string Name => functor + '/' + arity;
-            public string Key => arity + functor;
             private const short ARG0COUNT_MIN = 8;
             private Dictionary<object, ClauseNode> arg0Index = null; // for first argument indexing
             public ClauseNode ClauseList { get; private set; }
@@ -191,58 +190,10 @@ namespace Prolog
                     return true;
             }
 
-
-            public bool IsFirstArgIndexed => (arg0Index != null);
-
-            public bool IsFirstArgMarked(ClauseNode c)
-            {
-                if (arg0Index == null) return false;
-
-                BaseTerm t = c.Term.Arg(0);
-                ClauseNode result;
-
-                if (t.IsVar)
-                    arg0Index.TryGetValue(VARARG, out result);
-                else
-                    arg0Index.TryGetValue(t.FunctorToString, out result);
-
-                return (result == c);
-            }
-
-
-            public ClauseNode FirstArgNonvarClause(string arg)
-            {
-                ClauseNode result;
-                arg0Index.TryGetValue(arg, out result);
-
-                return result;
-            }
-
-
-            public ClauseNode FirstArgVarClause()
-            {
-                ClauseNode result;
-                arg0Index.TryGetValue(VARARG, out result);
-
-                return result;
-            }
-
-
             public void DestroyFirstArgIndex()
             {
                 arg0Index = null;
             }
-
-            //public void DumpClauseList()
-            //{
-            //  NextClause c = clauseList;
-
-            //  while (c != null)
-            //  {
-            //    IO.WriteLine("DumpValues -- {0}", c);
-            //    c = c.NextClause;
-            //  }
-            //}
 
             public override string ToString()
             {

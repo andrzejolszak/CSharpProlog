@@ -1383,7 +1383,6 @@ namespace Prolog
                 BaseTerm t;
                 altListName = null;
                 bool first = true;
-                DownRepFactor downRepFactor = null;
                 isNegSearch = false;
                 while (true)
                 {
@@ -1404,7 +1403,7 @@ namespace Prolog
                     //terminalTable [ELLIPSIS] = EllipsisSym;
                     //terminalTable [NEGATE]   = NegateSym;
                     //terminalTable [SUBTREE]  = SubtreeSym;
-                    if (!first) searchTerms.Add(new SearchTerm(downRepFactor, t));
+                    if (!first) searchTerms.Add(new SearchTerm(t));
                     //if (t is AnonymousVariable)
                     //  IO.Warning ("Anonymous variable in alternatives list makes it match anything");
                     GetSymbol(_TS.Union(terminalCount, CutSym, VBar), false, true);
@@ -1414,7 +1413,7 @@ namespace Prolog
                         if (symbol.TerminalId == VBar)
                         {
                             symbol.SetProcessed();
-                            if (first) searchTerms.Add(new SearchTerm(downRepFactor, t));
+                            if (first) searchTerms.Add(new SearchTerm(t));
                         }
                         else
                         {
@@ -1439,7 +1438,7 @@ namespace Prolog
                     else
                         break;
                 }
-                if (first) searchTerms.Add(new SearchTerm(downRepFactor, t));
+                if (first) searchTerms.Add(new SearchTerm(t));
                 isSingleVar = (searchTerms.Count == 1 && searchTerms[0].term is Variable);
             }
             

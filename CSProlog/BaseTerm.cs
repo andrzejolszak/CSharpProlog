@@ -217,7 +217,6 @@ namespace Prolog
             public TermType TermType => ChainEnd().termType;
             public virtual string FunctorToString => functor == null ? null : ChainEnd().functor.ToString();
             public bool HasFunctor(string s) { return (FunctorToString == s); }
-            public AssocType AssocType => ChainEnd().assocType;
             public int Precedence => ChainEnd().precedence;
             public BaseTerm[] Args => ChainEnd().args;
 // Args [i] != Arg (i) !!!!
@@ -227,7 +226,6 @@ namespace Prolog
             public string ToDisplayString() { return ChainEnd().ToDisplayString(0); }
             public virtual string ToDisplayString(int level) { return ChainEnd().ToWriteString(level); }
 
-            public bool FunctorIsDot => (FunctorToString == ".");
             public string Key => MakeKey(FunctorToString, arity);
             public virtual string Name => FunctorToString + '/' + arity;
             public bool FunctorIsBinaryComma => (FunctorToString == ",");
@@ -645,18 +643,6 @@ namespace Prolog
                 }
             }
 
-
-            public static string VarList(VarStack varStack) // debugging only
-            {
-                StringBuilder result = new StringBuilder();
-
-                foreach (object v in varStack.ToArray())
-                    if (v != null && v is Variable)
-                        result.AppendLine($">> {((Variable) v).Name} = {(Variable) v}");
-
-                return result.ToString();
-            }
-
             /* TERM COPYING
 
                A term is copied recursively, by first copying its arguments and then creating
@@ -774,7 +760,7 @@ namespace Prolog
                     else if (this is IntRangeTerm)
                         t = new IntRangeTerm((IntRangeTerm)this);
                     else if (this is ListPatternElem)
-                        t = new ListPatternElem(this.Symbol, a, ((ListPatternElem)this).downRepFactor, ((ListPatternElem)this).IsNegSearch);
+                        t = new ListPatternElem(this.Symbol, a, ((ListPatternElem)this).IsNegSearch);
                     else if (this is CompoundTerm)
                         t = new CompoundTerm(this.Symbol, functor, a);
                     else if (this is ClauseTerm asCt)

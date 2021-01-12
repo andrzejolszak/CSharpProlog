@@ -178,7 +178,6 @@ namespace Prolog
             public bool HasInfixDef => (triplet[0].IsDefined);
             public bool HasPrefixDef => (triplet[1].IsDefined);
             public bool HasPostfixDef => (triplet[2].IsDefined);
-            public bool IsOverloaded => HasInfixDef && (HasPrefixDef || HasPostfixDef);
 
             public bool HasBinOpDef(out OperatorDescr od)
             {

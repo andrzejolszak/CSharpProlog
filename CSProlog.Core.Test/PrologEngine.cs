@@ -42,9 +42,7 @@ namespace CSPrologTest
             prolog.GetFirstSolution(query: "listing.");
 
             SolutionSet solutionset1 = prolog.GetAllSolutions(null, "human(H)");
-            Console.WriteLine("=====================================");
-            Console.WriteLine(solutionset1.ErrMsg);
-            Console.WriteLine("=====================================");
+
             Assert.True(solutionset1.Success);
             if (solutionset1.Success)
             {

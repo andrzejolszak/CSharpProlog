@@ -78,7 +78,6 @@ namespace Prolog
                 public RelOp RightRelOp => od.RightRelOp;
                 public bool IsInfix => role != TT.Zero && od.IsInfix;
                 public bool IsPrefix => role != TT.Zero && od.IsPrefix;
-                public bool IsPostfix => role != TT.Zero && od.IsPostfix;
                 public bool IsZerofix => role == TT.Zero;
 
                 public OperatorToken(Symbol symbol, OpDescrTriplet triplet, OperatorDescr prevOd)
@@ -211,17 +210,6 @@ namespace Prolog
                 CheckTokenPair(newToken);
                 IS.Push(newToken);
             }
-
-// TODO: remove
-/*            public void AddArgs(BaseTerm[] args)
-            {
-                if (args.Length == 1) // i.e. only a single term between parentheses
-                    Add(args[0]);
-                else if (args.Length == 2)
-                    Add(new OperatorTerm(CommaOpDescr, args[0], args[1])); // a list of terms between parentheses
-                else
-                    Add(new CompoundTerm(CommaOpDescr.Name, args)); // a list of terms between parentheses
-            }*/
 
             public void AddOperatorFunctor(Symbol symbol, OpDescrTriplet triplet, BaseTerm[] args)
             {
@@ -482,19 +470,6 @@ namespace Prolog
                 InfixToPrefix();
                 term = PrefixToTerm(symbol);
             }
-
-
-            //void DumpIS ()
-            //{
-            //  StringBuilder sb = new StringBuilder ();
-            //
-            //  BaseToken [] bt = IS.ToArray<BaseToken> ();
-            //
-            //  for (int i = bt.Length-1; i >= 0; i--)
-            //    sb.Append (bt [i].ToString ());
-            //
-            //  IO.WriteLine (1, "ConstructPrologTerm: {0}", sb.ToString ());
-            //}
 
             /*
               InfixToPrefix

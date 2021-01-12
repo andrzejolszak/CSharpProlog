@@ -113,19 +113,6 @@ namespace Prolog
                 iEnum = GetEnumerator();
             }
 
-            public ListTerm ToList()
-            {
-                ListTerm result = ListTerm.EMPTYLIST;
-
-                int lo = lowBound.To<int>();
-                int hi = hiBound.To<int>();
-
-                for (int i = hi; i >= lo; i--)
-                    result = new ListTerm(this.Symbol, new DecimalTerm(this.Symbol, i), result);
-
-                return result;
-            }
-
             private IEnumerator GetEnumerator()
             {
                 int lo = lowBound.To<int>();

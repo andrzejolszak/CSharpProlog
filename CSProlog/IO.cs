@@ -34,11 +34,6 @@ namespace Prolog
         public abstract void Clear();
 
         public abstract void Reset();
-        
-        public void Write(string s, params object[] o)
-        {
-            Write(string.Format(s, o));
-        }
 
         public void WriteLine(string s, params object[] o)
         {

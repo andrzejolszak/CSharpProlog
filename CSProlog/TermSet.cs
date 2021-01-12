@@ -25,12 +25,6 @@ namespace Prolog
         {
             private DupMode dupMode;
 
-            public BaseTermSet()
-            {
-                dupMode = DupMode.DupAccept;
-            }
-
-
             public BaseTermSet(DupMode dm)
             {
                 dupMode = dm;

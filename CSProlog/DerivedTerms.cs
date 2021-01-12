@@ -81,14 +81,9 @@ namespace Prolog
             protected int unifyCount; // used for tabling
             protected int visitNo; // for cycle detection only
             public BaseTerm newVar;
-            public BaseTerm ULink => uLink;
             protected int varNo { get { return termId; } set { termId = value; } }
             public override string Name => "_" + varNo;
             public override int Arity => -1;
-            public int UnifyCount => unifyCount;
-            public int VarNo => varNo;
-            public int VisitNo => visitNo;
-// for cycle detection only -- not yet operational
 
             public bool IsUnifiedWith(Variable v)
             {
@@ -209,14 +204,6 @@ namespace Prolog
                 this.TestGroup = testGroup;
                 termType = TermType.Atom;
             }
-
-            public AtomTerm(Symbol symbol, char value)
-                : base(symbol)
-            {
-                functor = value.ToString().Unescaped();
-                termType = TermType.Atom;
-            }
-
 
             protected override int CompareValue(BaseTerm t)
             {
@@ -405,18 +392,6 @@ namespace Prolog
             public CompoundTerm(Symbol symbol)
                 : base(symbol)
             {
-            }
-
-
-            public CompoundTerm(CompoundTerm that)
-                : base(that.Symbol)
-            {
-                functor = that.functor;
-                args = that.args;
-
-                this.CommentHeader = that.CommentHeader;
-                this.CommentBody = that.CommentBody;
-                this.TestGroup = that.TestGroup;
             }
 
 
@@ -698,30 +673,12 @@ namespace Prolog
                 termType = TermType.String;
             }
 
-            public StringTerm(Symbol symbol)
-                : base(symbol)
-            {
-                functor = string.Empty;
-                termType = TermType.String;
-            }
-
-
             public override string ToWriteString(int level)
             {
                 return '"' + FunctorToString.Replace(@"\", @"\\").Replace(@"""", @"\""") + '"';
             }
         }
-        
-
-                public class NumericalTerm : ValueTerm
-        {
-            public NumericalTerm(Symbol symbol)
-                : base(symbol)
-            {
-                termType = TermType.Number;
-            }
-        }
-        
+                
                 public class DecimalTerm : ValueTerm
         {
             public decimal Value { get; }
@@ -731,12 +688,6 @@ namespace Prolog
             public static readonly DecimalTerm ONE;
             public static readonly DecimalTerm MINUS_ONE;
             private const double EPS = 1.0e-6; // arbitrary, cosmetic
-
-            public DecimalTerm(Symbol symbol) // required for ComplexTerm
-                : base(symbol)
-            {
-                termType = TermType.Number;
-            }
 
             public DecimalTerm(Symbol symbol, decimal value)
                 : base(symbol)
@@ -790,39 +741,6 @@ namespace Prolog
 
             protected override int CompareValue(BaseTerm t)
             { return (To<decimal>().CompareTo(t.To<decimal>())); }
-
-
-            // sum
-            public DecimalTerm Add(DecimalTerm d)
-            {
-                return new DecimalTerm(null, Value + Value);
-            }
-
-            // difference
-            public DecimalTerm Subtract(DecimalTerm d)
-            {
-                return new DecimalTerm(null, ValueD - d.ValueD);
-            }
-
-            // product
-            public DecimalTerm Multiply(DecimalTerm d)
-            {
-                return new DecimalTerm(null, Value * d.Value);
-            }
-
-            // quotient
-            public DecimalTerm Divide(DecimalTerm d)
-            {
-                if (d.Value == 0)
-                    IO.ErrorRuntime( "Division by zero not allowed", null, d);
-
-                return new DecimalTerm(null, Value / d.Value);
-            }
-
-            public virtual DecimalTerm Exp()
-            {
-                return new DecimalTerm(null, Math.Exp(ValueD));
-            }
 
             public override string ToWriteString(int level)
             {
@@ -923,22 +841,12 @@ namespace Prolog
 
             private PrologParser p;
             public override bool IsOpen => (tr != null);
-            public bool Eof => (tr == null || tr.Peek() == -1);
 
             public FileReaderTerm(Symbol symbol, PrologEngine engine, string fileName)
                 : base(symbol)
             {
                 this.engine = engine;
                 functor = this.fileName = fileName;
-                termType = TermType.FileReader;
-            }
-
-            public FileReaderTerm(Symbol symbol, PrologEngine engine, TextReader tr)
-                : base(symbol)
-            {
-                this.engine = engine;
-                functor = this.fileName = "<standard input>";
-                this.tr = tr;
                 termType = TermType.FileReader;
             }
 
@@ -1008,14 +916,6 @@ namespace Prolog
                 termType = TermType.FileWriter;
             }
 
-            public FileWriterTerm(Symbol symbol, TextWriter tw)
-                : base(symbol)
-            {
-                functor = this.fileName = "<standard output>";
-                this.tw = tw;
-                termType = TermType.FileWriter;
-            }
-
             public void Open()
             {
                 try
@@ -1035,27 +935,9 @@ namespace Prolog
             }
 
 
-            public void WriteTerm(BaseTerm t)
-            {
-                tw.WriteLine("{0}.", t);
-            }
-
-
             public void Write(string s)
             {
                 tw.Write(s);
-            }
-
-
-            public void Write(string s, params object[] args)
-            {
-                tw.Write(s, args);
-            }
-
-
-            public void NewLine()
-            {
-                tw.Write(Environment.NewLine);
             }
 
 
@@ -1093,27 +975,7 @@ namespace Prolog
                 return set.ToList();
             }
         }
-        
-                public class BaseTermListTerm<T> : AtomTerm
-        {
-            public List<T> List { get; }
-            public int Count => List.Count;
-            public T this[int n] => List[n];
-            public override bool IsCallable => false;
-
-            public BaseTermListTerm(Symbol symbol)
-              : base(symbol, "<term list>")
-            {
-                List = new List<T>();
-            }
-
-            public BaseTermListTerm(Symbol symbol, List<T> list)
-              : base(symbol, "<term collection>")
-            {
-                this.List = list;
-            }
-        }
-        
+                
                 public class Cut : BaseTerm
         {
             public override bool IsCallable => false;
@@ -1271,23 +1133,6 @@ namespace Prolog
                 }
             }
 
-
-            public BaseTerm[] ToTermArray()
-            {
-                int length = 0;
-
-                foreach (BaseTerm t in this) length++;
-
-                BaseTerm[] result = new BaseTerm[length];
-
-                length = 0;
-
-                foreach (BaseTerm t in this) result[length++] = t;
-
-                return result;
-            }
-
-
             public static ListTerm ListFromArray(BaseTerm[] ta)
             {
                 return ListFromArray(ta, EMPTYLIST);
@@ -1378,29 +1223,6 @@ namespace Prolog
 
                 return result;
             }
-
-            public ListTerm Union(ListTerm that)
-            {
-                ListTerm result = EmptyList;
-
-                return result;
-            }
-
-
-            public bool ContainsAtom(string atom)
-            {
-                BaseTerm t = ChainEnd();
-
-                while (t.Arity == 2)
-                {
-                    if (t.Arg(0).FunctorToString == atom) return true;
-
-                    t = t.Arg(1);
-                }
-
-                return false;
-            }
-
 
             public override string ToWriteString(int level)
             {
@@ -1547,8 +1369,6 @@ namespace Prolog
                 args[arity - 1] = z = new Variable(symbol, varStack);
             }
 
-            public DcgTerm(BaseTerm t) : base(t.Symbol, PrologParser.CURL, t, NULLCURL) { }
-
             public DcgTerm(Symbol symbol, BaseTerm t0, BaseTerm t1) : base(symbol, PrologParser.CURL, t0, t1) { }
 
             public DcgTerm(Symbol symbol) : base(symbol, PrologParser.CURL) { }
@@ -1622,34 +1442,6 @@ namespace Prolog
 
                 e.WriteLine("{0}{1}", margin, '}');
             }
-        }
-        
-                public class BinaryTerm : BaseTerm
-        {
-            private byte[] data;
-
-            public override bool IsCallable => false;
-
-            public BinaryTerm(Symbol symbol, byte[] data)
-                : base(symbol)
-            {
-                functor = "(binary data)";
-                this.data = data;
-                termType = TermType.Binary;
-            }
-
-
-            protected override int CompareValue(BaseTerm t)
-            {
-                return FunctorToString.CompareTo(t.FunctorToString);
-            }
-
-
-            public override string ToWriteString(int level)
-            {
-                return $"\"(byte[{data.Length}] binary data)\"";
-            }
-
         }
         
                 public class UserClassTerm<T> : BaseTerm

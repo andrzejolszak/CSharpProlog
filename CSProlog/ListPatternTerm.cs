@@ -24,46 +24,6 @@ namespace Prolog
 {
     public partial class PrologEngine
     {
-                public class DisjunctiveSearchTerm
-        {
-            public BaseTerm[] alternatives { get; private set; }
-            public Variable bindVar { get; private set; }
-            public bool isNegSearch { get; private set; }
-            public int Count => alternatives.Length;
-            public bool HasBindVar => (bindVar != null);
-
-            public DisjunctiveSearchTerm(BaseTerm bindVar, bool isNegSearch, List<BaseTerm> alternatives)
-            {
-                this.bindVar = (Variable)bindVar;
-                this.isNegSearch = isNegSearch;
-                this.alternatives = alternatives.ToArray();
-            }
-
-            public override string ToString()
-            {
-                StringBuilder sb = new StringBuilder();
-                bool first = true;
-
-                if (HasBindVar) sb.AppendFormat("{0}!", bindVar);
-
-                if (isNegSearch) sb.Append('~');
-
-                if (alternatives.Length > 1) sb.Append('(');
-
-                foreach (BaseTerm t in alternatives)
-                {
-                    if (first) first = false; else sb.Append('|');
-
-                    sb.Append(t);
-                }
-
-                if (alternatives.Length > 1) sb.Append(')');
-
-                return sb.ToString();
-            }
-        }
-
-
         public class BaseRepFactor
         {
             public Variable bindVar { get; private set; }
@@ -71,7 +31,6 @@ namespace Prolog
             public BaseTerm maxLenTerm { get; private set; }
             public int MinRangeLen => (minLenTerm.IsVar ? 0 : minLenTerm.To<int>());
             public int MaxRangeLen => (maxLenTerm.IsVar ? PrologParser.Infinite : maxLenTerm.To<int>());
-            public bool HasVariableLength => (MinRangeLen != MaxRangeLen);
 
             protected BaseRepFactor(BaseTerm bindVar, BaseTerm minLenTerm, BaseTerm maxLenTerm)
             {
@@ -133,36 +92,11 @@ namespace Prolog
             }
 
         }
-
-        public class DownRepFactor : BaseRepFactor
-        {
-            public DownRepFactor(Variable bindVar, BaseTerm minLenTerm, BaseTerm maxLenTerm) :
-              base(bindVar, minLenTerm, maxLenTerm)
-            { }
-
-            public override string ToString()
-            {
-                return $"\\{base.ToString()}";
-            }
-        }
-
-        public class AcrossRepFactor : BaseRepFactor // repetition factor
-        {
-            public AcrossRepFactor(BaseTerm bindVar, BaseTerm minLenTerm, BaseTerm maxLenTerm) :
-              base(bindVar, minLenTerm, maxLenTerm)
-            { }
-        }
         
                 public class ListPatternElem : CompoundTerm
         {
             private const int TARGETOFFSET = 4;
             public override bool IsEvaluatable => false;
-            public DownRepFactor downRepFactor { get; private set; }
-            public DisjunctiveSearchTerm altSearchTerms { get; private set; }
-            public AcrossRepFactor acrossRepFactor { get; private set; }
-            public bool HasDownRepFactor => (downRepFactor != null);
-            public bool HasAltSearchTerms => (altSearchTerms != null);
-            public bool HasAcrossRepFactor => (acrossRepFactor != null);
 #if old
             public bool IsNegSearch { get; }
             public BaseTerm MinLenTerm => args[0];
@@ -170,7 +104,6 @@ namespace Prolog
             public BaseTerm RangeBindVar => args[2];
             public int MinRangeLen => (MinLenTerm.IsVar ? 0 : MinLenTerm.To<int>());
             public int MaxRangeLen => (MaxLenTerm.IsVar ? PrologParser.Infinite : MaxLenTerm.To<int>());
-            public bool HasVariableLength => (MinRangeLen != MaxRangeLen);
 #else
       public bool IsNegSearch { get { return altSearchTerms.isNegSearch; } }
       public BaseTerm MinLenTerm { get { return acrossRepFactor.minLenTerm; } }
@@ -218,7 +151,7 @@ namespace Prolog
                     isNegSearch = (altSearchTerms == null) ? false : altSearchTerms.isNegSearch;
                   }
             */
-            public ListPatternElem(Symbol symbol, BaseTerm[] a, DownRepFactor downRepFactor, bool isNegSearch)
+            public ListPatternElem(Symbol symbol, BaseTerm[] a, bool isNegSearch)
               : base(symbol, "RANGE", a)  // used by CopyEx
             {
 #if old
@@ -277,15 +210,6 @@ namespace Prolog
 #else
         StringBuilder sb = new StringBuilder ();
 #endif
-                if (HasDownRepFactor || HasAltSearchTerms || HasAltSearchTerms)
-                {
-                    if (HasDownRepFactor) sb.Append(downRepFactor);
-                    if (HasAltSearchTerms) sb.Append(altSearchTerms);
-                    if (HasAcrossRepFactor) sb.Append(acrossRepFactor);
-                    sb.Append("$");
-
-                    return sb.ToString();
-                }
 
                 string range;
 
@@ -433,32 +357,13 @@ namespace Prolog
                         for (int j = 4; j < e.Args.Length; j++) // scan all AltSearchTerm alternatives (separated by '|')
                         {
                             BaseTerm searchTerm = e.AltSearchTerms[j];
-                            DownRepFactor downRepFactor = null; // e.downRepFactor [j];
                             t = target[k];
                             AltLoopStatus status = AltLoopStatus.TryNextAlt;
 
-                            if (downRepFactor == null)
-                            {
-                                status =
-                                  TryOneAlternative(ip, varStack, e, k, marker, RangeList, i, t, ref negSearchSucceeded, searchTerm);
+                            status =
+                              TryOneAlternative(ip, varStack, e, k, marker, RangeList, i, t, ref negSearchSucceeded, searchTerm);
 
-                                if (status == AltLoopStatus.MatchFound) return true;
-                            }
-                            else // traverse the downRepFactor tree, which in principle may yield more than one match
-                            {
-                                subtreeIterator = new NodeIterator(t, searchTerm, downRepFactor.minLenTerm,
-                                  downRepFactor.maxLenTerm, false, downRepFactor.bindVar, varStack);
-
-                                foreach (BaseTerm match in subtreeIterator) // try -- if necessary -- each tree match with the current search term
-                                {
-                                    status =
-                                      TryOneAlternative(ip, varStack, e, k, marker, RangeList, i, match, ref negSearchSucceeded, searchTerm);
-
-                                    if (status == AltLoopStatus.MatchFound) return true;
-
-                                    if (status == AltLoopStatus.Break) break;
-                                }
-                            }
+                            if (status == AltLoopStatus.MatchFound) return true;
 
                             if (status == AltLoopStatus.Break) break;
                         }
@@ -674,12 +579,10 @@ namespace Prolog
 
         public class SearchTerm
         {
-            public DownRepFactor downRepFactor { get; private set; }
             public BaseTerm term { get; private set; }
 
-            public SearchTerm(DownRepFactor downRepFactor, BaseTerm term)
+            public SearchTerm(BaseTerm term)
             {
-                this.downRepFactor = downRepFactor;
                 this.term = term;
             }
         }
