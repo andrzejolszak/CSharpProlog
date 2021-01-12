@@ -38,7 +38,7 @@ namespace Prolog
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
         noverbose, now, number, numbervars, or, permutation, pp_defines,
         predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
-        readatom, readeof, readln, regex_match, regex_replace, retract, retractall,
+        readatom, readeof, readln, retract, retractall,
         reverse, see, seeing, seen, set_counter, setvar,
         showfile, showprofile, silent, sort, spy, spypoints, stacktrace, callstack, statistics,
         string_, string_datetime, string_term, string_words, stringstyle, succ, tab, tell,
@@ -2092,56 +2092,6 @@ namespace Prolog
 
                 //  break;
 
-
-                case BI.regex_match: // regex_match( +Source, +Pattern, ?Result [, Options])
-                                     // String 'Source' is matched against C# regular expression string 'Pattern'.
-                                     // 'Result' is a list containing the matching regular expression groups (a C# regex group
-                                     // is a subpattern enclosed in parentheses, with an optional name or number). 
-                                     // In 'Result' a group is represented as a label (group number or group name)
-                                     // followed by a ':', followed by a list of strings (captures) belonging to that group.
-                                     // 
-                                     // Example:
-                                     //
-                                     // regex_match("21-02-1951", "(?<Month>\\d{1,2})-(\\d{1,2})-(?<Year>(?:\\d{4}|\\d{2}))", L).
-                                     //
-                                     // L = [1:["02"], "Month":["21"], "Year":["1951"]]
-                                     //
-                                     // If there is only one group, only the group name and the list of captures will be returned.
-                                     // If the group has no name, only the list of captures will be returned.
-                                     // If no group was present in the pattern, the empty list will be returned in case of a match.
-                                     // If there was no match, the predicate will fail.
-                                     // 
-                                     // 'Options' is an optional list containing regex options a la C#. The following options are 
-                                     // supported: ignorecase, multiline, singleline, explicitcapture, cultureinvariant
-                                     //
-                    if (!((t0 = term.Arg(0)).IsString || t0.IsAtom) || !((t1 = term.Arg(1)).IsString || !t1.IsAtom)) return false;
-
-                    string[] optionsOLD = (term.Arity == 4) ? ((ListTerm)term.Arg(3)).ToStringArray() : null;
-                    BaseTerm groups = Utils.FindRegexMatches(OpTable, t0.FunctorToString, t1.FunctorToString, optionsOLD);
-
-                    if (groups == null || !term.Arg(2).Unify(groups, varStack)) return false;
-
-                    break;
-
-
-                case BI.regex_replace: // regex_replace( S, P, R, T)
-                    t0 = term.Arg(0);
-                    t1 = term.Arg(1);
-                    t2 = term.Arg(2);
-                    t3 = term.Arg(3);
-
-                    if (!(t0 is StringTerm && t1 is StringTerm && t2 is StringTerm))
-                        IO.ErrorRuntime("regex_replace/4 -- first three arguments must be strings", varStack, term);
-
-                    string input = t0.FunctorToString;
-                    string pattern = t1.FunctorToString;
-                    string replacement = t2.FunctorToString;
-
-                    if (!t3.Unify(new StringTerm(term.Symbol, Regex.Replace(input, pattern, replacement)), varStack))
-                        return false;
-
-                    break;
-
                 // this version actually only returns the number of ClockTicks
                 case BI.statistics: // statistics( X, [MSec,_])
                     t1 = term.Arg(1).Arg(0);
@@ -2241,24 +2191,6 @@ namespace Prolog
                     globalTermsTable.setvar(term.Arg(0).FunctorToString, term.Arg(1).Copy(varStack));
                     break;
 
-                /* Main program sample
-
-                  const string str = "Better ask the way than to go astray!";
-
-                  byte[] buffer_in = Encoding.UTF8.GetBytes(str);
-                  byte[] buffer_out = new byte[buffer_in.Length];
-                  byte[] buffer_decode = new byte[buffer_in.Length];
-
-                  BWTImplementation bwt = new BWTImplementation();
-
-                  int primary_index = 0;
-                  bwt.bwt_encode(buffer_in, buffer_out, buffer_in.Length, ref primary_index);
-                  bwt.bwt_decode(buffer_out, buffer_decode, buffer_in.Length, primary_index);
-
-                  Console.WriteLine("Decoded string: {0}", Encoding.UTF8.GetString(buffer_decode));
-
-               */
-
                 // Burrows–Wheeler transform, cf. https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
                 case BI.bw_transform: // bw_transform( ?Plain, ?Encoded, ?Index)
                     byte[] buffer_in;
@@ -2305,24 +2237,6 @@ namespace Prolog
             findFirstClause = true;
 
             return true;
-        }
-
-
-        private string ConvertToCmdArgs(BaseTerm t)
-        {
-            if (t.IsProperList)
-            {
-                StringBuilder sb = new StringBuilder();
-
-                foreach (string s in ((ListTerm)t).ToStringArray())
-                    sb.AppendFormat(" {0}", s);
-
-                return sb.ToString();
-            }
-
-            if (t is Variable) return null;
-
-            return ' ' + t.FunctorToString;
         }
 
         private BaseTerm TermFromWord(string word)

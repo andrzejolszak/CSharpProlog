@@ -76,11 +76,6 @@ namespace Prolog
         
                 public class Variable : BaseTerm
         {
-            public string CommentHeader { get; set; }
-            public string CommentBody { get; set; }
-
-            public string TestGroup { get; set; }
-
             protected BaseTerm uLink;
             public int verNo;
             protected int unifyCount; // used for tabling
@@ -190,11 +185,6 @@ namespace Prolog
             public override bool IsCallable => true;
             public override bool IsEvaluatable => true;
 // engine, pi, i, today, ...
-
-            public string CommentHeader { get; set; }
-            public string CommentBody { get; set; }
-
-            public string TestGroup { get; set; }
 
             public AtomTerm(Symbol symbol, object functor)
                 : base(symbol)
@@ -354,10 +344,6 @@ namespace Prolog
         {
             public override bool IsCallable => true;
             public override bool IsEvaluatable => true;
-
-            public string CommentHeader { get; set; }
-            public string CommentBody { get; set; }
-            public string TestGroup { get; set; }
 
             public CompoundTerm(Symbol symbol, string functor, BaseTerm[] args)
                 : base(symbol)
@@ -693,7 +679,7 @@ namespace Prolog
             }
         }
 
-                public class StringTerm : ValueTerm
+        public class StringTerm : ValueTerm
         {
             public string Value { get; set; }
 
@@ -1132,11 +1118,6 @@ namespace Prolog
         {
             public override bool IsCallable => false;
             public override bool IsEvaluatable => false;
-
-            public string CommentHeader { get; set; }
-            public string CommentBody { get; set; }
-
-            public string TestGroup { get; set; }
 
             public Cut(Symbol symbol, int stackSize)
                 : base(symbol)

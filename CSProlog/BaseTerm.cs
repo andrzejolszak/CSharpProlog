@@ -802,24 +802,6 @@ namespace Prolog
                 }
             }
 
-
-            public static BaseTerm MakeMatchTerm(Match m, bool asAtom)
-            {
-                BaseTerm[] args = new BaseTerm[4];
-
-                if (asAtom)
-                    args[0] = new AtomTerm(null, m.Value.ToAtom());
-                else
-                    args[0] = new StringTerm(null, m.Value);
-
-                args[1] = new DecimalTerm(null, m.Index);
-                args[2] = new DecimalTerm(null, m.Length);
-                args[3] = new AtomTerm(null, "m.Groups");
-
-                return new CompoundTerm(null, "match", args);
-            }
-
-
             public virtual void TreePrint(int level, PrologEngine e)
             {
                 e.Write(Spaces(2 * level));

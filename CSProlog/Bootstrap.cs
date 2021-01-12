@@ -1015,12 +1015,6 @@ namespace Prolog
        append([X|Y], U, [X|V]):-
          append( Y, U, V).
 
-       regex_match(S, P, L)        :== regex_match. % Find all occurances of match pattern P in string S
-       regex_match(S, P, L, [_|_]) :== regex_match. % Optional list of regex options (a la C#)
-
-       regex_replace(S, P, R, T) :== regex_replace. % String T is the result of replacing all ...
-                                                     % ... occurances of pattern P in S with R
-
 %% statistics(+Key, -Value)
 %
 % Unify system statistics determined by Key with Value. 

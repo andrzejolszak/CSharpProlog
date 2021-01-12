@@ -30,8 +30,8 @@ This fork of jsakamoto's repository that breaks backwards compatibility with ear
 Differences from the original fork:
 
 - The focus here is on only the library-based and IDE-based usages - the IDE is completely overhauled, and REPL-specific features will get gradually removed
-- Various existing features that duplicate existing .net functionality or are not being "core Prolog" will be aggressively removed, e.g. sql db access, json support, xml support, etc.
-- Unused code gets removed, naming conventions refreshed to modern standards
+- Various existing features that duplicate existing .net functionality or are not being "core Prolog" will be aggressively removed, e.g. sql db access, json support, xml support, regex, etc.
+- Unused code gets removed, static mutable state refactored, naming conventions refreshed to modern standards, etc.
 - Unit tests and benchmarks
 
 ## Installation
