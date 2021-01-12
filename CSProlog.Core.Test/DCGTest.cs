@@ -17,6 +17,8 @@ namespace CSPrologTest
             @"expand_term((aaa(R) --> [cow, eats], [R]), X), assertz(X), aaa(grass, [cow, eats, grass], Rem)".True();
             @"expand_term((aaa(R) --> [cow, eats], {R = grass}), X), assertz(X), aaa(grass, [cow, eats], Rem)".True();
 
+            @"aaa(grass, [cow, eats], Rem)".True(@"aaa(R) --> [cow, eats], {R = grass}.");
+
             //@"expand_term((aaa(R) --> ""as"", [R]), X), assertz(X), aaa(F, ""asd"", Rem)".True();
         }
 
