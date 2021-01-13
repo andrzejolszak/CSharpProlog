@@ -20,14 +20,14 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Prolog.PrologEngine;
 
 namespace Prolog
 {
-    public class AbortQueryException : Exception
+    public class AbortQueryException : PrologException
     {
-        public AbortQueryException() : base(" Execution terminated by user")
-        {
-        }
+        public AbortQueryException(BaseTerm term = null, BaseParser.Symbol symbol = null) : base(" Execution terminated by user", term, symbol)
+        { }
     }
 
     public partial class PrologEngine
@@ -219,7 +219,7 @@ namespace Prolog
                     {
                         do
                         {
-                            RuntimeException ex = Execute(); // run the query
+                            PrologException ex = Execute(); // run the query
 
                             Solution1.Error = ex;
                             Solution1.IsLast = Halted || !FindChoicePoint();
@@ -297,7 +297,7 @@ namespace Prolog
             currentFileWriter = null;
         }
 
-        private RuntimeException Execute()
+        private PrologException Execute()
         {
             ElapsedTime();
             ProcessorTime();
@@ -310,22 +310,27 @@ namespace Prolog
             {
                 Solution1.SetMessage(x.Message);
                 Solution1.Solved = true;
+
+                return x;
             }
-            catch (Exception x)
+            catch (PrologException x)
             {
                 Error = true;
                 Solution1.Solved = false;
                 string msg = $"{x.Message}{(UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}\r\n";
                 Solution1.SetMessage(msg);
 
-                RuntimeException rex = x as RuntimeException ?? new RuntimeException(msg, null, CurrVarStack);
-
-                if (rex.VarStack == null)
+                if (x is RuntimeException rex)
                 {
-                    rex.VarStack = CurrVarStack;
-                }
+                    if (rex.VarStack == null)
+                    {
+                        rex.VarStack = CurrVarStack;
+                    }
 
-                return rex;
+                    return rex;
+                }
+                
+                return x;
             }
 
             return null;
@@ -1187,7 +1192,7 @@ namespace Prolog
                 msg = null;
             }
 
-            public RuntimeException Error { get; set; }
+            public PrologException Error { get; set; }
             public bool Solved { get; set; }
 
             public bool IsLast { get; set; }

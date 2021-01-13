@@ -37,7 +37,7 @@ namespace Prolog
 
         public bool HasError => ErrMsg != null;
 
-        public List<PrologEngine.RuntimeException> Errors { get; } = new List<PrologEngine.RuntimeException>();
+        public List<PrologEngine.PrologException> Errors { get; } = new List<PrologEngine.PrologException>();
 
         public Solution this[int i] => solutionSet[i];
 

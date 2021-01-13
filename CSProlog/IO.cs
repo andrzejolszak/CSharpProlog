@@ -222,7 +222,7 @@ namespace Prolog
         // current input and current output (i.e. error messages etc.)
         public static class IO
         {
-            public static BasicIo BasicIO { private get; set; }
+            public static BasicIo BasicIO { get; set; }
 
             public static void Reset()
             {
@@ -249,16 +249,12 @@ namespace Prolog
             {
                 Log.Error(msg);
                 throw new ConsultException(msg, symbol: o);
-
-                return false;
             }
 
             public static bool ErrorRuntime(string msg, VarStack varStack, BaseTerm term)
             {
                 Log.Error(msg);
-                throw new RuntimeException(msg, term, varStack);
-
-                return false;
+                throw new RuntimeException(msg, term, term.Symbol, varStack: varStack);
             }
 
             public static void Warning(string msg, params object[] o)
@@ -288,13 +284,13 @@ namespace Prolog
             public static void Fatal(MessageKind messageKind, string msg, params object[] o)
             {
                 Log.Error(string.Format(msg, o));
-                throw new Exception("*** fatal: " + String.Format(msg, o));
+                throw new RuntimeException("*** fatal: " + String.Format(msg, o));
             }
 
             public static void Fatal(MessageKind messageKind, string msg)
             {
                 Log.Error(msg);
-                throw new Exception("*** fatal: " + msg);
+                throw new RuntimeException("*** fatal: " + msg);
             }
 
             public static string ReadLine()

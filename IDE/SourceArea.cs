@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using ScintillaNET;
 using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
+using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
 {
@@ -128,7 +129,7 @@ namespace Prolog
                             sourceEditor.RefreshReferenceArrows(stoppedTypingEngine);
                         }));
                     }
-                    catch (RuntimeException ex)
+                    catch (PrologException ex)
                     {
                         Invoke(new Action(() =>
                         {
@@ -136,14 +137,14 @@ namespace Prolog
                             sourceEditor.ClearIndicators();
                             tbAnswer.Clear();
 
-                            /*SourceInfo symbol = ex.Context;
+                            Symbol symbol = ex.Symbol;
                             if (symbol != null)
                             {
                                 sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,
                                     symbol.Start, symbol.Final - symbol.Start, ex.Message);
                             }
 
-                            tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {ex.Message}");*/
+                            tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {ex.Message}");
                         }));
                     }
 
@@ -177,7 +178,7 @@ namespace Prolog
             else if (e.Control && e.KeyCode == Keys.F1)
             {
                 e.SuppressKeyPress = true;
-                // TODO: this.queryEditor.Editor.Focus();
+                // this.queryEditor.Editor.Focus();
             }
         }
 
@@ -228,7 +229,7 @@ namespace Prolog
                 sourceEditor.ClearIndicators();
                 tbAnswer.Clear();
 
-                /*SourceInfo symbol = (e.Error as RuntimeException)?.Context;
+                Symbol symbol = (e.Error as PrologException)?.Symbol;
                 if (symbol != null)
                 {
                     sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,
@@ -237,7 +238,7 @@ namespace Prolog
                 }
 
                 tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {e.Error.Message}");
-                */
+                
                 SourceConsultedError?.Invoke();
             }
             else

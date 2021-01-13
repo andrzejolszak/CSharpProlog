@@ -47,7 +47,7 @@ namespace Prolog
                 .OrderBy(x => x.Key).ToArray())
             {
                 TreeNode[] tests = testGroup
-                    .Select(x => x.ToString())
+                    .Select(x => x.Functor)
                     .OrderBy(x => x)
                     .Select(x => new TreeNode(x, TestIcon, TestIcon)).ToArray();
 
@@ -87,6 +87,8 @@ namespace Prolog
                 }
             }
 
+            BasicIo oldIo = IO.BasicIO;
+            IO.BasicIO = new SilentIO();
             Task.Factory.StartNew(() =>
                 Parallel.ForEach(targetTestNodes.OrderBy(x => x.Name).ToArray(),
                     new ParallelOptions { MaxDegreeOfParallelism = 8 }, x =>
@@ -100,20 +102,10 @@ namespace Prolog
                               source = sourceArea.sourceEditor.Editor.Text;
                           }));
 
-                        // Run in dedicated app domains to isolate statics
-                        AppDomain domain = AppDomain.CreateDomain(x.Text);
-
-                          domain.SetData("source", source);
-                          domain.SetData("test", testName);
-
                           try
                           {
-                            //domain.DoCallBack(() => {
-                            string src = (string)AppDomain.CurrentDomain.GetData("source");
-                              string test = (string)AppDomain.CurrentDomain.GetData("test");
-
                               PrologEngine e = new PrologEngine(false);
-                              e.ConsultFromString(src);
+                              e.ConsultFromString(source);
 
                               List<string> callStack = new List<string>();
                               e.OnCurrentTermChanged += y =>
@@ -125,54 +117,40 @@ namespace Prolog
                                   }
                               };
 
-                              SolutionSet ss = e.GetAllSolutions(null, test, 0);
+                              SolutionSet ss = e.GetAllSolutions(null, testName, 0);
 
                               bool suceeded = !ss.HasError && ss.Success;
                               string callStackText = callStack.Aggregate((z, y) => z + "\n" + y);
 
-                              AppDomain.CurrentDomain.SetData("result", suceeded);
-                              AppDomain.CurrentDomain.SetData("callstack", callStackText);
-                            //});
+                              BeginInvoke(new Action(() =>
+                                {
+                                    x.ImageIndex = x.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
+                                    x.ToolTipText = suceeded ? string.Empty : callStackText;
+                                    x.ToolTipText = x.ToolTipText.Trim(' ', '\n', '\t', '\r');
 
-                            bool result = suceeded;
-                              string callStackMsg = callStackText;
-
-                            //bool result = (bool)domain.GetData("result");
-                            //string callStackMsg = (string)domain.GetData("callstack");
-
-                            BeginInvoke(new Action(() =>
-                              {
-                                  x.ImageIndex = x.SelectedImageIndex = result ? PassedIcon : FailedIcon;
-                                  x.ToolTipText = result ? string.Empty : callStackMsg;
-                                  x.ToolTipText = x.ToolTipText.Trim(' ', '\n', '\t', '\r');
-
-                                  lock (x.Parent)
-                                  {
-                                      if (result)
-                                      {
-                                          if (x.Parent.ImageIndex == RunningIcon)
-                                          {
-                                              x.Parent.ImageIndex = x.Parent.SelectedImageIndex = PassedIcon;
-                                              x.Parent.Collapse();
-                                          }
-                                      }
-                                      else
-                                      {
-                                          x.Parent.ImageIndex = x.Parent.SelectedImageIndex = FailedIcon;
-                                          x.Parent.Expand();
-                                      }
-                                  }
-                              }));
+                                    lock (x.Parent)
+                                    {
+                                        if (suceeded)
+                                        {
+                                            if (x.Parent.ImageIndex == RunningIcon)
+                                            {
+                                                x.Parent.ImageIndex = x.Parent.SelectedImageIndex = PassedIcon;
+                                                x.Parent.Collapse();
+                                            }
+                                        }
+                                        else
+                                        {
+                                            x.Parent.ImageIndex = x.Parent.SelectedImageIndex = FailedIcon;
+                                            x.Parent.Expand();
+                                        }
+                                    }
+                                }));
                           }
                           catch (Exception ex)
                           {
                               throw new Exception(ex.StackTrace);
                           }
-                          finally
-                          {
-                              AppDomain.Unload(domain);
-                          }
-                      }));
+                      })).ContinueWith(x => IO.BasicIO = oldIo);
         }
 
         private void runFailedTests(object sender, EventArgs e)

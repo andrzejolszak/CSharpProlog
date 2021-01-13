@@ -73,7 +73,7 @@ namespace Prolog
             }
             else if (e.Control && e.KeyCode == Keys.F1)
             {
-                //TODO: this.sourceEditor.Editor.Focus();
+                this.sourceArea.Focus();
                 e.SuppressKeyPress = true;
             }
         }
@@ -86,7 +86,7 @@ namespace Prolog
 
         private void SetDebug(bool val)
         {
-            // TODO: pe.EventDebug = val;
+            pe.EventDebug = val;
         }
 
         private void ExecuteQuery(bool findAllSolutions)
@@ -142,15 +142,14 @@ namespace Prolog
                 {
                     winIO.GuiIO.WriteLine("no\r\n" + solutions);
                 }
-                /* TODO: migrate
-                foreach (PrologEngine.RuntimeException error in solutions.ErrMsg.Errors)
+                
+                foreach (PrologEngine.RuntimeException error in solutions.Errors)
                 {
                     PrologEngine.BaseParser.Symbol symbol = error.Term?.Symbol ??
                                     (error.VarStack?.Peek() as PrologEngine.BaseTerm)?.Symbol;
-                    winIO.Write($"* Line {symbol?.LineNo}: {error.Message}");
+                    winIO.GuiIO.Write($"* Line {symbol?.LineNo}: {error.Message}");
                     this.Invoke(new Action(() => this.sourceArea.sourceEditor.Editor.GotoPosition(symbol?.StartAdjusted ?? this.sourceArea.sourceEditor.Editor.CurrentPosition)));
                 }
-                */
 
                 winIO.GuiIO.Write(solutions.ErrMsg);
 

@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
 using System.Resources;
 using System.Windows.Forms;
@@ -1110,20 +1111,16 @@ All predicates are imported regardless of any module declarations.
                 // All predicates
                 _items = _items.Concat(predicateDescriptors.Select(x =>
                     {
-                        /* TODO: migrate
-                    string file = x.DefinitionFile.Contains(Path.DirectorySeparatorChar) ?
-                    x.DefinitionFile.Substring(x.DefinitionFile.LastIndexOf(Path.DirectorySeparatorChar) + 1)
-                    : (x.IsPredefined ? "builtin" : "current");
-                    */
+                        BaseTerm t = x.TermListEnd?.Term;
+                        string file = x.DefinitionFile.Contains(Path.DirectorySeparatorChar) ?
+                            x.DefinitionFile.Substring(x.DefinitionFile.LastIndexOf(Path.DirectorySeparatorChar) + 1)
+                            : (x.IsPredefined ? "builtin" : "current");
                         SnippetAutocompleteItem item = new SnippetAutocompleteItem(PredicateHeadString(x))
                         {
-                            ImageIndex = /*x.IsPredefined ? 0 : */1,
+                            ImageIndex = x.IsPredefined ? 0 : 1,
                             //   MenuText = x,
-                            ToolTipTitle = x.Name, /*x?.CommentHeader ?? x.ToString()
-                        + ((x?.TestGroup == null) ? string.Empty : (" - test " + x?.TestGroup)),*/
-                            ToolTipText =
-                                helpRm.GetString(x.Name.ToLower().Replace(" ", "_")) ??
-                                "" //?? (x?.CommentBody)) + $"\n[{file}]"
+                            ToolTipTitle = t?.CommentHeader ?? x.ToString() + ((t?.TestGroup == null) ? string.Empty : (" - test " + t?.TestGroup)),
+                            ToolTipText = helpRm.GetString(x.Name.ToLower().Replace(" ", "_")) ?? (t?.CommentBody) + $"\n[{file}]"
                         };
 
                         if (string.IsNullOrWhiteSpace(item.ToolTipTitle))
@@ -1166,8 +1163,6 @@ All predicates are imported regardless of any module declarations.
             {
                 string name = predicateDesc.Name;
 
-                return name;
-                /* TODO: convert
                 if (predicateDesc.ClauseList.Head.Arity == 0)
                 {
                     return name;
@@ -1175,7 +1170,6 @@ All predicates are imported regardless of any module declarations.
 
                 string args = string.Join(", ", predicateDesc.ClauseList.Head.Args.Select(x => x.Name));
                 return name + "(^" + args + ")";
-                */
             }
         }
     }

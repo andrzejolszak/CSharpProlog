@@ -28,9 +28,9 @@ namespace Prolog
     {
         public static readonly CultureInfo CIC = CultureInfo.InvariantCulture;
 
-        public class ConsultException : Exception
+        public class PrologException : Exception
         {
-            public ConsultException(string msg, BaseTerm term = null, BaseParser.Symbol symbol = null) : base(msg)
+            public PrologException(string msg, BaseTerm term = null, BaseParser.Symbol symbol = null) : base(msg)
             {
                 Term = term;
                 Symbol = symbol;
@@ -40,16 +40,21 @@ namespace Prolog
             public BaseTerm Term { get; }
         }
 
-        public class RuntimeException : Exception
+        public class ConsultException : PrologException
         {
-            public RuntimeException(string msg, BaseTerm term = null, VarStack varStack = null) : base(msg)
+            public ConsultException(string msg, BaseTerm term = null, BaseParser.Symbol symbol = null) : base(msg, term, symbol)
             {
-                Term = term;
+            }
+        }
+
+        public class RuntimeException : PrologException
+        {
+            public RuntimeException(string msg, BaseTerm term = null, BaseParser.Symbol symbol = null, VarStack varStack = null) : base(msg, term, symbol)
+            {
                 VarStack = varStack;
             }
 
             public VarStack VarStack { get; set; }
-            public BaseTerm Term { get; }
         }
 
         public class TerminalSet
@@ -280,7 +285,7 @@ namespace Prolog
                 catch
                 {
                     Prefix = "";
-                    throw new Exception("*** Unable to read file \"" + streamName + "\"");
+                    throw new RuntimeException("*** Unable to read file \"" + streamName + "\"");
                 }
 
                 Parse();
@@ -691,7 +696,7 @@ namespace Prolog
 
             protected virtual bool GetSymbol(TerminalSet followers, bool done, bool genXCPN)
             {
-                throw new Exception("GetSymbol must be overridden");
+                throw new RuntimeException("GetSymbol must be overridden");
             }
 
             protected void InputStreamMark(out positionMarker m)
@@ -1621,7 +1626,7 @@ namespace Prolog
                         }
                         else
                         {
-                            throw new Exception("*** Trie indexer: key [" + key + "] not found");
+                            throw new RuntimeException("*** Trie indexer: key [" + key + "] not found");
                         }
                     }
                 }
@@ -1656,7 +1661,7 @@ namespace Prolog
                 {
                     if (key == null || key == "")
                     {
-                        throw new Exception("*** Trie.Add: Attempt to insert a null- or empty key");
+                        throw new RuntimeException("*** Trie.Add: Attempt to insert a null- or empty key");
                     }
 
                     if (!caseSensitive)
@@ -1699,7 +1704,7 @@ namespace Prolog
                                 }
                                 else if (dupMode == DupMode.dupError)
                                 {
-                                    throw new Exception($"*** Attempt to insert duplicate key '{key}'");
+                                    throw new RuntimeException($"*** Attempt to insert duplicate key '{key}'");
                                 }
 
                                 return;
@@ -1744,7 +1749,7 @@ namespace Prolog
                 {
                     if (key == null || key == "")
                     {
-                        throw new Exception("*** Trie.Add: Attempt to search for a null- or empty key");
+                        throw new RuntimeException("*** Trie.Add: Attempt to search for a null- or empty key");
                     }
 
                     int imax = key.Length - 1;
@@ -2122,7 +2127,7 @@ namespace Prolog
 
                 if (cacheOfs > fs.Length)
                 {
-                    throw new Exception($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
+                    throw new RuntimeException($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
                 }
 
                 fs.Position = cacheOfs;
