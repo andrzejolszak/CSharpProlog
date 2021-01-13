@@ -20,12 +20,12 @@ class Program
 ```
 ## About this fork
 
-This fork of jsakamoto's repository that breaks backwards compatibility with earlier versions. Backwards compatibility will not be a priority here also in the future, so if you are looking for API stability, then by all means head to jsakamoto.
+This is an experimental backwards-incompatible fork of jsakamoto's repository [https://github.com/jsakamoto/CSharpProlog/]. The code will be converging towards the ISO standard, but C# API-level backwards compatibility will not be a priority, so if you are looking for API stability then please head to jsakamoto.
 
 Differences from the original fork:
 
 - The focus here is on only the library-based and IDE-based usages - the IDE is completely overhauled, and REPL-specific features will get gradually removed
-- Various existing features that duplicate existing .net functionality or are not being "core Prolog" will be aggressively removed, e.g. sql db access, json support, xml support, regex, etc.
+- Various existing features that duplicate existing .net functionality or are not being ISO/core Prolog will be aggressively removed, e.g. sql db access, json support, xml support, regex, etc.
 - Unused code gets removed, static mutable state refactored, naming conventions refreshed to modern standards, etc.
 - Unit tests and benchmarks
 
