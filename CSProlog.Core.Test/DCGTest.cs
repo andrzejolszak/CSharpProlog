@@ -1,6 +1,4 @@
-using System;
 using Xunit;
-using Prolog;
 
 namespace CSPrologTest
 {
@@ -74,7 +72,8 @@ verb(v(chases)) --> [chases].
 verb(v(eats)) --> [eats].
 ";
 
-            @"sentence(s(sb(m(the),n(dog)),v(chases),ob(m(the),n(cow))), [the, dog, chases, the, cow], _)".True(consult);
+            @"sentence(s(sb(m(the),n(dog)),v(chases),ob(m(the),n(cow))), [the, dog, chases, the, cow], _)"
+                .True(consult);
         }
 
         [Fact]
@@ -99,7 +98,6 @@ sentence --> [a], [b] ; [c], [d] ; [e].
             @"sentence([c, d], _)".True(consult);
             @"sentence([e], _)".True(consult);
         }
-
 
         [Fact]
         public void Example5()

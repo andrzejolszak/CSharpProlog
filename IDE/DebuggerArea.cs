@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using ScintillaNET;
-using System.Collections;
+using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Prolog
 {
@@ -14,16 +14,16 @@ namespace Prolog
         Continue, Stop, StepOver, StepInto, StepOut
     }
 
-    public partial class DebuggerArea : WeifenLuo.WinFormsUI.Docking.DockContent
+    public partial class DebuggerArea : DockContent
     {
         private const int GroupIcon = 0;
         private const int TestIcon = 1;
 
+        private readonly AutoResetEvent _debugStepWaitHandle;
+
         private readonly PrologEngine pe;
         private readonly SourceArea sourceArea;
         private readonly PrologEditor sourceEditor;
-
-        private readonly AutoResetEvent _debugStepWaitHandle;
         private DebuggerUserCommand? _lastDebuggerUserCommand;
         private int? _lastLevel;
 
@@ -49,15 +49,17 @@ namespace Prolog
             sourceEditor.Editor.KeyDown += sourceKeyDown;
         }
 
-
-        private bool HandleDebugEvent(TermNode goalNode, TermNode currentClause, bool isReturn, VarStack varStack, Stack<CallReturn> callStack)
+        private bool HandleDebugEvent(TermNode goalNode, TermNode currentClause, bool isReturn, VarStack varStack,
+            Stack<CallReturn> callStack)
         {
-            if (this._lastLevel.HasValue && this._lastDebuggerUserCommand == DebuggerUserCommand.StepOver && callStack.Count > this._lastLevel)
+            if (_lastLevel.HasValue && _lastDebuggerUserCommand == DebuggerUserCommand.StepOver &&
+                callStack.Count > _lastLevel)
             {
                 return false;
             }
 
-            if (this._lastLevel.HasValue && this._lastDebuggerUserCommand == DebuggerUserCommand.StepOut && callStack.Count >= this._lastLevel)
+            if (_lastLevel.HasValue && _lastDebuggerUserCommand == DebuggerUserCommand.StepOut &&
+                callStack.Count >= _lastLevel)
             {
                 return false;
             }
@@ -69,11 +71,11 @@ namespace Prolog
 
             bool shouldBreak = false;
 
-            this.Invoke(new Action(() => shouldBreak = HasBreakpoint(currentClause?.Term)));
+            Invoke(new Action(() => shouldBreak = HasBreakpoint(currentClause?.Term)));
 
             if (!shouldBreak &&
-                (this._lastDebuggerUserCommand == DebuggerUserCommand.Continue
-                || this._lastDebuggerUserCommand == null))
+                (_lastDebuggerUserCommand == DebuggerUserCommand.Continue
+                 || _lastDebuggerUserCommand == null))
             {
                 return false;
             }
@@ -82,44 +84,48 @@ namespace Prolog
             // Limited timer resolution - ignore when smaller than 100ms
             string procTimeString = totalCpuSeconds < 0.1 ? "" : $" ({totalCpuSeconds:f3} s)";
 
-            this.Invoke(new Action(() =>
+            Invoke(new Action(() =>
             {
-                this.sourceEditor.Editor.ReadOnly = true;
-                this.debuggerPanel.Show();
-                this.sourceEditor.ClearIndicators();
+                sourceEditor.Editor.ReadOnly = true;
+                debuggerPanel.Show();
+                sourceEditor.ClearIndicators();
                 bool movedToPosition = false;
 
                 // Mark the goal
                 if (goalNode?.Term?.Symbol != null && goalNode.Term.Symbol.FinalAdjusted > 0)
                 {
-                    this.sourceEditor.IndicatorFillRange(
+                    sourceEditor.IndicatorFillRange(
                         PrologEditor.DebugLineIndicator,
                         goalNode.Term.Symbol.StartAdjusted,
                         goalNode.Term.Symbol.FinalAdjusted - goalNode.Term.Symbol.StartAdjusted,
                         goalNode.Term.ToDisplayString() + procTimeString);
 
-                    this.sourceEditor.Editor.GotoPosition(goalNode.Term.Symbol.StartAdjusted);
+                    sourceEditor.Editor.GotoPosition(goalNode.Term.Symbol.StartAdjusted);
                     movedToPosition = true;
                 }
 
                 // Open calltip
-                string clauseTip = (currentClause?.Term?.ToDisplayString() ?? goalNode.ToString() ?? string.Empty) + procTimeString;
-                this.sourceEditor.Editor.CallTipSetPosition(true);
-                this.sourceEditor.Editor.CallTipShow(currentClause?.Term?.Symbol?.StartAdjusted ?? goalNode?.Term?.Symbol?.StartAdjusted ?? this.sourceEditor.Editor.CurrentPosition, clauseTip);
-                this.sourceEditor.InitialCallTipDisplay = true;
+                string clauseTip = (currentClause?.Term?.ToDisplayString() ?? goalNode.ToString() ?? string.Empty) +
+                                   procTimeString;
+                sourceEditor.Editor.CallTipSetPosition(true);
+                sourceEditor.Editor.CallTipShow(
+                    currentClause?.Term?.Symbol?.StartAdjusted ?? goalNode?.Term?.Symbol?.StartAdjusted ??
+                    sourceEditor.Editor.CurrentPosition, clauseTip);
+                sourceEditor.InitialCallTipDisplay = true;
 
                 // Mark the clause
                 if (currentClause?.Term?.Symbol != null && currentClause.Term.Symbol.FinalAdjusted > 0)
                 {
-                    this.sourceEditor.IndicatorFillRange(
+                    sourceEditor.IndicatorFillRange(
                         PrologEditor.DebugLineIndicator,
                         currentClause.Term.Symbol.StartAdjusted,
-                        (currentClause.GetLastNode().Term?.Symbol?.FinalAdjusted ?? currentClause.Term.Symbol.FinalAdjusted) - currentClause.Term.Symbol.StartAdjusted,
+                        (currentClause.GetLastNode().Term?.Symbol?.FinalAdjusted ??
+                         currentClause.Term.Symbol.FinalAdjusted) - currentClause.Term.Symbol.StartAdjusted,
                         clauseTip);
 
                     if (!movedToPosition)
                     {
-                        this.sourceEditor.Editor.GotoPosition(currentClause.Term.Symbol.StartAdjusted);
+                        sourceEditor.Editor.GotoPosition(currentClause.Term.Symbol.StartAdjusted);
                     }
                 }
 
@@ -127,27 +133,27 @@ namespace Prolog
             }));
 
             // Await user input
-            this._debugStepWaitHandle.WaitOne();
+            _debugStepWaitHandle.WaitOne();
 
-            this.Invoke(new Action(() =>
+            Invoke(new Action(() =>
             {
-                this.sourceEditor.Editor.ReadOnly = false;
-                this.debuggerPanel.Hide();
+                sourceEditor.Editor.ReadOnly = false;
+                debuggerPanel.Hide();
             }));
 
-            if (this._lastDebuggerUserCommand == DebuggerUserCommand.Stop)
+            if (_lastDebuggerUserCommand == DebuggerUserCommand.Stop)
             {
-                this.Invoke(new Action(() =>
+                Invoke(new Action(() =>
                 {
-                    this.sourceEditor.ClearIndicators();
-                    this._lastDebuggerUserCommand = null;
-                    this._lastLevel = null;
+                    sourceEditor.ClearIndicators();
+                    _lastDebuggerUserCommand = null;
+                    _lastLevel = null;
                 }));
 
                 throw new AbortQueryException();
             }
 
-            this._lastLevel = callStack.Count;
+            _lastLevel = callStack.Count;
             return false;
         }
 
@@ -158,7 +164,7 @@ namespace Prolog
                 return false;
             }
 
-            const uint mask = (1 << PrologEditor.BREAKPOINT_MARKER);
+            const uint mask = 1 << PrologEditor.BREAKPOINT_MARKER;
 
             Line line1 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.Start + 1)];
             Line line2 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.Final - 1)];
@@ -170,7 +176,7 @@ namespace Prolog
             callStackView.Nodes.Clear();
             TreeNode parent = new TreeNode("Query", GroupIcon, GroupIcon);
             callStackView.Nodes.Add(parent);
-            foreach (var call in callStack.ToArray().Reverse())
+            foreach (CallReturn call in callStack.ToArray().Reverse())
             {
                 TreeNode current = new TreeNode(call.SavedGoal.ToString(), TestIcon, TestIcon);
                 parent.Nodes.Add(current);
@@ -180,7 +186,7 @@ namespace Prolog
             callStackView.ExpandAll();
 
             variablesView.Nodes.Clear();
-            foreach (var variable in vatStack.ToArray())
+            foreach (object variable in vatStack.ToArray())
             {
                 BaseTerm term = variable as BaseTerm;
                 if (term != null)

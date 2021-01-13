@@ -7,7 +7,7 @@ namespace Prolog
     internal static class Program
     {
         /// <summary>
-        /// The main entry point for the application.
+        ///     The main entry point for the application.
         /// </summary>
         [STAThread]
         private static void Main(string[] args)
@@ -19,8 +19,9 @@ namespace Prolog
 
             Log.Information("Starting CSProlog");
 
-            AppDomain.CurrentDomain.UnhandledException += (x, y) => Log.Error(((Exception)y.ExceptionObject).Message, (Exception)y.ExceptionObject);
-            Application.ThreadException += (x, y) => Log.Error((y.Exception).Message, y.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (x, y) =>
+                Log.Error(((Exception)y.ExceptionObject).Message, (Exception)y.ExceptionObject);
+            Application.ThreadException += (x, y) => Log.Error(y.Exception.Message, y.Exception);
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

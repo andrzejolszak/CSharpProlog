@@ -3,25 +3,22 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Runtime.InteropServices;
 
 namespace Prolog
 {
@@ -29,28 +26,37 @@ namespace Prolog
     {
         public Dictionary<string, bool> ConsultedFiles = new Dictionary<string, bool>();
 
+        private static string Spaces(int n)
+        {
+            return new string(' ', n);
+        }
+
         public static class Utils
         {
             private static string WDF(string fileName)
             {
                 if (fileName.IndexOf(Path.DirectorySeparatorChar) == -1)
+                {
                     return "." + fileName;
+                }
 
                 return fileName;
             }
 
             public static string FileNameFromTerm(BaseTerm t, string defExt)
             {
-                if (t.IsVar) return null;
+                if (t.IsVar)
+                {
+                    return null;
+                }
 
                 return ExtendedFileName(t.FunctorToString, defExt);
             }
 
             public static string FileNameFromSymbol(string s, string defExt)
             {
-                return (String.IsNullOrEmpty(s) ? null : ExtendedFileName(s, defExt));
+                return String.IsNullOrEmpty(s) ? null : ExtendedFileName(s, defExt);
             }
-
 
             public static string ExtendedFileName(string s, string defExt)
             {
@@ -61,7 +67,9 @@ namespace Prolog
                     fileName = s.Dequoted();
 
                     if (!Path.HasExtension(fileName))
+                    {
                         fileName = Path.ChangeExtension(fileName, defExt);
+                    }
 
                     fileName = WDF(fileName);
 
@@ -87,7 +95,6 @@ namespace Prolog
                 return Format(t.FunctorToString, args);
             }
 
-
             public static string Format(string fmtString, BaseTerm args)
             {
                 string result = fmtString;
@@ -96,7 +103,10 @@ namespace Prolog
                 {
                     ListTerm lt = (ListTerm)args;
 
-                    if (!lt.IsProperList) return null;
+                    if (!lt.IsProperList)
+                    {
+                        return null;
+                    }
 
                     try
                     {
@@ -108,6 +118,7 @@ namespace Prolog
                     }
                 }
                 else
+                {
                     try
                     {
                         return string.Format(result, args.ToString().Dequoted("'").Dequoted("\""));
@@ -116,6 +127,7 @@ namespace Prolog
                     {
                         IO.ErrorRuntime($"Error while applying arguments to format string '{result}'", null, args);
                     }
+                }
 
                 return null;
             }
@@ -128,11 +140,13 @@ namespace Prolog
             {
                 const string separators = " -/:,.;";
 
-                if (lenMax < 2) IO.ErrorRuntime("Second argument of wrap must be > 1", null, null);
+                if (lenMax < 2)
+                {
+                    IO.ErrorRuntime("Second argument of wrap must be > 1", null, null);
+                }
 
                 return ForceSpaces(s, lenMax - 1, separators, 0); // 0 is current pos in separators
             }
-
 
             private static string ForceSpaces(string s, int lenMax, string separators, int i)
             {
@@ -141,7 +155,10 @@ namespace Prolog
                 string blank = Environment.NewLine;
 
                 // special cases
-                if (len <= lenMax) return s; // nothing to do
+                if (len <= lenMax)
+                {
+                    return s; // nothing to do
+                }
 
                 if (i == separators.Length) // done with all separators -- now simply insert spaces
                 {
@@ -149,22 +166,24 @@ namespace Prolog
 
                     while (r > 0)
                     {
-                        sb.Append(s.Substring(len - r, (r > lenMax) ? lenMax : r));
+                        sb.Append(s.Substring(len - r, r > lenMax ? lenMax : r));
                         sb.Append(blank);
                         r -= lenMax;
                     }
+
                     return sb.ToString().Trim();
                 }
                 // end of special cases
 
-                string[] words = s.Split(new Char[] { separators[i] }); // split, using the current separator
+                string[] words = s.Split(new[] { separators[i] }); // split, using the current separator
 
                 for (int k = 0; k < words.Length; k++)
                 {
-                    string t = ForceSpaces(words[k], lenMax, separators, i + 1); // apply the next separator to each word
+                    string t = ForceSpaces(words[k], lenMax, separators,
+                        i + 1); // apply the next separator to each word
 
                     // do not re-place the separator after the last word
-                    sb.Append(t + (k == words.Length - 1 ? "" : (separators[i] + blank))); // recursively handle all seps
+                    sb.Append(t + (k == words.Length - 1 ? "" : separators[i] + blank)); // recursively handle all seps
                 }
 
                 return sb.ToString();
@@ -178,32 +197,27 @@ namespace Prolog
                 // special case: if the date is in a week that starts on December 29,
                 // 30 or 31 (i.e. date day in sun..wed), then return 1
                 if (date.Month == 12 && date.Day >= 29 && date.DayOfWeek <= DayOfWeek.Wednesday)
+                {
                     return 1;
+                }
 
                 DateTime jan1 = new DateTime(date.Year, 1, 1); // January 1st
                 DayOfWeek jan1Day = jan1.DayOfWeek;
                 // Jan 1st is in week 1 if jan1Day is in sun..wed, since only in that case
                 // there are > 3 days in the week. Calculate the start date of week 1.
                 // We want to know the number of days of week 1 that are in week 1
-                bool jan1inWk1 = (jan1Day <= DayOfWeek.Wednesday); // indicates whether Jan 1st is in week 1
+                bool jan1inWk1 = jan1Day <= DayOfWeek.Wednesday; // indicates whether Jan 1st is in week 1
                 DateTime startWk1 =
-                  jan1.Subtract(new TimeSpan((int)jan1Day - (jan1inWk1 ? 7 : 0), 0, 0, 0));
+                    jan1.Subtract(new TimeSpan((int)jan1Day - (jan1inWk1 ? 7 : 0), 0, 0, 0));
                 // Calculate the Number of days between the given date and the start
                 // date of week 1 and (integer) divide that by 7. This is the weekno-1.
-                return 1 + (date - startWk1).Days / 7;
+                return 1 + ((date - startWk1).Days / 7);
             }
         }
 
-
-        private static string Spaces(int n)
-        {
-            return new string(' ', n);
-        }
-
-                public class Combination // without repetition
+        public class Combination // without repetition
         {
             private int k;
-            public IEnumerator<ListTerm> Iterator { get; }
 
             public Combination(ListTerm t, int k)
             {
@@ -212,25 +226,33 @@ namespace Prolog
                 Iterator = CombinationsEnum(ts, k).GetEnumerator();
             }
 
+            public IEnumerator<ListTerm> Iterator { get; }
 
             private IEnumerable<ListTerm> CombinationsEnum(List<BaseTerm> terms, int length)
             {
                 for (int i = 0; i < terms.Count; i++)
                 {
                     if (length == 1)
+                    {
                         yield return new ListTerm(terms[i].Symbol, terms[i]);
+                    }
                     // If > 1, return this one plus all combinations one shorter.
                     // Only use terms after the current one for the rest of the combinations
                     else
-                        foreach (BaseTerm next in CombinationsEnum(terms.GetRange(i + 1, terms.Count - (i + 1)), length - 1))
+                    {
+                        foreach (BaseTerm next in CombinationsEnum(terms.GetRange(i + 1, terms.Count - (i + 1)),
+                            length - 1))
+                        {
                             yield return new ListTerm(terms[i].Symbol, terms[i], next);
+                        }
+                    }
                 }
             }
         }
-        
-                public class Permutation
+
+        public class Permutation
         {
-            private BaseTerm[] configuration;
+            private readonly BaseTerm[] configuration;
 
             public Permutation(ListTerm t)
             {
@@ -243,16 +265,16 @@ namespace Prolog
             {
                 /*
                  Knuth's method
-                 1. Find the largest index j such that a[j] < a[j+1]. If no such index exists, 
+                 1. Find the largest index j such that a[j] < a[j+1]. If no such index exists,
                     the permutation is the last permutation.
-                 2. Find the largest index l such that a[j] < a[l]. Since j+1 is such an index, 
+                 2. Find the largest index l such that a[j] < a[l]. Since j+1 is such an index,
                     l is well defined and satisfies j < l.
                  3. Swap a[j] with a[l].
                  4. Reverse the sequence from a[j+1] up to and including the final element a[n].
                 */
                 int maxIndex = -1;
 
-                for (var i = configuration.Length - 2; i >= 0; i--)
+                for (int i = configuration.Length - 2; i >= 0; i--)
                 {
                     if (configuration[i].CompareTo(configuration[i + 1]) == -1)
                     {
@@ -261,19 +283,24 @@ namespace Prolog
                     }
                 }
 
-                if (maxIndex < 0) return false;
+                if (maxIndex < 0)
+                {
+                    return false;
+                }
 
                 int maxIndex2 = -1;
 
                 for (int i = configuration.Length - 1; i >= 0; i--)
+                {
                     if (configuration[maxIndex].CompareTo(configuration[i]) == -1)
                     {
                         maxIndex2 = i;
 
                         break;
                     }
+                }
 
-                var tmp = configuration[maxIndex];
+                BaseTerm tmp = configuration[maxIndex];
                 configuration[maxIndex] = configuration[maxIndex2];
                 configuration[maxIndex2] = tmp;
 
@@ -292,20 +319,61 @@ namespace Prolog
                 do
                 {
                     yield return ListTerm.ListFromArray(configuration);
-                }
-                while (NextPermutation());
+                } while (NextPermutation());
             }
         }
-            }
+    }
 
     public static class Extensions
     {
+        private static readonly Regex atomPattern = new Regex( // \p{Ll} means Unicode lowercase letter
+            @"^([+\-*/\\^<=>`~:.?@#$&]+|\p{Ll}[\w_]*|('[^']*')+)$",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        private static readonly Regex unsignedInteger = new Regex(
+            @"^(\d+)?$",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        private static readonly Regex signedNumber = new Regex(
+            @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?)$",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        private static readonly Regex signedImagNumber = new Regex(
+            @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?i?)$",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        private static readonly Regex tokens = new Regex(
+            // identifiers, signed numbers and sequences of non-whites, separated by whites
+            @"\s*(?<token>([\p{L}_]+\d*|[+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?|\S+))\s*",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        private static readonly Regex stringLiteral = new Regex(
+            @"^(?<char>(\\('|""|\\|0|a|b|f|n|r|t|v|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{1,4}|U[0-9a-fA-F]{8}|.?))|[^\\])+$",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
+        //@"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8})|(?<h>.))",
+
+        private static readonly Regex escapedChar = new Regex(
+            @"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8}))",
+            RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
+        );
+
         public static void AppendPacked(this StringBuilder sb, string s, bool mustPack)
         {
             if (mustPack)
+            {
                 sb.Append(s.Packed());
+            }
             else
+            {
                 sb.AppendPossiblySpaced(s);
+            }
         }
 
         public static void AppendLine(this StringBuilder sb, string format, params object[] args)
@@ -315,10 +383,15 @@ namespace Prolog
 
         public static void AppendPossiblySpaced(this StringBuilder sb, string s)
         {
-            if (string.IsNullOrEmpty(s)) return;
+            if (string.IsNullOrEmpty(s))
+            {
+                return;
+            }
 
             if (sb.Length == 0)
+            {
                 sb.Append(s);
+            }
             else
             {
                 char startChar = s[0];
@@ -339,11 +412,13 @@ namespace Prolog
                 // In practice (and here), numeric constants are separated from identifiers
                 // (not from specials) by a space: 10is 30mod 20 => 10 is 30 mod 20
                 if ((finalChar.IsSpecialAtomChar() && startChar.IsSpecialAtomChar()) ||
-                     (Char.IsLetterOrDigit(finalChar) && Char.IsLetterOrDigit(startChar)) ||
-                     (Char.IsDigit(finalChar) && startChar == '.') ||
-                     (finalChar == '@' && startChar == '"')
-                   )
+                    (Char.IsLetterOrDigit(finalChar) && Char.IsLetterOrDigit(startChar)) ||
+                    (Char.IsDigit(finalChar) && startChar == '.') ||
+                    (finalChar == '@' && startChar == '"')
+                )
+                {
                     sb.Append(' ');
+                }
 
                 sb.Append(s);
             }
@@ -366,30 +441,15 @@ namespace Prolog
             int p;
 
             for (int i = 0; i < a.Length; i++)
-                if ((p = pairs.IndexOf(a[i])) > -1) a[i] = pairs[p + 1];
+            {
+                if ((p = pairs.IndexOf(a[i])) > -1)
+                {
+                    a[i] = pairs[p + 1];
+                }
+            }
 
             return new string(a);
         }
-
-        private static readonly Regex atomPattern = new Regex(  // \p{Ll} means Unicode lowercase letter
-          @"^([+\-*/\\^<=>`~:.?@#$&]+|\p{Ll}[\w_]*|('[^']*')+)$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
-        private static readonly Regex unsignedInteger = new Regex(
-          @"^(\d+)?$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
-        private static readonly Regex signedNumber = new Regex(
-          @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?)$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
-        private static readonly Regex signedImagNumber = new Regex(
-          @"^([+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?i?)$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
 
         public static bool HasSignedRealNumberFormat(this string s)
         {
@@ -401,19 +461,15 @@ namespace Prolog
             return signedImagNumber.Match(s).Success;
         }
 
-        private static readonly Regex tokens = new Regex(
-          // identifiers, signed numbers and sequences of non-whites, separated by whites
-          @"\s*(?<token>([\p{L}_]+\d*|[+-]?((\d+\.)?\d+)((E|e)[+-]?\d+)?|\S+))\s*",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
         public static string[] Tokens(this string s)
         {
             MatchCollection mc = tokens.Matches(s);
             string[] result = new string[mc.Count];
 
             for (int i = 0; i < mc.Count; i++)
+            {
                 result[i] = mc[i].Value.Trim();
+            }
 
             return result;
         }
@@ -424,10 +480,13 @@ namespace Prolog
             string a;
 
             // check whether the string is quoted at all
-            if (len < 2 || s[0] != '\'' || s[len - 1] != '\'') return s;
+            if (len < 2 || s[0] != '\'' || s[len - 1] != '\'')
+            {
+                return s;
+            }
 
             // check whether the unquoted version is an Atom
-            return (atomPattern.Match((a = s.Substring(1, len - 2))).Success) ? a : s;
+            return atomPattern.Match(a = s.Substring(1, len - 2)).Success ? a : s;
         }
 
         public static bool HasAtomFormat(this string s)
@@ -437,7 +496,10 @@ namespace Prolog
 
         public static string ToAtom(this string s) // numbers are quoted
         {
-            if (s.HasAtomFormat()) return s.RemoveUnnecessaryAtomQuotes(); // e.g. 'a' -> a
+            if (s.HasAtomFormat())
+            {
+                return s.RemoveUnnecessaryAtomQuotes(); // e.g. 'a' -> a
+            }
 
             return '\'' + s.Replace("'", "''") + '\'';
         }
@@ -465,17 +527,21 @@ namespace Prolog
 
         public static string Dequoted(this string s) // remove ' or " quotes (if any)
         {
-            if (s == null) return null;
+            if (s == null)
+            {
+                return null;
+            }
 
             int len = s.Length;
 
             // check whether the string is quoted at all
-            if (len < 2 || (s[0] != '\'' && s[0] != '"') || (s[0] != s[len - 1]))
+            if (len < 2 || (s[0] != '\'' && s[0] != '"') || s[0] != s[len - 1])
+            {
                 return s;
+            }
 
             return s.Substring(1, len - 2).Replace(new string(s[0], 2), new string(s[0], 1));
         }
-
 
         public static string Dequoted(this string s, string quote) // remove ' or " quotes (if any)
         {
@@ -483,7 +549,9 @@ namespace Prolog
 
             // check whether the string is quoted at all
             if (quote.Length == 0 || len < 2 || s[0] != quote[0] || s[len - 1] != quote[0])
+            {
                 return s;
+            }
 
             return s.Substring(1, len - 2).Replace(quote + quote, quote);
         }
@@ -493,44 +561,35 @@ namespace Prolog
             return '(' + s + ')';
         }
 
-
         public static string AddEndDot(this string s)
         {
             string t = s.Trim();
 
-            return (t.EndsWith(".")) ? t : t + '.';
+            return t.EndsWith(".") ? t : t + '.';
         }
-
 
         public static string Packed(this string s, bool mustPack)
         {
             return mustPack ? '(' + s + ')' : s;
         }
 
-
-        private static readonly Regex stringLiteral = new Regex(
-          @"^(?<char>(\\('|""|\\|0|a|b|f|n|r|t|v|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{1,4}|U[0-9a-fA-F]{8}|.?))|[^\\])+$",
-          RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
-        //@"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8})|(?<h>.))",
-
-        private static readonly Regex escapedChar = new Regex(
-         @"\\(?:(?<h>'|""|\\|0|a|b|f|n|r|t|v)|u(?<h>[0-9a-fA-F]{4})|x(?<h>[0-9a-fA-F]{1,4})|U(?<h>[0-9a-fA-F]{8}))",
-         RegexOptions.CultureInvariant | RegexOptions.Compiled | RegexOptions.ExplicitCapture
-        );
-
         // resolves escaped characters, cf. CSProlog.exe.config file
         public static string Unescaped(this string s)
         {
-            if (string.IsNullOrEmpty(s)) return s;
+            if (string.IsNullOrEmpty(s))
+            {
+                return s;
+            }
 
             if (stringLiteral.Match(s).Success)
+            {
                 return escapedChar.Replace(s,
-                 match => ($"{match.Groups[1].Value.ResolveEscape()}"));
+                    match => $"{match.Groups[1].Value.ResolveEscape()}");
+            }
 
             PrologEngine.IO.ErrorRuntime(
-                $"Unrecognized escape sequence in string \"{s}\"" + "\r\n(cf. CSProlog.exe.config in .exe-directory)", null, null);
+                $"Unrecognized escape sequence in string \"{s}\"" + "\r\n(cf. CSProlog.exe.config in .exe-directory)",
+                null, null);
 
             return null;
         }
@@ -553,34 +612,46 @@ namespace Prolog
             }
 
             // ignore the / if it precedes a character that does not need an escape
-            if (s.Length == 1) return s;
+            if (s.Length == 1)
+            {
+                return s;
+            }
 
             // according to the regex, s now can only be a hex number
             return ((char)Int32.Parse(s, NumberStyles.HexNumber)).ToString();
         }
 
-
         public static string Repeat(this string s, int n)
         {
-            return (new String('*', n)).Replace("*", s);
+            return new String('*', n).Replace("*", s);
         }
 
         // Levenshtein Distance, i.e. http://www.merriampark.com/ld.htm
         public static float Levenshtein(this string a, string b)
         {
             if (string.IsNullOrEmpty(a))
+            {
                 return string.IsNullOrEmpty(b) ? 0.0F : 1.0F;
+            }
 
             if (string.IsNullOrEmpty(b))
+            {
                 return 1.0F;
+            }
 
             int n = a.Length;
             int m = b.Length;
             int[,] d = new int[n + 1, m + 1];
 
-            for (int i = 0; i <= n; i++) d[i, 0] = i;
+            for (int i = 0; i <= n; i++)
+            {
+                d[i, 0] = i;
+            }
 
-            for (int j = 0; j <= m; j++) d[0, j] = j;
+            for (int j = 0; j <= m; j++)
+            {
+                d[0, j] = j;
+            }
 
             for (int i = 1; i <= n; i++)
                 for (int j = 1; j <= m; j++)

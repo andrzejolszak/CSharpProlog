@@ -3,21 +3,19 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
 using System;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using System.Collections;
-using System.Text;
+using System.Collections.Generic;
 using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
@@ -28,11 +26,12 @@ namespace Prolog
        - A constant, which can be either an Atom, Number, String, DateTime, TimeSpan or Bool
        - A compound term (a functor (an atom) and one or more arguments)
     */
+
     public enum TermType
-    { // order is important for term comparison. See CompareTo below.
-        None,
-        Var,
+    {
+        // order is important for term comparison. See CompareTo below.
         UnboundVar,
+
         NamedVar,
         Number,
         ImagNumber,
@@ -43,16 +42,13 @@ namespace Prolog
         Bool,
         FileReader,
         FileWriter,
-        SqlCommand,
-        Binary,
         Compound
     }
 
     public interface ITermNode
     {
-        string Functor { get; }
-        ITermNode[] Args { get; }
         T To<T>() where T : struct;
+
         string ToString();
     }
 
@@ -60,19 +56,19 @@ namespace Prolog
     {
         public class NodeIterator : IEnumerable<BaseTerm>
         {
-            private BaseTerm root;
-            private BaseTerm pattern;
-            private BaseTerm minLenTerm;
-            private BaseTerm maxLenTerm;
-            private BaseTerm path;
+            private readonly IEnumerator<BaseTerm> iterator;
+            private readonly BaseTerm maxLenTerm;
+            private readonly BaseTerm minLenTerm;
+            private readonly BaseTerm path;
+            private readonly BaseTerm pattern;
+            private readonly BaseTerm root;
+            private readonly bool skipVars; // iff true variables in the Term tree will never match the pattern
+            private readonly VarStack varStack;
             private Stack<int> pos;
             private Stack<BaseTerm> terms;
-            private VarStack varStack;
-            private IEnumerator<BaseTerm> iterator;
-            private bool skipVars; // iff true variables in the Term tree will never match the pattern
 
             public NodeIterator(BaseTerm root, BaseTerm pattern, BaseTerm minLenTerm,
-              BaseTerm maxLenTerm, bool skipVars, BaseTerm path, VarStack varStack)
+                BaseTerm maxLenTerm, bool skipVars, BaseTerm path, VarStack varStack)
             {
                 this.root = root;
                 this.pattern = pattern;
@@ -82,6 +78,22 @@ namespace Prolog
                 this.skipVars = skipVars;
                 this.path = path;
                 iterator = GetEnumerator();
+            }
+
+            // NodePath returns the position in the tree (i.e. [1,2] means: 2nd arg of 1st arg of root)
+            public ListTerm NodePath
+            {
+                get
+                {
+                    ListTerm result = BaseTerm.EMPTYLIST;
+
+                    foreach (int i in pos.ToArray())
+                    {
+                        result = new ListTerm(null, new DecimalTerm(null, i - 1), result);
+                    }
+
+                    return result;
+                }
             }
 
             /*
@@ -138,13 +150,19 @@ namespace Prolog
                         pattern.Unify(term, varStack))
                     {
                         if (minLenTerm.IsVar)
+                        {
                             minLenTerm.Unify(new DecimalTerm(NodePath.Symbol, NodePath.ProperLength), varStack);
+                        }
 
                         if (maxLenTerm.IsVar)
+                        {
                             maxLenTerm.Unify(new DecimalTerm(NodePath.Symbol, NodePath.ProperLength), varStack);
+                        }
 
                         if (!path.IsCut && !path.Unify(NodePath, varStack))
+                        {
                             continue;
+                        }
 
                         yield return pattern;
                     }
@@ -157,11 +175,11 @@ namespace Prolog
                         pos.Push(0);
                     }
                     else
+                    {
                         terms.Pop();
-                }
-                while (terms.Count > 0);
+                    }
+                } while (terms.Count > 0);
             }
-
 
             // compiler complains if this is missing -- cf. Jon Skeet C# in Depth p.91
             IEnumerator IEnumerable.GetEnumerator()
@@ -169,100 +187,108 @@ namespace Prolog
                 return GetEnumerator();
             }
 
-
             public bool MoveNext()
             {
                 return iterator.MoveNext();
             }
-
-            // NodePath returns the position in the tree (i.e. [1,2] means: 2nd arg of 1st arg of root)
-            public ListTerm NodePath
-            {
-                get
-                {
-                    ListTerm result = ListTerm.EMPTYLIST;
-
-                    foreach (int i in pos.ToArray()) result = new ListTerm(null, new DecimalTerm(null, i - 1), result);
-
-                    return result;
-                }
-            }
         }
-
 
         public partial class BaseTerm : ITermNode, IComparable<BaseTerm>
         {
-            public string CommentHeader { get; set; }
-            public string CommentBody { get; set; }
-            public string TestGroup { get; set; }
-
-            protected int termId; // for variables: the varNo, for (some) other term types: unique int for functor+arity combination
-            protected short precedence;
-            protected AssocType assocType; // i.e. fx, fy, xfx, xfy, yfx, xf, yf.
-            protected BaseTerm[] args; // compound term arguments
-            protected TermType termType;
-            protected object functor;
-
-            protected int arity => (args == null) ? 0 : args.Length;
-            public int TermId { get { return termId; } set { termId = value; } }
-
-            // ChainEnd () is the end term of a unification chain, i.e. the term with which all the
-            // other terms in the chain are unified. The ChainEnd () does not necessarily have a value! (i.e. it can be nonvar)
-            public virtual BaseTerm ChainEnd() { return this; }
-            public virtual BaseTerm ChainEnd(int unifyCount) { return this; }
-
-            // could move all prop's referring to ChainEnd () to Variable, and leave the base types here
-            public virtual object Functor { get { return ChainEnd().functor; } set { ChainEnd().functor = value; } }
-            public virtual int Arity => ChainEnd().arity;
-            public TermType TermType => ChainEnd().termType;
-            public virtual string FunctorToString => functor == null ? null : ChainEnd().functor.ToString();
-            public bool HasFunctor(string s) { return (FunctorToString == s); }
-            public int Precedence => ChainEnd().precedence;
-            public BaseTerm[] Args => ChainEnd().args;
-// Args [i] != Arg (i) !!!!
-            public string Index => ChainEnd().FunctorToString + "/" + ChainEnd().arity;
-// for readability only
-            public override string ToString() { return ChainEnd().ToWriteString(0); }
-            public string ToDisplayString() { return ChainEnd().ToDisplayString(0); }
-            public virtual string ToDisplayString(int level) { return ChainEnd().ToWriteString(level); }
-
-            public string Key => MakeKey(FunctorToString, arity);
-            public virtual string Name => FunctorToString + '/' + arity;
-            public bool FunctorIsBinaryComma => (FunctorToString == ",");
-            public virtual bool IsCallable => false;
-// i.e. if it can be a predicate head
-            public virtual bool IsEvaluatable => false;
-// i.e. if it can be evaluated by is/2
-            public virtual bool IsUnified => false;
-            public virtual string ToWriteString(int level) { return FunctorToString; }
-            
             protected static readonly string NUMVAR;
             public static readonly ListTerm EMPTYLIST;
             public static readonly DcgTerm NULLCURL;
             public static readonly Variable VAR;
-            public static readonly BaseTerm TREEROOT;
             public static readonly BaseTerm CUT;
             public static readonly BaseTerm FAIL;
             public static readonly BaseTerm DBNULL;
-            public static string MakeKey(string f, int a) { return a + f; }
 
-            public bool IsVar => (ChainEnd() is Variable);
-            public bool IsAtomic => (ChainEnd().IsAtom || ChainEnd() is ValueTerm);
-            public bool IsString => (ChainEnd() is StringTerm);
-            public bool IsBool => (ChainEnd() is BoolTerm);
-            public bool IsDateTime => (ChainEnd() is DateTimeTerm);
-            public bool IsTimeSpan => (ChainEnd() is TimeSpanTerm);
-            public bool IsCompound => (ChainEnd() is CompoundTerm);
-            public bool IsNamedVar => (ChainEnd() is NamedVariable);
-            public bool IsUnboundTerm => (ChainEnd() is Variable);
-            public bool IsEmptyList => (ChainEnd() is ListTerm && Arity == 0);
-            public bool IsCut => (ChainEnd() is Cut);
-            public bool IsAtom => (Arity == 0 && !(ChainEnd() is ValueTerm));
-// Var has -1
-            public bool IsAtomOrString => (IsAtom || IsString);
-            public bool IsInteger => (IsNumber && Decimal.Remainder(To<decimal>(), 1) == 0);
-            public bool IsNatural => (IsNumber && To<decimal>() >= 0);
-            public bool IsFloat => (IsNumber && Decimal.Remainder(To<decimal>(), 1) != 0);
+            static BaseTerm()
+            {
+                EMPTYLIST = new ListTerm(null);
+                NULLCURL = new DcgTerm(null);
+                DBNULL = new AtomTerm(null, "db_null");
+                VAR = new Variable(null, new VarStack());
+                NUMVAR = "'$VAR'";
+                CUT = new Cut(null, 0);
+                FAIL = new AtomTerm(null, "fail");
+            }
+
+            protected BaseTerm(Symbol symbol)
+            {
+                Symbol = symbol?.Clone();
+                AssocType = AssocType.None;
+                CompoundPrecedence = 0;
+            }
+
+            protected BaseTerm[] CompoundArgs { get; set; }
+            protected AssocType AssocType { get; set; }
+            protected object CompoundFunctor { get; set; }
+            protected short CompoundPrecedence { get; set; }
+
+            protected TermType CompoundTermType { get; set; }
+
+            public string CommentHeader { get; set; }
+            public string CommentBody { get; set; }
+            public string TestGroup { get; set; }
+
+            protected int arity => CompoundArgs == null ? 0 : CompoundArgs.Length;
+
+            // for variables: the varNo, for (some) other term types: unique int for functor+arity combination
+            public int TermId { get; set; }
+
+            // could move all prop's referring to ChainEnd () to Variable, and leave the base types here
+            public virtual object Functor
+            {
+                get => ChainEnd().CompoundFunctor;
+                set => ChainEnd().CompoundFunctor = value;
+            }
+
+            public virtual int Arity => ChainEnd().arity;
+            public TermType TermType => ChainEnd().CompoundTermType;
+
+            public virtual string FunctorToString =>
+                CompoundFunctor == null ? null : ChainEnd().CompoundFunctor.ToString();
+
+            public int Precedence => ChainEnd().CompoundPrecedence;
+
+            public BaseTerm[] Args => ChainEnd().CompoundArgs;
+
+            // Args [i] != Arg (i) !!!!
+            public string Index => ChainEnd().FunctorToString + "/" + ChainEnd().arity;
+
+            public string Key => MakeKey(FunctorToString, arity);
+            public virtual string Name => FunctorToString + '/' + arity;
+            public bool FunctorIsBinaryComma => FunctorToString == ",";
+
+            public virtual bool IsCallable => false;
+
+            // i.e. if it can be a predicate head
+            public virtual bool IsEvaluatable => false;
+
+            // i.e. if it can be evaluated by is/2
+            public virtual bool IsUnified => false;
+
+            public bool IsVar => ChainEnd() is Variable;
+            public bool IsAtomic => ChainEnd().IsAtom || ChainEnd() is ValueTerm;
+            public bool IsString => ChainEnd() is StringTerm;
+            public bool IsBool => ChainEnd() is BoolTerm;
+            public bool IsDateTime => ChainEnd() is DateTimeTerm;
+            public bool IsTimeSpan => ChainEnd() is TimeSpanTerm;
+            public bool IsCompound => ChainEnd() is CompoundTerm;
+            public bool IsNamedVar => ChainEnd() is NamedVariable;
+            public bool IsUnboundTerm => ChainEnd() is Variable;
+            public bool IsEmptyList => ChainEnd() is ListTerm && Arity == 0;
+            public bool IsCut => ChainEnd() is Cut;
+
+            public bool IsAtom => Arity == 0 && !(ChainEnd() is ValueTerm);
+
+            // Var has -1
+            public bool IsAtomOrString => IsAtom || IsString;
+
+            public bool IsInteger => IsNumber && Decimal.Remainder(To<decimal>(), 1) == 0;
+            public bool IsNatural => IsNumber && To<decimal>() >= 0;
+            public bool IsFloat => IsNumber && Decimal.Remainder(To<decimal>(), 1) != 0;
 
             public bool IsNumber
             {
@@ -270,51 +296,42 @@ namespace Prolog
                 {
                     BaseTerm t = ChainEnd();
 
-                    return (t is DecimalTerm ||
-                            t is OperatorTerm && t.arity == 1 && t.Arg(0).IsNumber && t.HasUnaryOperator("+", "-"));
+                    return t is DecimalTerm ||
+                           (t is OperatorTerm && t.arity == 1 && t.Arg(0).IsNumber && t.HasUnaryOperator("+", "-"));
                 }
             }
 
             protected TermType Rank => TermType;
-            protected virtual int CompareValue(BaseTerm t) { return FunctorToString.CompareTo(t.FunctorToString); }
             public virtual bool IsProperList => false;
             public virtual bool IsPartialList => false;
             public virtual bool IsPseudoList => false;
             public virtual bool IsProperOrPartialList => false;
             public virtual bool IsListNode => false;
             public virtual bool IsDcgList => false;
-            public virtual bool HasUnaryOperator() { return false; }
-            public virtual bool HasBinaryOperator() { return false; }
-            public virtual bool HasUnaryOperator(params string[] names) { return false; }
-            public virtual bool HasBinaryOperator(params string[] names) { return false; }
-
-                        public BaseTerm Arg(int pos) { return args[pos].ChainEnd(); }
-            public void SetArg(int pos, BaseTerm t) { ChainEnd().args[pos] = t; }
-            
-
 
             public bool IsGround
             {
                 get
                 {
-                    if (IsVar) return false;
+                    if (IsVar)
+                    {
+                        return false;
+                    }
 
                     for (int i = 0; i < arity; i++)
-                        if (Arg(i).IsVar) return false;
+                    {
+                        if (Arg(i).IsVar)
+                        {
+                            return false;
+                        }
+                    }
 
                     return true;
                 }
             }
 
-            // interface properties
-            string ITermNode.Functor => FunctorToString;
-            ITermNode[] ITermNode.Args => Args;
-
             public Symbol Symbol { get; }
 
-            protected string CommaAtLevel(int level) { return (level == 0 ? ", " : ","); }
-            protected string SpaceAtLevel(int level) { return (level == 0 ? " " : ""); }
-            
             // BaseTerm comparison according to the ISO standard (apart from the extra data types)
             // 1. Variables < Numbers < Atoms < Strings < Compound Terms
             // 2. Variables are sorted by address.
@@ -325,20 +342,104 @@ namespace Prolog
             //    and finally recursively on their arguments, leftmost argument first.
             public virtual int CompareTo(BaseTerm t) // for terms of identical subtype
             {
-                BaseTerm t0 = this.ChainEnd();
+                BaseTerm t0 = ChainEnd();
                 BaseTerm t1 = t.ChainEnd();
                 int result = t0.Rank.CompareTo(t1.Rank); // BaseTerm types are ranked according to TermType enum order
 
-                return (result == 0) ? t0.CompareValue(t1) : result;
+                return result == 0 ? t0.CompareValue(t1) : result;
+            }
+
+            // for readability only
+            public override string ToString() { return ChainEnd().ToWriteString(0); }
+
+            // interface properties
+
+            // ChainEnd () is the end term of a unification chain, i.e. the term with which all the
+            // other terms in the chain are unified. The ChainEnd () does not necessarily have a value! (i.e. it can be nonvar)
+            public virtual BaseTerm ChainEnd() { return this; }
+
+            public virtual BaseTerm ChainEnd(int unifyCount)
+            {
+                return this;
+            }
+
+            public bool HasFunctor(string s)
+            {
+                return FunctorToString == s;
+            }
+
+            public string ToDisplayString()
+            {
+                return ChainEnd().ToDisplayString(0);
+            }
+
+            public virtual string ToDisplayString(int level)
+            {
+                return ChainEnd().ToWriteString(level);
+            }
+
+            public virtual string ToWriteString(int level)
+            {
+                return FunctorToString;
+            }
+
+            public static string MakeKey(string f, int a)
+            {
+                return a + f;
+            }
+
+            protected virtual int CompareValue(BaseTerm t)
+            {
+                return FunctorToString.CompareTo(t.FunctorToString);
+            }
+
+            public virtual bool HasUnaryOperator()
+            {
+                return false;
+            }
+
+            public virtual bool HasBinaryOperator()
+            {
+                return false;
+            }
+
+            public virtual bool HasUnaryOperator(params string[] names)
+            {
+                return false;
+            }
+
+            public virtual bool HasBinaryOperator(params string[] names)
+            {
+                return false;
+            }
+
+            public BaseTerm Arg(int pos)
+            {
+                return CompoundArgs[pos].ChainEnd();
+            }
+
+            public void SetArg(int pos, BaseTerm t)
+            {
+                ChainEnd().CompoundArgs[pos] = t;
+            }
+
+            protected string CommaAtLevel(int level)
+            {
+                return level == 0 ? ", " : ",";
+            }
+
+            protected string SpaceAtLevel(int level)
+            {
+                return level == 0 ? " " : "";
             }
 
             public void CopyValuesFrom(BaseTerm t)
             {
-                functor = t.functor;
-                args = t.args;
-                termType = t.termType;
-                assocType = t.assocType;
-                precedence = t.precedence;
+                CompoundFunctor = t.CompoundFunctor;
+                CompoundArgs = t.CompoundArgs;
+                CompoundTermType = t.CompoundTermType;
+                AssocType = t.AssocType;
+                CompoundPrecedence = t.CompoundPrecedence;
                 // TODO: overwrite the symbol?
 
                 CopyDecoratedTermState(this, t);
@@ -351,45 +452,26 @@ namespace Prolog
                 to.TestGroup = from.TestGroup;
             }
 
-            static BaseTerm()
-            {
-                EMPTYLIST = new ListTerm(null);
-                NULLCURL = new DcgTerm((Symbol)null);
-                DBNULL = new AtomTerm(null, "db_null");
-                VAR = new Variable(null, new VarStack());
-                NUMVAR = "'$VAR'";
-                CUT = new Cut(null, 0);
-                FAIL = new AtomTerm(null, "fail");
-            }
-
-
-            protected BaseTerm(Symbol symbol)
-            {
-                this.Symbol = symbol?.Clone();
-                assocType = AssocType.None;
-                precedence = 0;
-            }
-
-
             public bool OneOfArgsIsVar(params int[] args)
             {
                 foreach (int i in args)
+                {
                     if (Arg(i).IsVar)
                     {
-                        IO.ErrorRuntime($"Argument {i} of {FunctorToString}/{arity} is not sufficiently instantiated", null, null);
+                        IO.ErrorRuntime($"Argument {i} of {FunctorToString}/{arity} is not sufficiently instantiated",
+                            null, null);
 
                         return true;
                     }
+                }
 
                 return false;
             }
-
 
             public TermNode ToGoalList() // called during consult
             {
                 return ToGoalList(0, 0);
             }
-
 
             public TermNode ToGoalList(int stackSize, int level) // called during execution (when there is a stack)
             {
@@ -399,54 +481,75 @@ namespace Prolog
                 if (this is Cut)
                 {
                     if (stackSize == 0)
+                    {
                         return new TermNode(this, null, level);
-                    else
-                        return new TermNode(new Cut(this.Symbol, stackSize), null, level);
+                    }
+
+                    return new TermNode(new Cut(Symbol, stackSize), null, level);
                 }
 
-                switch (this.Functor as string)
+                switch (Functor as string)
                 {
                     case PrologParser.IMPLIES:
                         t0 = Arg(0);
                         if (!t0.IsCallable)
-                            IO.ErrorConsult( "Illegal predicate head: {0}", t0);
+                        {
+                            IO.ErrorConsult("Illegal predicate head: {0}", t0);
+                        }
+
                         t1 = Arg(1);
                         result = new TermNode(t0, t1.ToGoalList(stackSize, level));
                         break;
+
                     case PrologParser.DCGIMPL:
                         t0 = Arg(0);
-                        if (!t0.IsCallable) IO.ErrorConsult( "Illegal DCG head: {0}", t0);
+                        if (!t0.IsCallable)
+                        {
+                            IO.ErrorConsult("Illegal DCG head: {0}", t0);
+                        }
+
                         t1 = Arg(1);
                         result = new TermNode(t0, t1.ToGoalList(stackSize, level));
                         break;
+
                     case PrologParser.COMMA:
                         t0 = Arg(0);
                         t1 = Arg(1);
                         result = t0.ToGoalList(stackSize, level);
                         result.Append(t1.ToGoalList(stackSize, level));
                         break;
+
                     case PrologParser.DOT:
                         t0 = Arg(0);
                         t1 = Arg(1);
-                        result = (new CompoundTerm(this.Symbol, "consult", new ListTerm(this.Symbol, t0, t1))).ToGoalList(stackSize, level);
+                        result = new CompoundTerm(Symbol, "consult", new ListTerm(Symbol, t0, t1)).ToGoalList(stackSize,
+                            level);
                         break;
+
                     case PrologParser.CURL:
                         t0 = Arg(0);
                         result = t0.ToGoalList(stackSize, level);
                         break;
+
                     default:
-                        if (this.IsVar)
-                            result = new TermNode(new CompoundTerm(this.Symbol, "meta$call", this), null, level);
-                        else if (this.IsCallable)
+                        if (IsVar)
+                        {
+                            result = new TermNode(new CompoundTerm(Symbol, "meta$call", this), null, level);
+                        }
+                        else if (IsCallable)
+                        {
                             result = new TermNode(this, null, level);
+                        }
                         else
-                            IO.ErrorConsult( "Illegal term {0} in goal list", this);
+                        {
+                            IO.ErrorConsult("Illegal term {0} in goal list", this);
+                        }
+
                         break;
                 }
 
                 return result;
             }
-
 
             // DCG stuff
 
@@ -458,7 +561,7 @@ namespace Prolog
                 BaseTerm inVar = new Variable(null, varStack);
                 BaseTerm inVarSave = inVar;
                 BaseTerm outVar = inVar;
-                lhs = new DcgTerm(this.Symbol, lhs, ref outVar, varStack); // outVar becomes new term
+                lhs = new DcgTerm(Symbol, lhs, ref outVar, varStack); // outVar becomes new term
                 BaseTerm remainder;
 
                 List<BaseTerm> alternatives = AlternativesToArrayList();
@@ -466,27 +569,32 @@ namespace Prolog
                 for (int i = 0; i < alternatives.Count; i++)
                 {
                     BaseTerm alt = alternatives[i];
-                    bool embedded = (alternatives.Count > 1);
+                    bool embedded = alternatives.Count > 1;
                     List<BaseTerm> terms = alt.ToTermList();
 
                     body.Clear();
                     remainder = inVarSave;
 
                     for (int ii = 0; ii < terms.Count; ii++)
+                    {
                         DCGGoal(terms[ii], ref body, ref remainder, ref embedded, varStack);
+                    }
 
                     // create a term-tree from the array
                     if (i == 0)
+                    {
                         result = body.TermSeq(varStack);
+                    }
                     else
-                        result = new OperatorTerm(this.Symbol, varStack.SemiOpDescr, result, body.TermSeq(varStack));
+                    {
+                        result = new OperatorTerm(Symbol, varStack.SemiOpDescr, result, body.TermSeq(varStack));
+                    }
 
                     ((Variable)remainder).Bind(outVar, varStack);
                 }
 
-                return (result == null) ? null : result.ToGoalList(); // empty body treated similar to null
+                return result == null ? null : result.ToGoalList(); // empty body treated similar to null
             }
-
 
             public List<BaseTerm> AlternativesToArrayList()
             {
@@ -503,7 +611,6 @@ namespace Prolog
 
                 return a;
             }
-
 
             public List<BaseTerm> ToTermList()
             {
@@ -541,12 +648,15 @@ namespace Prolog
                 return a;
             }
 
-            private static void DCGGoal(BaseTerm t, ref TermNode body, ref BaseTerm remainder, ref bool embedded, VarStack varStack)
+            private static void DCGGoal(BaseTerm t, ref TermNode body, ref BaseTerm remainder, ref bool embedded,
+                VarStack varStack)
             {
                 BaseTerm temp;
 
                 if (t.IsString || t is Cut)
+                {
                     body.Append(t);
+                }
                 else if (t.HasFunctor(PrologParser.CURL))
                 {
                     while (t.Arity == 2)
@@ -560,7 +670,7 @@ namespace Prolog
                 {
                     temp = new Variable(null, varStack);
 
-                    t = (t.IsEmptyList) ? temp : ((ListTerm)t).Append(temp);
+                    t = t.IsEmptyList ? temp : ((ListTerm)t).Append(temp);
 
                     if (embedded)
                     {
@@ -568,7 +678,9 @@ namespace Prolog
                         embedded = false;
                     }
                     else
+                    {
                         ((Variable)remainder).Bind(t, varStack);
+                    }
                     // in this case, nothing is appended to body, which may be left empty (e.g. t-->[x])
 
                     remainder = temp;
@@ -579,13 +691,18 @@ namespace Prolog
                     body.Append(t);
                 }
                 else if (t.IsNamedVar)
-                    IO.ErrorRuntime($"Variable not allowed in DCG-clause: {((NamedVariable) t).Name}", null, t);
+                {
+                    IO.ErrorRuntime($"Variable not allowed in DCG-clause: {((NamedVariable)t).Name}", null, t);
+                }
                 else if (t.IsUnboundTerm)
-                    IO.ErrorRuntime( "Unbound variable not allowed in DCG-clause", null, t);
+                {
+                    IO.ErrorRuntime("Unbound variable not allowed in DCG-clause", null, t);
+                }
                 else
-                    IO.ErrorRuntime( "Illegal term in DCG-clause: {0}", null, t);
+                {
+                    IO.ErrorRuntime("Illegal term in DCG-clause: {0}", null, t);
+                }
             }
-
 
             // UNIFICATION
             // The stack is used to store the variables and choice points that are bound
@@ -596,7 +713,10 @@ namespace Prolog
             {
                 varStack.NextUnifyCount();
 
-                if (t.IsUnified) return this.Unify(t.ChainEnd(), varStack);
+                if (t.IsUnified)
+                {
+                    return Unify(t.ChainEnd(), varStack);
+                }
 
                 if (t is Variable varT) // t not unified
                 {
@@ -607,21 +727,30 @@ namespace Prolog
                 }
 
                 if (t is ListPatternTerm)
+                {
                     return t.Unify(this, varStack);
+                }
 
-                if (termType != t.termType) return false; // gives a slight improvement
+                if (CompoundTermType != t.CompoundTermType)
+                {
+                    return false; // gives a slight improvement
+                }
 
-                if (functor.Equals(t.functor) && arity == t.arity)
+                if (CompoundFunctor.Equals(t.CompoundFunctor) && arity == t.arity)
                 {
                     for (int i = 0; i < arity; i++)
-                        if (!args[i].Unify(t.args[i], varStack)) return false;
+                    {
+                        if (!CompoundArgs[i].Unify(t.CompoundArgs[i], varStack))
+                        {
+                            return false;
+                        }
+                    }
 
                     return true;
                 }
 
                 return false;
             }
-
 
             public bool IsUnifiableWith(BaseTerm t, VarStack varStack) // as Unify, but does not actually bind
             {
@@ -632,14 +761,16 @@ namespace Prolog
                 return result;
             }
 
-
             public static void UnbindToMarker(VarStack varStack, int marker)
             {
                 for (int i = varStack.Count - marker; i > 0; i--) // unbind all vars that got bound by Unify
                 {
                     Variable v = varStack.Pop() as Variable;
 
-                    if (v != null) v.Unbind();
+                    if (v != null)
+                    {
+                        v.Unbind();
+                    }
                 }
             }
 
@@ -685,106 +816,153 @@ namespace Prolog
 
             public BaseTerm Copy(bool newVersion, VarStack varstack)
             {
-                if (newVersion) varstack.verNoMax++;
+                if (newVersion)
+                {
+                    varstack.verNoMax++;
+                }
 
                 return CopyEx(varstack.verNoMax, true, varstack);
             }
 
             public BaseTerm Copy(bool newVersion, bool mustBeNamed, VarStack varstack) // called by copy_term
             {
-                if (newVersion) varstack.verNoMax++;
+                if (newVersion)
+                {
+                    varstack.verNoMax++;
+                }
 
                 return CopyEx(varstack.verNoMax, mustBeNamed, varstack);
             }
 
             private BaseTerm CopyEx(int newVerNo, bool mustBeNamed, VarStack varStack)
             {
-                if (IsUnified) return ChainEnd().CopyEx(newVerNo, mustBeNamed, varStack);
+                if (IsUnified)
+                {
+                    return ChainEnd().CopyEx(newVerNo, mustBeNamed, varStack);
+                }
 
                 // A neater solution would be to use overrides for each term subtype.
                 if (this is Variable)
                 {
                     Variable v = (Variable)this;
 
-                    if (newVerNo == v.verNo) return v.newVar;
+                    if (newVerNo == v.VerNo)
+                    {
+                        return v.NewVar;
+                    }
 
-                    v.verNo = newVerNo;
+                    v.VerNo = newVerNo;
 
-                    v.newVar = (mustBeNamed && this is NamedVariable)
-                      ? new NamedVariable(v.Symbol, ((NamedVariable)v).Name, varStack)
-                      : new Variable(v.Symbol, varStack);
+                    v.NewVar = mustBeNamed && this is NamedVariable
+                        ? new NamedVariable(v.Symbol, ((NamedVariable)v).Name, varStack)
+                        : new Variable(v.Symbol, varStack);
 
-                    CopyDecoratedTermState(v.newVar, this);
+                    CopyDecoratedTermState(v.NewVar, this);
 
-                    return v.newVar;
+                    return v.NewVar;
                 }
-                else if (this is CatchOpenTerm)
+
+                if (this is CatchOpenTerm)
                 {
                     CatchOpenTerm c = (CatchOpenTerm)this;
 
-                    var res = new CatchOpenTerm(c.Symbol, c.Id, c.ExceptionClass, c.MsgVar.CopyEx(newVerNo, mustBeNamed, varStack),
-                      c.SeqNo, c.SaveStackSize);
+                    CatchOpenTerm res = new CatchOpenTerm(c.Symbol, c.Id, c.ExceptionClass,
+                        c.MsgVar.CopyEx(newVerNo, mustBeNamed, varStack),
+                        c.SeqNo, c.SaveStackSize);
 
                     CopyDecoratedTermState(res, this);
 
                     return res;
                 }
+
+                if (arity == 0)
+                {
+                    return this;
+                }
+
+                BaseTerm t = null;
+                BaseTerm[] a = new BaseTerm[arity];
+
+                for (int i = 0; i < arity; i++)
+                {
+                    if (CompoundArgs[i] != null) // may be null for a GapTerm
+                    {
+                        a[i] = CompoundArgs[i].CopyEx(newVerNo, mustBeNamed, varStack); // recursively refresh arguments
+                    }
+                }
+
+                if (this is ListPatternTerm)
+                {
+                    t = new ListPatternTerm(Symbol, a);
+                }
+                else if (this is AltListTerm)
+                {
+                    AltListTerm alt = (AltListTerm)this;
+                    t = new AltListTerm(alt.Symbol, alt.LeftBracket, alt.RightBracket, a[0], a[1]);
+                }
+                else if (this is ListTerm)
+                {
+                    t = ((ListTerm)this).CharCodeString == null
+                        ? new ListTerm(Symbol, a[0], a[1])
+                        : new ListTerm(Symbol, ((ListTerm)this).CharCodeString);
+                }
+                else if (this is OperatorTerm)
+                {
+                    t = new OperatorTerm(Symbol, ((OperatorTerm)this).OpDescr, a);
+                }
+                else if (this is DcgTerm)
+                {
+                    t = new DcgTerm(Symbol, CompoundFunctor, a);
+                }
+                else if (this is WrapperTerm)
+                {
+                    t = new WrapperTerm((WrapperTerm)this, a);
+                }
+                else if (this is IntRangeTerm)
+                {
+                    t = new IntRangeTerm((IntRangeTerm)this);
+                }
+                else if (this is ListPatternElem)
+                {
+                    t = new ListPatternElem(Symbol, a, ((ListPatternElem)this).IsNegSearch);
+                }
+                else if (this is CompoundTerm)
+                {
+                    t = new CompoundTerm(Symbol, CompoundFunctor, a);
+                }
+                else if (this is ClauseTerm asCt)
+                {
+                    t = new ClauseTerm(Symbol, asCt.ClauseNode, varStack);
+                }
                 else
                 {
-                    if (arity == 0) return this;
-
-                    BaseTerm t = null;
-                    BaseTerm[] a = new BaseTerm[arity];
-
-                    for (int i = 0; i < arity; i++)
-                        if (args[i] != null) // may be null for a GapTerm
-                            a[i] = args[i].CopyEx(newVerNo, mustBeNamed, varStack); // recursively refresh arguments
-
-                    if (this is ListPatternTerm)
-                        t = new ListPatternTerm(this.Symbol, a);
-                    else if (this is AltListTerm)
-                    {
-                        AltListTerm alt = (AltListTerm)this;
-                        t = new AltListTerm(alt.Symbol, alt.LeftBracket, alt.RightBracket, a[0], a[1]);
-                    }
-                    else if (this is ListTerm)
-                    {
-                        t = ((ListTerm)this).CharCodeString == null ? new ListTerm(this.Symbol, a[0], a[1]) : new ListTerm(this.Symbol, ((ListTerm)this).CharCodeString);
-                    }
-                    else if (this is OperatorTerm)
-                        t = new OperatorTerm(this.Symbol, ((OperatorTerm)this).od, a);
-                    else if (this is DcgTerm)
-                        t = new DcgTerm(this.Symbol, functor, a);
-                    else if (this is WrapperTerm)
-                        t = new WrapperTerm((WrapperTerm)this, a);
-                    else if (this is IntRangeTerm)
-                        t = new IntRangeTerm((IntRangeTerm)this);
-                    else if (this is ListPatternElem)
-                        t = new ListPatternElem(this.Symbol, a, ((ListPatternElem)this).IsNegSearch);
-                    else if (this is CompoundTerm)
-                        t = new CompoundTerm(this.Symbol, functor, a);
-                    else if (this is ClauseTerm asCt)
-                        t = new ClauseTerm(this.Symbol, asCt.ClauseNode, varStack);
-                    else
-                        IO.ErrorRuntime($"CopyEx(): type '{this.GetType()}' not handled explicitly", null, this);
-
-                    CopyDecoratedTermState(t, this);
-
-                    return t;
+                    IO.ErrorRuntime($"CopyEx(): type '{GetType()}' not handled explicitly", null, this);
                 }
-            }
 
+                CopyDecoratedTermState(t, this);
+
+                return t;
+            }
 
             public void NumberVars(ref int k, VarStack s)
             {
                 if (IsVar)
-                    this.Unify(new CompoundTerm(this.Symbol, NUMVAR, new DecimalTerm(this.Symbol, k++)), s);
+                {
+                    Unify(new CompoundTerm(Symbol, NUMVAR, new DecimalTerm(Symbol, k++)), s);
+                }
                 else
                 {
                     if (IsUnified)
+                    {
                         ChainEnd().NumberVars(ref k, s);
+                    }
                     else if (arity != 0) // nonvar & not isUnified
-                        for (int i = 0; i < arity; i++) args[i].NumberVars(ref k, s);
+                    {
+                        for (int i = 0; i < arity; i++)
+                        {
+                            CompoundArgs[i].NumberVars(ref k, s);
+                        }
+                    }
                 }
             }
 
@@ -793,17 +971,22 @@ namespace Prolog
                 e.Write(Spaces(2 * level));
 
                 if (this is Variable)
-                    e.WriteLine(this.ToString());
+                {
+                    e.WriteLine(ToString());
+                }
                 else
                 {
                     e.WriteLine(FunctorToString);
 
                     if (arity > 0)
-                        foreach (BaseTerm a in args)
+                    {
+                        foreach (BaseTerm a in CompoundArgs)
+                        {
                             a.ChainEnd().TreePrint(level + 1, e);
+                        }
+                    }
                 }
             }
-
         }
     }
 }

@@ -4,17 +4,16 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Prolog
@@ -23,76 +22,8 @@ namespace Prolog
     {
         public partial class PredicateDescr
         {
-            protected string functor;
-            public string Functor => functor;
-            protected int arity;
-            public int Arity => arity;
-            public string Name => functor + '/' + arity;
             private const short ARG0COUNT_MIN = 8;
-            private Dictionary<object, ClauseNode> arg0Index = null; // for first argument indexing
-            public ClauseNode ClauseList { get; private set; }
-            public ClauseNode ClauseListEnd;      // keeps track of the position of the last clause
-            public TermNode TermListEnd;      // keeps track of the position of the last node
-            public bool IsDiscontiguous { get; set; } = false;
-            public int ProfileCount { get; set; } = 0;
-            public bool IsPredefined { get; }
 
-            public void IncProfileCount()
-            {
-                ProfileCount++;
-            }
-
-            public string Module { get; set; }
-
-            public string DefinitionFile { get; }
-
-            public PredicateDescr(string module, string definitionFile, string functor, int arity, ClauseNode clauseList)
-            {
-                this.Module = module;
-                this.DefinitionFile = (definitionFile == null) ? "predefined or asserted predicate" : definitionFile;
-                this.IsPredefined = (definitionFile == null);
-                this.functor = functor;
-                this.arity = arity;
-
-                this.ClauseList = ClauseListEnd = clauseList;
-            }
-
-
-            public void SetClauseListHead(ClauseNode c)
-            {
-                ClauseList = ClauseListEnd = c;
-
-                while (ClauseListEnd.NextClause != null) ClauseListEnd = ClauseListEnd.NextClause;
-
-                DestroyFirstArgIndex();
-            }
-
-
-            public void AdjustClauseListEnd() // forward clauseListEnd to the last clause
-            {
-                if ((ClauseListEnd = ClauseList) != null)
-                    while (ClauseListEnd.NextClause != null) ClauseListEnd = ClauseListEnd.NextClause;
-            }
-
-            public void AdjustNodeListEnd() // forward clauseListEnd to the last clause
-            {
-                if ((TermListEnd = ClauseList) != null)
-                    while (TermListEnd.NextNode != null) TermListEnd = TermListEnd.NextNode;
-            }
-
-
-            public void AppendToClauseList(ClauseNode c) // NextClause and ClauseListEnd are != null
-            {
-                ClauseListEnd.NextClause = c;
-
-                do
-                    ClauseListEnd = ClauseListEnd.NextClause;
-                while
-                  (ClauseListEnd.NextClause != null);
-
-                DestroyFirstArgIndex();
-            }
-            
             /* First-argument indexing
 
                A dictionary is maintained of clauses that have a nonvar first argument.
@@ -125,16 +56,100 @@ namespace Prolog
             */
 
             private const bool VARARG = true;
+            private Dictionary<object, ClauseNode> arg0Index; // for first argument indexing
+
+            public PredicateDescr(string module, string definitionFile, string functor, int arity,
+                ClauseNode clauseList)
+            {
+                Module = module;
+                DefinitionFile = definitionFile == null ? "predefined or asserted predicate" : definitionFile;
+                IsPredefined = definitionFile == null;
+                Functor = functor;
+                Arity = arity;
+
+                ClauseList = ClauseListEnd = clauseList;
+            }
+
+            public ClauseNode ClauseListEnd { get; set; }
+            public TermNode TermListEnd { get; set; }
+
+            public string Functor { get; set; }
+
+            public int Arity { get; set; }
+
+            public string Name => Functor + '/' + Arity;
+            public ClauseNode ClauseList { get; private set; }
+            public bool IsDiscontiguous { get; set; } = false;
+            public int ProfileCount { get; set; }
+            public bool IsPredefined { get; }
+
+            public string Module { get; set; }
+
+            public string DefinitionFile { get; }
+
+            public void IncProfileCount()
+            {
+                ProfileCount++;
+            }
+
+            public void SetClauseListHead(ClauseNode c)
+            {
+                ClauseList = ClauseListEnd = c;
+
+                while (ClauseListEnd.NextClause != null)
+                {
+                    ClauseListEnd = ClauseListEnd.NextClause;
+                }
+
+                DestroyFirstArgIndex();
+            }
+
+            public void AdjustClauseListEnd() // forward clauseListEnd to the last clause
+            {
+                if ((ClauseListEnd = ClauseList) != null)
+                {
+                    while (ClauseListEnd.NextClause != null)
+                    {
+                        ClauseListEnd = ClauseListEnd.NextClause;
+                    }
+                }
+            }
+
+            public void AdjustNodeListEnd() // forward clauseListEnd to the last clause
+            {
+                if ((TermListEnd = ClauseList) != null)
+                {
+                    while (TermListEnd.NextNode != null)
+                    {
+                        TermListEnd = TermListEnd.NextNode;
+                    }
+                }
+            }
+
+            public void AppendToClauseList(ClauseNode c) // NextClause and ClauseListEnd are != null
+            {
+                ClauseListEnd.NextClause = c;
+
+                do
+                {
+                    ClauseListEnd = ClauseListEnd.NextClause;
+                } while
+                    (ClauseListEnd.NextClause != null);
+
+                DestroyFirstArgIndex();
+            }
 
             public bool CreateFirstArgIndex()
             {
                 return CreateFirstArgIndex(false); // false: do not create if it already exists
             }
 
-
             public bool CreateFirstArgIndex(bool force) // Create the index if the predicate qualifies
             {
-                if (arg0Index != null && !force) return false; // index already exists
+                if (arg0Index != null && !force)
+                {
+                    return false; // index already exists
+                }
 
                 // Check each nextClause whether with the addition of this nextClause the predicate
                 // still qualifies for first argument indexing.
@@ -149,13 +164,19 @@ namespace Prolog
                     {
                         arg0Count++; // Indexing not worthwile if only a few number of clauses
 
-                        if (c.Head.Arg(0).IsVar) break;
+                        if (c.Head.Arg(0).IsVar)
+                        {
+                            break;
+                        }
                     }
 
                     c = c.NextClause;
                 }
 
-                if (arg0Count < ARG0COUNT_MIN) return false;
+                if (arg0Count < ARG0COUNT_MIN)
+                {
+                    return false;
+                }
 
                 // second pass: build the index
 
@@ -174,8 +195,11 @@ namespace Prolog
 
                         break;
                     }
-                    else if (!arg0Index.ContainsKey(s = t.FunctorToString))
+
+                    if (!arg0Index.ContainsKey(s = t.FunctorToString))
+                    {
                         arg0Index[s] = c;
+                    }
 
                     c = c.NextClause;
                 }
@@ -186,8 +210,8 @@ namespace Prolog
 
                     return false;
                 }
-                else
-                    return true;
+
+                return true;
             }
 
             public void DestroyFirstArgIndex()
@@ -197,7 +221,7 @@ namespace Prolog
 
             public override string ToString()
             {
-                return $"pd[{functor}/{arity} clauselist {ClauseList}]";
+                return $"pd[{Functor}/{Arity} clauselist {ClauseList}]";
             }
         }
     }

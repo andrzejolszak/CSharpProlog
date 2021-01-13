@@ -10,7 +10,6 @@ namespace CSPrologTest
         [InlineData(@"R: abolish(foo/(-1))")]
         [InlineData(@"R: current_prolog_flag(max_arity,A), X is A + 1, abolish(foo/X)")]
         [InlineData(@"R: abolish(5/2)")]
-
         public void Abolish(string test)
         {
             test.Evaluate();
@@ -22,7 +21,6 @@ namespace CSPrologTest
         [InlineData(@"F: fail, call(3)")]
         [InlineData(@"F: nofoo(X), call(X)")]
         [InlineData(@"T: X = true, call(X)")]
-
         public void And(string test)
         {
             test.Evaluate();
@@ -45,7 +43,6 @@ namespace CSPrologTest
         [InlineData(@"R: arg(0,3,A)")]
         [InlineData(@"R: arg(-3,foo(a,b),A)")]
         [InlineData(@"R: arg(a,foo(a,b),X)")]
-
         public void Arg(string test)
         {
             test.Evaluate();
@@ -57,7 +54,6 @@ namespace CSPrologTest
         [InlineData(@"F: '=\\='(3 * 2,7 - 1)")]
         [InlineData(@"R: '=\\='(N,5)")]
         [InlineData(@"R: '=\\='(floot(1),5)")]
-
         public void ArithDiff(string test)
         {
             test.Evaluate();
@@ -69,7 +65,6 @@ namespace CSPrologTest
         [InlineData(@"T: '=:='(3 * 2,7 - 1)")]
         [InlineData(@"R: '=:='(N,5)")]
         [InlineData(@"R: '=:='(floot(1),5)")]
-
         public void ArithEq(string test)
         {
             test.Evaluate();
@@ -81,7 +76,6 @@ namespace CSPrologTest
         [InlineData(@"F: '>'(3*2,7-1)")]
         [InlineData(@"R: '>'(X,5)")]
         [InlineData(@"R: '>'(2 + floot(1),5)")]
-
         public void ArithGt(string test)
         {
             test.Evaluate();
@@ -93,7 +87,6 @@ namespace CSPrologTest
         [InlineData(@"T: '>='(3*2,7-1)")]
         [InlineData(@"R: '>='(X,5)")]
         [InlineData(@"R: '>='(2 + floot(1),5)")]
-
         public void ArithGtEq(string test)
         {
             test.Evaluate();
@@ -105,7 +98,6 @@ namespace CSPrologTest
         [InlineData(@"F: '<'(3*2,7-1)")]
         [InlineData(@"R: '<'(X,5)")]
         [InlineData(@"R: '<'(2 + floot(1),5)")]
-
         public void ArithLt(string test)
         {
             test.Evaluate();
@@ -117,7 +109,6 @@ namespace CSPrologTest
         [InlineData(@"T: '=<'(3*2,7-1)")]
         [InlineData(@"R: '=<'(X,5)")]
         [InlineData(@"R: '=<'(2 + floot(1),5)")]
-
         public void ArithLtEq(string test)
         {
             test.Evaluate();
@@ -129,7 +120,6 @@ namespace CSPrologTest
         [InlineData(@"R: asserta(4)")]
         [InlineData(@"R: asserta((foo :- 4))")]
         [InlineData(@"R: asserta((atom(_) :- true))")]
-
         public void Asserta(string test)
         {
             test.Evaluate();
@@ -141,19 +131,18 @@ namespace CSPrologTest
         [InlineData(@"R: assertz(4)")]
         [InlineData(@"R: assertz((foo :- 4))")]
         [InlineData(@"R: assertz((atom(_) :- true))")]
-
         public void Assertz(string test)
         {
             test.Evaluate();
         }
 
         [Theory]
-            [InlineData(@"T: atom('string')")]
-            [InlineData(@"F: atom(Var)")]
-            [InlineData(@"F: atom(a(b))")]
-            [InlineData(@"T: atom([])")]
-            [InlineData(@"F: atom(6)")]
-            [InlineData(@"F: atom(3.3)")]
+        [InlineData(@"T: atom('string')")]
+        [InlineData(@"F: atom(Var)")]
+        [InlineData(@"F: atom(a(b))")]
+        [InlineData(@"T: atom([])")]
+        [InlineData(@"F: atom(6)")]
+        [InlineData(@"F: atom(3.3)")]
         public void Atom(string test)
         {
             test.Evaluate();
@@ -174,8 +163,6 @@ namespace CSPrologTest
         [InlineData(@"T: atom_chars('North',['N'|X]), X = ['o','r','t','h']")]
         [InlineData(@"T: atom_chars([],L), L=['[',']']")]
         [InlineData(@"T: atom_chars('''',L), L=['''']")]
-
-
         public void AtomChars(string test)
         {
             test.Evaluate();
@@ -189,7 +176,6 @@ namespace CSPrologTest
         [InlineData(@"T: ['N', s, 3] = ['N'|[Y, Z]], Y = s, Z = 3")]
         [InlineData(@"T: [n, s, 3] = ['n'|[Y, Z]], Y = s, Z = 3")]
         [InlineData(@"T: ['n', s, 3] = [n|[Y, Z]], Y = s, Z = 3")]
-
         public void ListSyntax(string test)
         {
             test.Evaluate();
@@ -207,8 +193,6 @@ namespace CSPrologTest
         [InlineData(@"R: atom_concat(f(a),'iso',A3)")]
         [InlineData(@"R: atom_concat('iso',f(a),A3)")]
         [InlineData(@"R: atom_concat(A1,A2,f(a))")]
-
-
         public void AtomConcat(string test)
         {
             test.Evaluate();
@@ -221,8 +205,6 @@ namespace CSPrologTest
         [InlineData(@"R: atom_length(Atom, 4)")]
         [InlineData(@"R: atom_length(1.23, 4)")]
         [InlineData(@"R: atom_length(atom, '4')")]
-
-
         public void AtomLength(string test)
         {
             test.Evaluate();
@@ -235,7 +217,6 @@ namespace CSPrologTest
         [InlineData(@"T: atomic([])")]
         [InlineData(@"T: atomic(6)")]
         [InlineData(@"T: atomic(3.3)")]
-
         public void Atomic(string test)
         {
             test.Evaluate();
@@ -255,8 +236,6 @@ namespace CSPrologTest
         [InlineData(@"R: bagof(X,Y^Z,L)")]
         [InlineData(@"R: bagof(X,1,L)")]
         [InlineData(@"R: findall(X,call(4),S)")]
-
-
         public void Bagof(string test)
         {
             test.Evaluate();
@@ -274,7 +253,6 @@ namespace CSPrologTest
         [InlineData(@"F: call((fail, 1))")]
         [InlineData(@"R: call((write(3), 1))")]
         [InlineData(@"R: call((1; true))")]
-
         public void Call(string test)
         {
             test.Evaluate();
@@ -283,8 +261,6 @@ namespace CSPrologTest
         [Theory]
         [InlineData(@"R: catch(true, C, write('something')), throw(blabla)")]
         [InlineData(@"F: catch(foobar(abc,L), error, fail)")]
-
-
         public void CatchAndThrow(string test)
         {
             test.Evaluate();
@@ -298,8 +274,6 @@ namespace CSPrologTest
         [InlineData(@"R: char_code(a,x)")]
         [InlineData(@"R: char_code(Char,Code)")]
         [InlineData(@"R: char_code(Char,-2)")]
-
-
         public void CharCode(string test)
         {
             test.Evaluate();
@@ -311,7 +285,6 @@ namespace CSPrologTest
         [InlineData(@"R: clause(4,B)")]
         [InlineData(@"R: clause(f(_),5)")]
         [InlineData(@"R: clause(atom(_),Body)")]
-
         public void Clause(string test)
         {
             test.Evaluate();
@@ -325,7 +298,6 @@ namespace CSPrologTest
         [InlineData(@"F: compound(a)")]
         [InlineData(@"T: compound(a(b))")]
         [InlineData(@"T: compound([a])")]
-
         public void Compound(string test)
         {
             test.Evaluate();
@@ -343,7 +315,6 @@ namespace CSPrologTest
         [InlineData(@"F: copy_term(a,b)")]
         [InlineData(@"T: copy_term(f(a),f(X)), X=a")]
         [InlineData(@"F: copy_term(a+X,X+b),copy_term(a+X,X+b)")]
-
         public void CopyTerm(string test)
         {
             test.Evaluate();
@@ -352,8 +323,6 @@ namespace CSPrologTest
         [Theory]
         [InlineData(@"T: exists(current_input/1)")]
         [InlineData(@"T: exists(current_output/1)")]
-
-
         public void CurrentIO(string test)
         {
             test.Evaluate();
@@ -367,8 +336,6 @@ namespace CSPrologTest
         [InlineData(@"R: current_predicate(4)")]
         [InlineData(@"R: current_predicate(dog)")]
         [InlineData(@"R: current_predicate(0/dog)")]
-
-
         public void CurrentPredicate(string test)
         {
             test.Evaluate();
@@ -381,8 +348,6 @@ namespace CSPrologTest
         [InlineData(@"T: current_prolog_flag(debug, V), V=off")]
         [InlineData(@"R: current_prolog_flag(5, V)")]
         [InlineData(@"R: current_prolog_flag(warning, V)")]
-
-
         public void CurrentPrologFlag(string test)
         {
             test.Evaluate();
@@ -392,7 +357,6 @@ namespace CSPrologTest
         [InlineData(@"T: !")]
         [InlineData(@"F: !,fail;true")]
         [InlineData(@"T: call(!),fail;true")]
-
         public void Cut(string test)
         {
             test.Evaluate();
@@ -404,7 +368,6 @@ namespace CSPrologTest
         [InlineData(@"T: \+ fail")]
         [InlineData(@"F: set_prolog_flag(unknown, fail), undef_pred")]
         [InlineData(@"F: set_prolog_flag(unknown, warning), undef_pred")]
-
         public void Fail(string test)
         {
             test.Evaluate();
@@ -420,7 +383,6 @@ namespace CSPrologTest
         [InlineData(@"R: findall(X,Goal,S)")]
         [InlineData(@"R: findall(X,4,S)")]
         [InlineData(@"R: findall(X,call(1),S)")]
-
         public void Findall(string test)
         {
             test.Evaluate();
@@ -432,7 +394,6 @@ namespace CSPrologTest
         [InlineData(@"F: float(3)")]
         [InlineData(@"F: float(atom)")]
         [InlineData(@"F: float(X)")]
-
         public void Float(string test)
         {
             test.Evaluate();
@@ -457,7 +418,6 @@ namespace CSPrologTest
         [InlineData(@"R: functor(F,foo(a),1)")]
         [InlineData(@"R: current_prolog_flag(max_arity,A), X is A + 1, functor(T, foo, X)")]
         [InlineData(@"R: functor(T, foo, -1)")]
-
         public void Functor(string test)
         {
             test.Evaluate();
@@ -470,7 +430,6 @@ namespace CSPrologTest
         [InlineData(@"T: '->'(true, X=1), X=1")]
         [InlineData(@"T: '->'((X=1; X=2), true), X=1")]
         [InlineData(@"T: '->'(true, (X=1; X=2)), (X=1;X=2)")]
-
         public void IfThen(string test)
         {
             test.Evaluate();
@@ -485,7 +444,6 @@ namespace CSPrologTest
         [InlineData(@"T: ('->'(fail, X=1); X=2), X=2")]
         [InlineData(@"T: ('->'(true, (X=1; X=2)); true), (X=1 ; X=2)")]
         [InlineData(@"T: ('->'((X=1; X=2), true); true), X=1")]
-
         public void IfThenElse(string test)
         {
             test.Evaluate();
@@ -497,7 +455,6 @@ namespace CSPrologTest
         [InlineData(@"F: integer(3.3)")]
         [InlineData(@"F: integer(X)")]
         [InlineData(@"F: integer(atom)")]
-
         public void Integer(string test)
         {
             test.Evaluate();
@@ -510,7 +467,6 @@ namespace CSPrologTest
         [InlineData(@"R: 'is'(77, N)")]
         [InlineData(@"R: 'is'(77, foo)")]
         [InlineData(@"T: 'is'(X,float(3)), X=3.0")]
-
         public void Is(string test)
         {
             test.Evaluate();
@@ -523,7 +479,6 @@ namespace CSPrologTest
         [InlineData(@"T: foo=Foo,nonvar(Foo), Foo=foo")]
         [InlineData(@"F: nonvar(_)")]
         [InlineData(@"T: nonvar(a(b))")]
-
         public void NoVar(string test)
         {
             test.Evaluate();
@@ -537,7 +492,6 @@ namespace CSPrologTest
         [InlineData(@"R: \+(3)")]
         [InlineData(@"T: \+((!,fail))")]
         [InlineData(@"R: \+(X)")]
-
         public void NotProvable(string test)
         {
             test.Evaluate();
@@ -565,7 +519,6 @@ namespace CSPrologTest
         [InlineData(@"T: number(-3)")]
         [InlineData(@"F: number(a)")]
         [InlineData(@"F: number(X)")]
-
         public void Number(string test)
         {
             test.Evaluate();
@@ -578,7 +531,6 @@ namespace CSPrologTest
         [InlineData(@"F: once(fail)")]
         [InlineData(@"R: once(3)")]
         [InlineData(@"R: once(X)")]
-
         public void Once(string test)
         {
             test.Evaluate();
@@ -590,7 +542,6 @@ namespace CSPrologTest
         [InlineData(@"R: (!; call(3))")]
         [InlineData(@"T: ((X=1, !); X=2), X=1")]
         [InlineData(@"T: (X=1; X=2)")]
-
         public void Or(string test)
         {
             test.Evaluate();
@@ -598,8 +549,6 @@ namespace CSPrologTest
 
         [Theory]
         [InlineData(@"F: repeat,!,fail")]
-
-
         public void Repeat(string test)
         {
             test.Evaluate();
@@ -608,7 +557,6 @@ namespace CSPrologTest
         [Theory]
         [InlineData(@"F: retract((4 :- X))")]
         [InlineData(@"F: retract((atom(_) :- X == '[]'))")]
-
         public void Retract(string test)
         {
             test.Evaluate();
@@ -629,8 +577,6 @@ namespace CSPrologTest
         [InlineData(@"T: setof(X, (X = Y; X=Z;Y=1),L), (L=[Y,Z]; (L=[_],Y=1))")]
         [InlineData(@"R: setof(X, X ^ (true; 4), L)")]
         [InlineData(@"R: setof(X, 1, L)")]
-
-
         public void Setof(string test)
         {
             test.Evaluate();
@@ -645,7 +591,6 @@ namespace CSPrologTest
         [InlineData(@"T: '\=='(_, _)")]
         [InlineData(@"T: '\=='(X, a(X))")]
         [InlineData(@"F: '\=='(f(a), f(a))")]
-
         public void TermDiff(string test)
         {
             test.Evaluate();
@@ -660,7 +605,6 @@ namespace CSPrologTest
         [InlineData(@"F: '=='(_, _)")]
         [InlineData(@"F: '=='(X, a(X))")]
         [InlineData(@"T: '=='(f(a), f(a))")]
-
         public void TermEq(string test)
         {
             test.Evaluate();
@@ -674,7 +618,6 @@ namespace CSPrologTest
         [InlineData(@"T: '@>'(foo(b), foo(a))")]
         [InlineData(@"F: '@>'(X, X)")]
         [InlineData(@"F: '@>'(foo(a, X), foo(b, Y))")]
-
         [InlineData(@"T: '@>='(1.0,1)")]
         [InlineData(@"F: '@>='(aardvark, zebra)")]
         [InlineData(@"T: '@>='(short, short)")]
@@ -682,7 +625,6 @@ namespace CSPrologTest
         [InlineData(@"T: '@>='(foo(b), foo(a))")]
         [InlineData(@"T: '@>='(X, X)")]
         [InlineData(@"F: '@>='(foo(a, X), foo(b, Y))")]
-
         public void TermGt(string test)
         {
             test.Evaluate();
@@ -696,7 +638,6 @@ namespace CSPrologTest
         [InlineData(@"F: '@<'(foo(b), foo(a))")]
         [InlineData(@"F: '@<'(X, X)")]
         [InlineData(@"T: '@<'(foo(a, X), foo(b, Y))")]
-
         [InlineData(@"T: '@=<'(1.0,1)")]
         [InlineData(@"T: '@=<'(aardvark, zebra)")]
         [InlineData(@"T: '@=<'(short, short)")]
@@ -704,7 +645,6 @@ namespace CSPrologTest
         [InlineData(@"F: '@=<'(foo(b), foo(a))")]
         [InlineData(@"T: '@=<'(X, X)")]
         [InlineData(@"T: '@=<'(foo(a, X), foo(b, Y))")]
-
         public void TermLt(string test)
         {
             test.Evaluate();
@@ -712,7 +652,6 @@ namespace CSPrologTest
 
         [Theory]
         [InlineData(@"T: true")]
-
         public void True(string test)
         {
             test.Evaluate();
@@ -730,8 +669,8 @@ namespace CSPrologTest
         [InlineData(@"F: '='(g(X), f(f(X)))")]
         [InlineData(@"F: '='(f(X, 1), f(a(X)))")]
         [InlineData(@"F: '='(f(X, Y, X), f(a(X), a(Y), Y, 2))")]
-        [InlineData(@"T: '='(f(A, B, C), f(g(B, B), g(C, C), g(D, D))), A=g(g(g(D, D), g(D, D)), g(g(D, D), g(D, D))), B=g(g(D, D), g(D, D)), C=g(D, D)")]
-
+        [InlineData(
+            @"T: '='(f(A, B, C), f(g(B, B), g(C, C), g(D, D))), A=g(g(g(D, D), g(D, D)), g(g(D, D), g(D, D))), B=g(g(D, D), g(D, D)), C=g(D, D)")]
         public void Unify(string test)
         {
             test.Evaluate();

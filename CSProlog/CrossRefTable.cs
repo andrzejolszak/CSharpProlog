@@ -1,9 +1,8 @@
+using System;
+using System.Collections.Generic;
+
 namespace Prolog
 {
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-
     /* _______________________________________________________________________________________________
       |                                                                                               |
       |  C#Prolog -- Copyright (C) 2007-2014 John Pool -- j.pool@ision.nl                             |
@@ -29,9 +28,7 @@ namespace Prolog
         // Direct calls have an entry value 'false', indirect calls an entry value 'true'.
         public class CrossRefTable : Dictionary<Tuple<PredicateDescr, PredicateDescr>, bool?>
         {
-            public Dictionary<PredicateDescr, List<PredicateDescr>> ReverseDirectRefIndex;
-            private List<PredicateDescr> axis; // predicate names sorted alphabetically
-            private int dimension => axis.Count;
+            private readonly List<PredicateDescr> axis; // predicate names sorted alphabetically
             private bool? result;
 
             public CrossRefTable()
@@ -40,23 +37,9 @@ namespace Prolog
                 ReverseDirectRefIndex = new Dictionary<PredicateDescr, List<PredicateDescr>>();
             }
 
+            public Dictionary<PredicateDescr, List<PredicateDescr>> ReverseDirectRefIndex { get; }
 
-            public void Reset()
-            {
-                Clear();
-                axis.Clear();
-                ReverseDirectRefIndex.Clear();
-            }
-
-
-            public void AddPredicate(PredicateDescr pd)
-            {
-                // add predicate only if not already present
-                int i = axis.BinarySearch(pd);
-
-                if (i < 0) axis.Insert(~i, pd); // keep range sorted
-            }
-
+            private int dimension => axis.Count;
 
             // used only when registering the direct calls, not for the closure (indirect calls)
             public bool? this[PredicateDescr row, PredicateDescr col]
@@ -75,7 +58,10 @@ namespace Prolog
 
                 get
                 {
-                    if (TryGetValue(CompoundKey(row, col), out result)) return result;
+                    if (TryGetValue(CompoundKey(row, col), out result))
+                    {
+                        return result;
+                    }
 
                     return null;
                 }
@@ -91,17 +77,40 @@ namespace Prolog
 
                     // do not overwrite 'false', as this would hide the fact that a direct call exists
                     if (!TryGetValue(key, out result))
+                    {
                         this[key] = true;
+                    }
                 }
 
                 get
                 {
-                    if (TryGetValue(CompoundKey(axis[i], axis[j]), out result)) return result;
+                    if (TryGetValue(CompoundKey(axis[i], axis[j]), out result))
+                    {
+                        return result;
+                    }
 
                     return null;
                 }
             }
-            
+
+            public void Reset()
+            {
+                Clear();
+                axis.Clear();
+                ReverseDirectRefIndex.Clear();
+            }
+
+            public void AddPredicate(PredicateDescr pd)
+            {
+                // add predicate only if not already present
+                int i = axis.BinarySearch(pd);
+
+                if (i < 0)
+                {
+                    axis.Insert(~i, pd); // keep range sorted
+                }
+            }
+
             // Warshall algorithm -- Journal of the ACM, Jan. 1962, pp. 11-12
             // This algorithm calculates the indirect calls.
             public void CalculateClosure()
@@ -110,55 +119,79 @@ namespace Prolog
 
                 for (i = 0; i < dimension; i++)
                     for (j = 0; j < dimension; j++)
+                    {
                         if (this[j, i] != null)
+                        {
                             for (k = 0; k < dimension; k++)
+                            {
                                 if (this[i, k] != null)
+                                {
                                     this[j, k] = true; // 'true' to indicate entry is indirect call (result of closure)
+                                }
+                            }
+                        }
+                    }
             }
 
             private Tuple<PredicateDescr, PredicateDescr> CompoundKey(PredicateDescr row, PredicateDescr col)
             {
-                return Tuple.Create<PredicateDescr, PredicateDescr>(row, col);
+                return Tuple.Create(row, col);
             }
         }
-        
+
         public partial class PredicateDescr : IComparable<PredicateDescr>
         {
             public int CompareTo(PredicateDescr pd)
             {
                 int result = Functor.CompareTo(pd.Functor);
 
-                if (result == 0) return Arity.CompareTo(pd.Arity);
+                if (result == 0)
+                {
+                    return Arity.CompareTo(pd.Arity);
+                }
 
                 return result;
             }
 
             protected bool Equals(PredicateDescr other)
             {
-                return string.Equals(functor, other.functor) && arity == other.arity && IsPredefined == other.IsPredefined && string.Equals(Module, other.Module) && string.Equals(DefinitionFile, other.DefinitionFile);
+                return string.Equals(Functor, other.Functor) && Arity == other.Arity &&
+                       IsPredefined == other.IsPredefined && string.Equals(Module, other.Module) &&
+                       string.Equals(DefinitionFile, other.DefinitionFile);
             }
 
             public override bool Equals(object obj)
             {
-                if (ReferenceEquals(null, obj)) return false;
-                if (ReferenceEquals(this, obj)) return true;
-                if (obj.GetType() != this.GetType()) return false;
-                return Equals((PredicateDescr) obj);
+                if (ReferenceEquals(null, obj))
+                {
+                    return false;
+                }
+
+                if (ReferenceEquals(this, obj))
+                {
+                    return true;
+                }
+
+                if (obj.GetType() != GetType())
+                {
+                    return false;
+                }
+
+                return Equals((PredicateDescr)obj);
             }
 
             public override int GetHashCode()
             {
                 unchecked
                 {
-                    var hashCode = (functor != null ? functor.GetHashCode() : 0);
-                    hashCode = (hashCode*397) ^ arity;
-                    hashCode = (hashCode*397) ^ IsPredefined.GetHashCode();
-                    hashCode = (hashCode*397) ^ (Module != null ? Module.GetHashCode() : 0);
-                    hashCode = (hashCode*397) ^ (DefinitionFile != null ? DefinitionFile.GetHashCode() : 0);
+                    int hashCode = Functor != null ? Functor.GetHashCode() : 0;
+                    hashCode = (hashCode * 397) ^ Arity;
+                    hashCode = (hashCode * 397) ^ IsPredefined.GetHashCode();
+                    hashCode = (hashCode * 397) ^ (Module != null ? Module.GetHashCode() : 0);
+                    hashCode = (hashCode * 397) ^ (DefinitionFile != null ? DefinitionFile.GetHashCode() : 0);
                     return hashCode;
                 }
             }
         }
-        
     }
 }

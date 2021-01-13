@@ -1,6 +1,6 @@
 using System;
-using Xunit;
 using Prolog;
+using Xunit;
 
 namespace CSPrologTest
 {
@@ -9,7 +9,7 @@ namespace CSPrologTest
         [Fact]
         public void ConsultFromString_GetOneSolution()
         {
-            var prolog = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine prolog = new PrologEngine(false);
 
             // 'socrates' is human.
             prolog.ConsultFromString("human(socrates).");
@@ -19,18 +19,18 @@ namespace CSPrologTest
             prolog.ConsultFromString("mortal(X) :- human(X).");
 
             // Question: Shall 'socrates' die?
-            var solution1 = prolog.GetFirstSolution(query: "mortal(socrates).");
+            PrologEngine.ISolution solution1 = prolog.GetFirstSolution("mortal(socrates).");
             Assert.True(solution1.Solved); // = "True" (Yes)
 
             // Question: Shall 'R2-D2' die?
-            var solution2 = prolog.GetFirstSolution(query: "mortal(r2d2).");
+            PrologEngine.ISolution solution2 = prolog.GetFirstSolution("mortal(r2d2).");
             Assert.False(solution2.Solved); // = "False" (No)
         }
 
         [Fact]
         public void ConsultFromString_GetAllSolutions_Adhoc()
         {
-            var prolog = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine prolog = new PrologEngine(false);
 
             // 'socrates' is human.
             prolog.ConsultFromString("human(socrates).");
@@ -39,19 +39,19 @@ namespace CSPrologTest
             // human is bound to die.
             prolog.ConsultFromString("mortal(X) :- human(X).");
 
-            prolog.GetFirstSolution(query: "listing.");
+            prolog.GetFirstSolution("listing.");
 
             SolutionSet solutionset1 = prolog.GetAllSolutions(null, "human(H)");
 
             Assert.True(solutionset1.Success);
             if (solutionset1.Success)
             {
-                var s = solutionset1[0];
+                Solution s = solutionset1[0];
                 foreach (Variable v in s.NextVariable)
-                    Console.WriteLine(string.Format("{0} ({1}) = {2}", v.Name, v.Type, v.Value));
-
+                {
+                    Console.WriteLine("{0} ({1}) = {2}", v.Name, v.Type, v.Value);
+                }
             }
-
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System;
-using Xunit;
+﻿using Xunit;
 using Xunit.Abstractions;
 
 namespace CSPrologTest
@@ -10,30 +9,30 @@ namespace CSPrologTest
 
         public TestScenarios(ITestOutputHelper output)
         {
-            this._output = output;
+            _output = output;
         }
 
         [Theory]
         [InlineData("a :- true.", "a")]
         [InlineData("a :- X=2.", "a")]
-        [InlineData( "a :- 1=2.", "\\+a")]
+        [InlineData("a :- 1=2.", "\\+a")]
         [InlineData("a :- b, c, d. b. c:-true. d:-2=2.", "a")]
         [InlineData("a(X) :- X=2.", "a(2)")]
-        [InlineData( "a :- X=2, b(X). b(X) :- X=2.", "a")]
-        [InlineData( "a :- b(X), X=2. b(X) :- X=2.", "a")]
-        [InlineData( "a :- X=1, b(X). b(X) :- X=2.", "\\+a")]
-        [InlineData( "a :- b(X), X=1. b(X) :- X=2.", "\\+a")]
+        [InlineData("a :- X=2, b(X). b(X) :- X=2.", "a")]
+        [InlineData("a :- b(X), X=2. b(X) :- X=2.", "a")]
+        [InlineData("a :- X=1, b(X). b(X) :- X=2.", "\\+a")]
+        [InlineData("a :- b(X), X=1. b(X) :- X=2.", "\\+a")]
         [InlineData("a(X) :- X=2.", "\\+a(1)")]
         [InlineData("a :- \\+ fail.", "a")]
         [InlineData("a :- fail.", "\\+a")]
         [InlineData("a :- X=2, X=3.", "\\+a")]
         [InlineData("a :- b(X), c(X). b(X) :- X=3. c(X) :- X=2.", "\\+a")]
         [InlineData("a :- b(2), b(3). b(X) :- Y=X.", "a")]
-        [InlineData( "a :- b(2, Y), b(3, Z), Y=Z. b(X, Y) :- Y=X.", "\\+a")]
+        [InlineData("a :- b(2, Y), b(3, Z), Y=Z. b(X, Y) :- Y=X.", "\\+a")]
         [InlineData("a :- b(3, Y), b(3, Z), Y=Z. b(X, Y) :- Y=X.", "a")]
         public void TrivialCases(string test, string query)
         {
-            query.True(consult: test);
+            query.True(test);
         }
 
         [Theory]
@@ -47,9 +46,9 @@ namespace CSPrologTest
         [InlineData("a :- nonvar(1).", "a")]
         [InlineData("a :- X = 2, var(X).", "\\+a")]
         [InlineData("a :- X = Y, var(X).", "a")]
-        public void BuiltIns( string test, string query)
+        public void BuiltIns(string test, string query)
         {
-            query.True(consult: test);
+            query.True(test);
         }
 
         [Theory]

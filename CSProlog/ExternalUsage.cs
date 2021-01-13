@@ -3,35 +3,25 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace Prolog
 {
-        public class SolutionSet
+    public class SolutionSet
     {
-        public bool Success { get; internal set; }
-
-        public string ErrMsg { get; internal set; }
-
-        public bool HasError => ErrMsg != null;
-
-        private List<Solution> solutionSet;
-        
-        public List<PrologEngine.RuntimeException> Errors { get; } = new List<PrologEngine.RuntimeException>();
-
+        private readonly List<Solution> solutionSet;
         private Solution currVarSet;
 
         public SolutionSet()
@@ -40,6 +30,16 @@ namespace Prolog
             Success = false;
             ErrMsg = null;
         }
+
+        public bool Success { get; internal set; }
+
+        public string ErrMsg { get; internal set; }
+
+        public bool HasError => ErrMsg != null;
+
+        public List<PrologEngine.RuntimeException> Errors { get; } = new List<PrologEngine.RuntimeException>();
+
+        public Solution this[int i] => solutionSet[i];
 
         internal void CreateVarSet()
         {
@@ -52,44 +52,41 @@ namespace Prolog
             Success = true;
         }
 
-        public Solution this[int i] => solutionSet[i];
-
         public override string ToString()
         {
             if (ErrMsg != null)
+            {
                 return ErrMsg;
+            }
 
             if (Success)
             {
                 if (solutionSet.Count == 0)
-                    return "yes";
-                else
                 {
-                    StringBuilder sb = new StringBuilder();
-                    int i = 0;
-                    foreach (Solution s in solutionSet)
-                        sb.AppendLine("Solution {0}:\r\n{1}", ++i, s.ToString());
-
-                    return sb.ToString();
+                    return "yes";
                 }
+
+                StringBuilder sb = new StringBuilder();
+                int i = 0;
+                foreach (Solution s in solutionSet)
+                {
+                    sb.AppendLine("Solution {0}:\r\n{1}", ++i, s.ToString());
+                }
+
+                return sb.ToString();
             }
-            else
-                return "no";
+
+            return "no";
         }
     }
-    
-        public class Solution // a solution is a set of variables
+
+    public class Solution // a solution is a set of variables
     {
-        private List<Variable> variables;
+        private readonly List<Variable> variables;
 
         public Solution()
         {
             variables = new List<Variable>();
-        }
-
-        internal void Add(string name, string type, string value)
-        {
-            variables.Add(new Variable(name, type, value));
         }
 
         public IEnumerable<Variable> NextVariable
@@ -97,8 +94,15 @@ namespace Prolog
             get
             {
                 foreach (Variable v in variables)
+                {
                     yield return v;
+                }
             }
+        }
+
+        internal void Add(string name, string type, string value)
+        {
+            variables.Add(new Variable(name, type, value));
         }
 
         public override string ToString()
@@ -106,31 +110,33 @@ namespace Prolog
             StringBuilder sb = new StringBuilder();
 
             foreach (Variable v in variables)
+            {
                 sb.AppendLine(v.ToString());
+            }
 
             return sb.ToString();
         }
     }
-    
-        public class Variable
+
+    public class Variable
     {
+        public Variable(string name, string type, string value)
+        {
+            Name = name;
+            Type = type;
+            Value = value;
+        }
+
         public string Name { get; }
         public string Type { get; }
         public string Value { get; }
-
-        public Variable(string name, string type, string value)
-        {
-            this.Name = name;
-            this.Type = type;
-            this.Value = value;
-        }
 
         public override string ToString()
         {
             return $"{Name} ({Type}) = {Value}";
         }
     }
-    
+
     public partial class PrologEngine
     {
         // Store solutions in an GetAllSolutions class
@@ -141,21 +147,24 @@ namespace Prolog
 
         public SolutionSet GetAllSolutions(string sourceFileName, string query, int maxSolutionCount)
         {
-            error = false;
+            Error = false;
             Halted = false;
 
             SolutionSet solutions = new SolutionSet();
 
             try
             {
-                if (sourceFileName != null) Consult(sourceFileName);
+                if (sourceFileName != null)
+                {
+                    Consult(sourceFileName);
+                }
 
                 Query = query + (query.EndsWith(".") ? null : "."); // append a dot if necessary
                 int i = 0;
                 bool found = false;
                 bool varFound = false;
 
-                foreach (PrologEngine.Solution s in SolutionIterator)
+                foreach (Solution s in SolutionIterator)
                 {
                     if (Error)
                     {
@@ -168,15 +177,21 @@ namespace Prolog
 
                         break;
                     }
-                    else if (!found && !s.Solved)
+
+                    if (!found && !s.Solved)
+                    {
                         break;
+                    }
 
                     solutions.Success = true;
                     bool firstVar = true;
 
-                    foreach (PrologEngine.IVarValue varValue in s.VarValuesIterator)
+                    foreach (IVarValue varValue in s.VarValuesIterator)
                     {
-                        if (varValue.DataType == "none") break;
+                        if (varValue.DataType == "none")
+                        {
+                            break;
+                        }
 
                         if (firstVar)
                         {
@@ -188,7 +203,10 @@ namespace Prolog
                         varFound = true;
                     }
 
-                    if (++i == maxSolutionCount || !varFound) break;
+                    if (++i == maxSolutionCount || !varFound)
+                    {
+                        break;
+                    }
 
                     found = true;
                 }

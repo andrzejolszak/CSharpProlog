@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Prolog;
 using Xunit;
 using static Prolog.PrologEngine;
@@ -12,7 +13,7 @@ namespace CSPrologTest
 
     public static class PrologSourceStringExtensions
     {
-        private static string Dynamics = @"
+        private static readonly string Dynamics = @"
 :- fail_if_undefined( nofoo/1 ).
 :- fail_if_undefined( undef_pred/0 ).
 :- fail_if_undefined( '\='/2 ).
@@ -24,22 +25,23 @@ namespace CSPrologTest
 %:- dynamic( foo/2 ).
 ";
 
-        public static PredicateDescr CanParse(this string consult, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        public static PredicateDescr CanParse(this string consult, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine e = new PrologEngine(false);
             e.ConsultFromString(Dynamics + consult);
             return e.PredTable.Predicates.Where(x => !x.Value.IsPredefined).FirstOrDefault().Value;
         }
 
-        public static void True(this string query, string consult = null, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        public static void True(this string query, string consult = null, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine e = new PrologEngine(false);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
-            Assert.True(!ss.HasError && ss.Success, $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
+            Assert.True(!ss.HasError && ss.Success,
+                $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
 
             if (consult == null)
             {
@@ -47,19 +49,21 @@ namespace CSPrologTest
                 e.ConsultFromString(Dynamics + "test :- " + query + ".");
                 ss = e.GetAllSolutions(null, "test", 0);
 
-                Assert.True(!ss.HasError && ss.Success, $"test NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                Assert.True(!ss.HasError && ss.Success,
+                    $"test NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
             }
         }
 
-        public static void False(this string query, string consult = null, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        public static void False(this string query, string consult = null, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine e = new PrologEngine(false);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
-            Assert.True(!ss.HasError && !ss.Success, $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+            Assert.True(!ss.HasError && !ss.Success,
+                $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
 
             if (consult == null)
             {
@@ -68,19 +72,22 @@ namespace CSPrologTest
 
                 ss = e.GetAllSolutions(null, "test", 0);
 
-                Assert.True(!ss.HasError && !ss.Success, $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                Assert.True(!ss.HasError && !ss.Success,
+                    $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
             }
         }
 
-        public static void Error(this string query, string consult = null, bool newGen = false, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0)
+        public static void Error(this string query, string consult = null, bool newGen = false,
+            [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(persistentCommandHistory: false);
+            PrologEngine e = new PrologEngine(false);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 0);
 
-            Assert.True(ss.HasError && !ss.Success, $"{query} NOT ERROR @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+            Assert.True(ss.HasError && !ss.Success,
+                $"{query} NOT ERROR @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
         }
 
         public static void Evaluate(this string test)

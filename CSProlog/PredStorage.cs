@@ -1,16 +1,17 @@
 //#define arg1index // if (un)defined, do the same in TermNodeList.cs !!!
+
 #define enableSpying
 /*-----------------------------------------------------------------------------------------
 
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
@@ -30,23 +31,18 @@ namespace Prolog
 
         public class PredicateTable
         {
-            private PrologEngine engine;
-            public Dictionary<string, PredicateDescr> Predicates;
-            public List<BaseTerm> AllConsultedTerms { get; set; }
-            private Dictionary<string, string> moduleName;
-            private Dictionary<string, string> definedInCurrFile;
-            private Dictionary<string, string> isDiscontiguous;
-            private Dictionary<string, UndefAction> actionWhenUndefined; // currently not used
-            public CrossRefTable CrossRefTable;
-            private bool crossRefInvalid;
-            private string prevIndex = null;
-            private bool allDiscontiguous = false;
             // True if a predicate's clauses are not grouped together but are scattered
             // over a source file. Should normally not be used (used for code from others).
             private const string SLASH = "/";
-            public HashSet<string> Predefined { get; }
-            public Stack<string> consultFileStack;
-            public string ConsultFileName => (consultFileStack.Count == 0) ? null : consultFileStack.Peek();
+
+            private readonly Dictionary<string, UndefAction> actionWhenUndefined; // currently not used
+            private readonly Dictionary<string, string> definedInCurrFile;
+            private readonly PrologEngine engine;
+            private readonly Dictionary<string, string> isDiscontiguous;
+            private readonly Dictionary<string, string> moduleName;
+            private bool allDiscontiguous;
+            private bool crossRefInvalid;
+            private string prevIndex;
 
             public PredicateTable(PrologEngine engine)
             {
@@ -59,23 +55,17 @@ namespace Prolog
                 definedInCurrFile = new Dictionary<string, string>();
                 isDiscontiguous = new Dictionary<string, string>();
                 actionWhenUndefined = new Dictionary<string, UndefAction>();
-                consultFileStack = new Stack<string>();
+                ConsultFileStack = new Stack<string>();
                 AllConsultedTerms = new List<BaseTerm>();
             }
 
+            public Stack<string> ConsultFileStack { get; }
+            public CrossRefTable CrossRefTable { get; }
+            public Dictionary<string, PredicateDescr> Predicates { get; }
 
-            public void Reset()
-            {
-                Predicates.Clear();
-                Predefined.Clear();
-                moduleName.Clear();
-                definedInCurrFile.Clear();
-                isDiscontiguous.Clear();
-                actionWhenUndefined.Clear();
-                prevIndex = null;
-                consultFileStack.Clear();
-            }
-
+            public List<BaseTerm> AllConsultedTerms { get; set; }
+            public HashSet<string> Predefined { get; }
+            public string ConsultFileName => ConsultFileStack.Count == 0 ? null : ConsultFileStack.Peek();
 
             public PredicateDescr this[string key]
             {
@@ -86,30 +76,35 @@ namespace Prolog
 
                     return result;
                 }
-                set
-                {
-                    Predicates[key] = value;
-                }
+                set => Predicates[key] = value;
             }
 
+            public void Reset()
+            {
+                Predicates.Clear();
+                Predefined.Clear();
+                moduleName.Clear();
+                definedInCurrFile.Clear();
+                isDiscontiguous.Clear();
+                actionWhenUndefined.Clear();
+                prevIndex = null;
+                ConsultFileStack.Clear();
+            }
 
             public bool IsPredefined(string key)
             {
                 return Predefined.Contains(key);
             }
 
-
             public void InvalidateCrossRef()
             {
                 crossRefInvalid = true;
             }
 
-
             public void SetActionWhenUndefined(string f, int a, UndefAction u)
             {
                 actionWhenUndefined[BaseTerm.MakeKey(f, a)] = u;
             }
-
 
             public UndefAction ActionWhenUndefined(string f, int a)
             {
@@ -119,10 +114,9 @@ namespace Prolog
                 return u;
             }
 
-
             public bool IsPredicate(string functor, int arity)
             {
-                return this.Contains(BaseTerm.MakeKey(functor, arity));
+                return Contains(BaseTerm.MakeKey(functor, arity));
             }
 
             private PredicateDescr SetClauseList(string f, int a, ClauseNode c)
@@ -133,22 +127,22 @@ namespace Prolog
                 if (pd == null)
                 {
                     this[key] = pd =
-                   new PredicateDescr(null, ConsultFileName, f, a, c);
+                        new PredicateDescr(null, ConsultFileName, f, a, c);
                 }
                 else
+                {
                     pd.SetClauseListHead(c);
+                }
 
                 pd.AdjustClauseListEnd();
 
                 return pd;
             }
 
-
             public bool Contains(string key)
             {
-                return (this[key] != null);
+                return this[key] != null;
             }
-
 
             public override string ToString()
             {
@@ -163,44 +157,44 @@ namespace Prolog
             public int Consult(Stream stream, string streamName = null)
             {
                 // string as ISO-style charcode lists or as C# strings
-                var fileName = streamName ?? Guid.NewGuid().ToString("N");
-                consultFileStack.Push(fileName);
+                string fileName = streamName ?? Guid.NewGuid().ToString("N");
+                ConsultFileStack.Push(fileName);
                 PrologParser parser = new PrologParser(engine);
                 allDiscontiguous = false;
 
-                    prevIndex = null;
-                    definedInCurrFile.Clear();
-                    isDiscontiguous.Clear();
-                    //Globals.ConsultModuleName = null;
-                    parser.Prefix = "&program\r\n";
-                    IO.Write("--- Consulting {0} ... ", fileName);
-                    parser.LoadFromStream(stream, fileName);
-                    IO.WriteLine("{0} lines read", parser.LineCount);
-                    InvalidateCrossRef();
+                prevIndex = null;
+                definedInCurrFile.Clear();
+                isDiscontiguous.Clear();
+                //Globals.ConsultModuleName = null;
+                parser.Prefix = "&program\r\n";
+                IO.Write("--- Consulting {0} ... ", fileName);
+                parser.LoadFromStream(stream, fileName);
+                IO.WriteLine("{0} lines read", parser.LineCount);
+                InvalidateCrossRef();
 
-                    // Adjust node list ends and populate AllConsultedTerms
-                    foreach (var pred in this.Predicates.Values)
+                // Adjust node list ends and populate AllConsultedTerms
+                foreach (PredicateDescr pred in Predicates.Values)
+                {
+                    pred.AdjustNodeListEnd();
+
+                    if (pred.IsPredefined)
                     {
-                        pred.AdjustNodeListEnd();
-
-                        if (pred.IsPredefined)
-                        {
-                            continue;
-                        }
-
-                        TermNode node = pred.ClauseList;
-                        while (node != null)
-                        {
-                            if (node.Term != null)
-                            {
-                                AllConsultedTerms.AddRange(node.Term.GetArgumentsRecursive());
-                            }
-
-                            node = node.NextNode;
-                        }
+                        continue;
                     }
 
-                    SetupCrossRefTable();
+                    TermNode node = pred.ClauseList;
+                    while (node != null)
+                    {
+                        if (node.Term != null)
+                        {
+                            AllConsultedTerms.AddRange(node.Term.GetArgumentsRecursive());
+                        }
+
+                        node = node.NextNode;
+                    }
+                }
+
+                SetupCrossRefTable();
 
                 return parser.LineCount;
             }
@@ -217,18 +211,24 @@ namespace Prolog
                     SetClauseList(head.FunctorToString, head.Arity, clause); // create a PredicateDescr
                 }
                 else if (prevIndex != null && key != prevIndex)
-                    IO.ErrorRuntime($"Definition for predefined predicate '{head.Index}' must be contiguous", null, clause.Term);
+                {
+                    IO.ErrorRuntime($"Definition for predefined predicate '{head.Index}' must be contiguous", null,
+                        clause.Term);
+                }
                 else
+                {
                     pd.AppendToClauseList(clause);
+                }
 
                 prevIndex = key;
             }
 
-
             public void SetDiscontiguous(BaseTerm t)
             {
                 if (t == null || t.FunctorToString != SLASH || !t.Arg(0).IsAtom || !t.Arg(1).IsInteger)
-                    IO.ErrorConsult( "Illegal or missing argument '{0}' for discontiguous/1", t);
+                {
+                    IO.ErrorConsult("Illegal or missing argument '{0}' for discontiguous/1", t);
+                }
 
                 // The predicate descriptor does not yet exist (and may even not come at all!)
                 string key = BaseTerm.MakeKey(t.Arg(0).FunctorToString, t.Arg(1).To<short>());
@@ -237,14 +237,13 @@ namespace Prolog
                 isDiscontiguous[key] = "true";
             }
 
-
             public void SetDiscontiguous(bool mode)
             {
                 allDiscontiguous = mode;
             }
 
-
-            public void HandleSimpleDirective(PrologParser p, Symbol symbol, string directive, string argument, int arity)
+            public void HandleSimpleDirective(PrologParser p, Symbol symbol, string directive, string argument,
+                int arity)
             {
                 //IO.WriteLine ("HandleSimpleDirective ({0}, {1}, {2})", directive, argument, arity);
 
@@ -253,23 +252,33 @@ namespace Prolog
                     case "fail_if_undefined":
                         SetActionWhenUndefined(argument, arity, UndefAction.Fail);
                         break;
+
                     case "stacktrace":
                         if (argument == "on")
-                            engine.userSetShowStackTrace = true;
+                        {
+                            engine.UserSetShowStackTrace = true;
+                        }
                         else if (argument == "off")
-                            engine.userSetShowStackTrace = false;
+                        {
+                            engine.UserSetShowStackTrace = false;
+                        }
                         else
-                            IO.ErrorConsult($":- stacktrace: illegal argument '{argument}'; use 'on' or 'off' instead", symbol);
+                        {
+                            IO.ErrorConsult($":- stacktrace: illegal argument '{argument}'; use 'on' or 'off' instead",
+                                symbol);
+                        }
+
                         break;
+
                     case "initialization":
                         IO.Warning("':- initialization' directive not implemented -- ignored");
                         break;
+
                     default:
                         IO.ErrorConsult($"\r\nUnknown directive ':- {directive}'", symbol);
                         break;
                 }
             }
-
 
             public void SetModuleName(string n, Symbol symbol)
             {
@@ -281,10 +290,12 @@ namespace Prolog
                     moduleName[n] = currFile;
                     // ConsultModuleName = null;
                 }
-                else if ((string)o != currFile)
+                else if (o != currFile)
+                {
                     IO.ErrorConsult(string.Format($"Module name {n} already declared in file {o}", n), symbol);
+                }
 
-                // ACTUAL FUNCTIONALITY TO BE IMPLEMENTED, using a 
+                // ACTUAL FUNCTIONALITY TO BE IMPLEMENTED, using a
                 // ConsultModuleName stack, analoguous to ConsultFileName
             }
 
@@ -296,7 +307,9 @@ namespace Prolog
                 string index = head.Index;
 
                 if (Predefined.Contains(key))
+                {
                     IO.ErrorConsult($"Modification of predefined predicate {index} not allowed", clause?.Term?.Symbol);
+                }
 
                 if (prevIndex == key) // previous clause was for the same predicate
                 {
@@ -307,45 +320,66 @@ namespace Prolog
                 {
                     PredicateDescr pd = this[key];
 
-                    if (!definedInCurrFile.ContainsKey(key)) //  very first clause of this predicate in this file -- reset at start of consult
+                    if (!definedInCurrFile.ContainsKey(key)
+                    ) //  very first clause of this predicate in this file -- reset at start of consult
                     {
                         if (pd != null && pd.DefinitionFile != ConsultFileName)
-                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}", clause.Term);
+                        {
+                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
+                                clause.Term);
+                        }
 
                         definedInCurrFile[key] = "true";
-                        pd = SetClauseList(head.FunctorToString, head.Arity, clause); // implicitly erases all previous definitions
+                        pd = SetClauseList(head.FunctorToString, head.Arity,
+                            clause); // implicitly erases all previous definitions
                         pd.IsDiscontiguous = isDiscontiguous.ContainsKey(key) || allDiscontiguous;
                         prevIndex = key;
                     }
                     else // not the first clause. First may be from another definitionFile (which is an error).
-                    {    // If from same, IsDiscontiguous must hold, unless DiscontiguousAllowed = "1" in .config
+                    {
+                        // If from same, IsDiscontiguous must hold, unless DiscontiguousAllowed = "1" in .config
                         bool b = false;
 
                         if (pd.IsDiscontiguous || (b = true))
                         {
                             if (b)
-                                IO.Warning($"Predicate '{index}' is defined discontiguously but is not declared as such", clause.Term);
+                            {
+                                IO.Warning(
+                                    $"Predicate '{index}' is defined discontiguously but is not declared as such",
+                                    clause.Term);
+                            }
 
                             if (pd.DefinitionFile == ConsultFileName)
+                            {
                                 pd.AppendToClauseList(clause);
+                            }
                             else // OK
-                                IO.ErrorConsult($"Discontiguous predicate {index} must be in one file (also found in {pd.DefinitionFile})", clause.Term);
+                            {
+                                IO.ErrorConsult(
+                                    $"Discontiguous predicate {index} must be in one file (also found in {pd.DefinitionFile})",
+                                    clause.Term);
+                            }
                         }
                         else if (pd.DefinitionFile == ConsultFileName) // Warning or Error?
-                            IO.Warning($"Predicate '{index}' occurs discontiguously but is not declared as such", clause.Term);
+                        {
+                            IO.Warning($"Predicate '{index}' occurs discontiguously but is not declared as such",
+                                clause.Term);
+                        }
                         else
-                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}", clause.Term);
+                        {
+                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
+                                clause.Term);
+                        }
                     }
                 }
             }
-
 
             public void Assert(BaseTerm assertion, bool asserta)
             {
                 BaseTerm head;
                 TermNode body = null;
                 PredicateDescr pd;
-                BaseTerm assertionCopy = assertion.Copy(true, engine.varStack);
+                BaseTerm assertionCopy = assertion.Copy(true, engine.CurrVarStack);
 
                 if (assertionCopy.HasFunctor(PrologParser.IMPLIES))
                 {
@@ -353,15 +387,23 @@ namespace Prolog
                     body = assertionCopy.Arg(1).ToGoalList();
                 }
                 else
+                {
                     head = assertionCopy;
+                }
 
-                if (!head.IsCallable) IO.ErrorRuntime($"Illegal predicate head '{head}'", null, assertion);
+                if (!head.IsCallable)
+                {
+                    IO.ErrorRuntime($"Illegal predicate head '{head}'", null, assertion);
+                }
 
                 string key = head.Key;
 
-                if ((Predefined.Contains(key)) || (head.Precedence >= 1000))
+                if (Predefined.Contains(key) || head.Precedence >= 1000)
+                {
                     IO.ErrorRuntime(
-                        $"assert/1 cannot be applied to predefined predicate or operator '{assertionCopy.Index}'", null, assertion);
+                        $"assert/1 cannot be applied to predefined predicate or operator '{assertionCopy.Index}'", null,
+                        assertion);
+                }
 
                 Predicates.TryGetValue(key, out pd);
                 ClauseNode newC = new ClauseNode(head, body);
@@ -376,14 +418,14 @@ namespace Prolog
                     newC.NextClause = pd.ClauseList; // pd.ClauseList may be null
                     SetClauseList(head.FunctorToString, head.Arity, newC);
 #if arg1index
-          pd.CreateFirstArgIndex (); // re-create
+                    pd.CreateFirstArgIndex(); // re-create
 #endif
                 }
                 else // at end
                 {
                     pd.AppendToClauseList(newC);
 #if arg1index
-          pd.CreateFirstArgIndex (); // re-create
+                    pd.CreateFirstArgIndex(); // re-create
 #endif
                 }
 
@@ -395,11 +437,16 @@ namespace Prolog
                 string key = t.Key;
 
                 if (Predefined.Contains(key))
+                {
                     IO.ErrorRuntime($"retract of predefined predicate {key} not allowed", varStack, t);
+                }
 
                 PredicateDescr pd = this[key];
 
-                if (pd == null) return false;
+                if (pd == null)
+                {
+                    return false;
+                }
 
                 InvalidateCrossRef();
                 ClauseNode c = pd.ClauseList;
@@ -417,16 +464,19 @@ namespace Prolog
                     {
                         if (prevc == null) // remove first clause
                         {
-                            if (c.NextClause == null) // we are about to remove the last remaining clause for this predicate
+                            if (c.NextClause == null
+                            ) // we are about to remove the last remaining clause for this predicate
                             {
-                                Predicates.Remove(key);        // ... so remove its PredicateDescr as well
+                                Predicates.Remove(key); // ... so remove its PredicateDescr as well
 #if arg1index
-                pd.CreateFirstArgIndex (); // re-create
+                                pd.CreateFirstArgIndex(); // re-create
 #endif
                                 ResolveIndices();
                             }
                             else
+                            {
                                 pd.SetClauseListHead(c.NextClause);
+                            }
                         }
                         else // not the first
                         {
@@ -434,7 +484,7 @@ namespace Prolog
                             prevc = c;
                             pd.AdjustClauseListEnd();
 #if arg1index
-              pd.CreateFirstArgIndex (); // re-create
+                            pd.CreateFirstArgIndex(); // re-create
 #endif
                         }
 
@@ -442,7 +492,9 @@ namespace Prolog
                     }
 
                     Variable s;
-                    for (int i = varStack.Count - top; i > 0; i--) // unbind all vars that got bound by the above Unification
+                    for (int i = varStack.Count - top;
+                        i > 0;
+                        i--) // unbind all vars that got bound by the above Unification
                     {
                         s = (Variable)varStack.Pop();
                         s.Unbind();
@@ -457,7 +509,6 @@ namespace Prolog
                 return false;
             }
 
-
             public bool RetractAll(BaseTerm t, VarStack varStack)
             {
                 // remark: first-argument indexing is not affected by deleting clauses
@@ -465,11 +516,16 @@ namespace Prolog
                 string key = t.Key;
 
                 if (Predefined.Contains(key))
+                {
                     IO.ErrorRuntime($"retract of predefined predicate {key} not allowed", varStack, t);
+                }
 
                 PredicateDescr pd = this[key];
 
-                if (pd == null) return true;
+                if (pd == null)
+                {
+                    return true;
+                }
 
                 ClauseNode c = pd.ClauseList;
                 ClauseNode prevc = null;
@@ -485,14 +541,15 @@ namespace Prolog
 
                         if (prevc == null) // remove first clause
                         {
-                            if (c.NextClause == null) // we are about to remove the last remaining clause for this predicate
+                            if (c.NextClause == null
+                            ) // we are about to remove the last remaining clause for this predicate
                             {
                                 Predicates.Remove(key); // ... so remove its PredicateDescr as well
 
                                 break;
                             }
-                            else
-                                pd.SetClauseListHead(c.NextClause);
+
+                            pd.SetClauseListHead(c.NextClause);
                         }
                         else // not the first
                         {
@@ -501,7 +558,9 @@ namespace Prolog
                         }
                     }
                     else
+                    {
                         prevc = c;
+                    }
 
                     c = c.NextClause;
                 }
@@ -509,7 +568,7 @@ namespace Prolog
                 if (match)
                 {
 #if arg1index
-          pd.DestroyFirstArgIndex (); // rebuilt by ResolveIndices()
+                    pd.DestroyFirstArgIndex(); // rebuilt by ResolveIndices()
 #endif
                     pd.AdjustClauseListEnd();
                     ResolveIndices();
@@ -518,41 +577,48 @@ namespace Prolog
                 return true;
             }
 
-
             public bool Abolish(string functor, int arity)
             {
                 string key = BaseTerm.MakeKey(functor, arity);
 
                 if (Predefined.Contains(key))
+                {
                     IO.ErrorRuntime($"abolish of predefined predicate '{functor}/{arity}' not allowed", null, null);
+                }
 
                 PredicateDescr pd = this[key];
 
-                if (pd == null) return false;
+                if (pd == null)
+                {
+                    return false;
+                }
 
                 Predicates.Remove(key);
 
 #if arg1index
-        pd.DestroyFirstArgIndex (); // rebuilt by ResolveIndices()
+                pd.DestroyFirstArgIndex(); // rebuilt by ResolveIndices()
 #endif
                 ResolveIndices();
 
                 return true;
             }
-            
+
             private bool ListClause(PredicateDescr pd, string functor, int arity, int seqno)
             {
                 ClauseNode clause = null;
                 string details;
 
-                if ((clause = pd.ClauseList) == null) return false;
+                if ((clause = pd.ClauseList) == null)
+                {
+                    return false;
+                }
 
                 details = "source: " + pd.DefinitionFile;
 
                 //        if (pd.IsFirstArgIndexed) details += "; arg1-indexed (jump points marked with '.')";
 
                 IO.WriteLine("{0}/{1}: ({2}) {3}", functor, arity, details,
-                  ((seqno == 1) ? "" : (seqno.ToString().Packed())));
+                    seqno == 1 ? "" : seqno.ToString().Packed());
 
                 while (clause != null)
                 {
@@ -565,9 +631,9 @@ namespace Prolog
                     if ((next = clause.NextNode) != null)
                     {
                         BI builtinId = next.BuiltinId;
-                        IO.Write(" :-{0}", (builtinId == BI.none)
-                          ? next.ToString()
-                          : Environment.NewLine + builtinId);
+                        IO.Write(" :-{0}", builtinId == BI.none
+                            ? next.ToString()
+                            : Environment.NewLine + builtinId);
                     }
 
                     IO.WriteLine(".");
@@ -576,7 +642,6 @@ namespace Prolog
 
                 return true;
             }
-
 
             public bool ListAll(string functor, int arity, bool showPredefined, bool showUserDefined)
             {
@@ -594,25 +659,32 @@ namespace Prolog
                     {
                         bool isPredefined = IsPredefined(kv.Key);
 
-                        if ((showPredefined && showUserDefined ||
-                           showPredefined && isPredefined ||
-                           showUserDefined && !isPredefined) &&
-                           (arity == -1 || arity == pd.Arity))
+                        if (((showPredefined && showUserDefined) ||
+                             (showPredefined && isPredefined) ||
+                             (showUserDefined && !isPredefined)) &&
+                            (arity == -1 || arity == pd.Arity))
+                        {
                             sl.Add(pd.Functor + pd.Arity, pd);
+                        }
                     }
                 }
 
                 int seqNo = 0;
 
                 foreach (KeyValuePair<string, PredicateDescr> kv in sl)
+                {
                     result = ListClause(pd = kv.Value, pd.Functor, pd.Arity, ++seqNo) || result;
+                }
 
                 return result;
             }
 
             private void SetupCrossRefTable() //TODO (later...): deal with arguments of not/1 and call/1
             {
-                if (!crossRefInvalid) return;
+                if (!crossRefInvalid)
+                {
+                    return;
+                }
 
                 CrossRefTable.Reset();
                 PredicateDescr pd;
@@ -676,71 +748,29 @@ namespace Prolog
                 }
             }
 
-
             private void ResolveIndex(PredicateDescr pd)
             {
                 ClauseNode clause = pd.ClauseList;
 
-                while (clause != null) // iterate over all clauses of this predicate. NextClause.BaseTerm contains predicate clauseHead
+                while (clause != null
+                ) // iterate over all clauses of this predicate. NextClause.BaseTerm contains predicate clauseHead
                 {
                     TermNode clauseTerm = clause.NextNode;
 
                     while (clauseTerm != null) // non-facts only. Iterate over all clauseTerm-terms at of this clause
                     {
-                        if (clauseTerm.BuiltinId == BI.none) clauseTerm.PredDescr = this[clauseTerm.Term.Key];
+                        if (clauseTerm.BuiltinId == BI.none)
+                        {
+                            clauseTerm.PredDescr = this[clauseTerm.Term.Key];
+                        }
                         // builtins (>=0) are handled differently (in Execute ())
 
                         clauseTerm = clauseTerm.NextNode;
                     }
+
                     clause = clause.NextClause;
                 }
-                return;
             }
-
-
-            
-            private class ProfileCountList : List<KeyValuePair<int, string>>
-            {
-                private class ProfileCountComparer : IComparer<KeyValuePair<int, string>>
-                {
-                    public int Compare(KeyValuePair<int, string> kv0, KeyValuePair<int, string> kv1)
-                    {
-                        int result = -kv0.Key.CompareTo(kv1.Key); // descending count order
-
-                        if (result == 0) return kv0.Value.CompareTo(kv1.Value);
-
-                        return result;
-                    }
-                }
-
-                private static readonly IComparer<KeyValuePair<int, string>> SortProfileCounts = (IComparer<KeyValuePair<int, string>>)new ProfileCountComparer();
-
-                public void Add(int count, string name)
-                {
-                    Add(new KeyValuePair<int, string>(count, name));
-                }
-
-                public new void Sort()
-                {
-                    base.Sort(SortProfileCounts);
-                }
-
-                public int MaxNameLen(int maxEntry)
-                {
-                    int maxNameLen = 0;
-                    int i = 0;
-
-                    foreach (KeyValuePair<int, string> kv in this)
-                    {
-                        if (i++ == maxEntry) break;
-
-                        maxNameLen = Math.Max(maxNameLen, kv.Value.Length);
-                    }
-
-                    return maxNameLen;
-                }
-            }
-
 
             public void ShowProfileCounts(int maxEntry) // maximum number of entries to be shown
             {
@@ -749,35 +779,41 @@ namespace Prolog
                 int maxVal = 0;
 
                 foreach (KeyValuePair<string, PredicateDescr> kv in Predicates)
+                {
                     if (!IsPredefined(kv.Key) && kv.Value.ProfileCount > 0)
                     {
                         profile.Add(kv.Value.ProfileCount, kv.Value.Name);
                         maxVal = Math.Max(maxVal, kv.Value.ProfileCount);
-                        maxLen = 1 + (int)Math.Log10((double)maxVal);
+                        maxLen = 1 + (int)Math.Log10(maxVal);
                     }
+                }
 
                 profile.Sort();
 
                 IO.WriteLine();
                 string format =
-                  "  {0,-" + profile.MaxNameLen(maxEntry) +
-                  "} : {1," + maxLen + ":G}";
+                    "  {0,-" + profile.MaxNameLen(maxEntry) +
+                    "} : {1," + maxLen + ":G}";
 
                 int entryCount = 0;
 
                 foreach (KeyValuePair<int, string> kv in profile)
                 {
-                    if (entryCount++ > maxEntry) break;
+                    if (entryCount++ > maxEntry)
+                    {
+                        break;
+                    }
 
                     IO.WriteLine(format, kv.Value, kv.Key);
                 }
             }
 
-
             public void ClearProfileCounts()
             {
                 foreach (KeyValuePair<string, PredicateDescr> kv in Predicates)
+                {
                     kv.Value.ProfileCount = 0;
+                }
             }
 
             // try to match the name of an unrecognised command
@@ -799,27 +835,77 @@ namespace Prolog
                     }
                 }
 
-                return (closestMatchValue < THRESHOLD) ? closestMatch : null;
+                return closestMatchValue < THRESHOLD ? closestMatch : null;
+            }
+
+            private class ProfileCountList : List<KeyValuePair<int, string>>
+            {
+                private static readonly IComparer<KeyValuePair<int, string>> SortProfileCounts =
+                    new ProfileCountComparer();
+
+                public void Add(int count, string name)
+                {
+                    Add(new KeyValuePair<int, string>(count, name));
+                }
+
+                public new void Sort()
+                {
+                    base.Sort(SortProfileCounts);
+                }
+
+                public int MaxNameLen(int maxEntry)
+                {
+                    int maxNameLen = 0;
+                    int i = 0;
+
+                    foreach (KeyValuePair<int, string> kv in this)
+                    {
+                        if (i++ == maxEntry)
+                        {
+                            break;
+                        }
+
+                        maxNameLen = Math.Max(maxNameLen, kv.Value.Length);
+                    }
+
+                    return maxNameLen;
+                }
+
+                private class ProfileCountComparer : IComparer<KeyValuePair<int, string>>
+                {
+                    public int Compare(KeyValuePair<int, string> kv0, KeyValuePair<int, string> kv1)
+                    {
+                        int result = -kv0.Key.CompareTo(kv1.Key); // descending count order
+
+                        if (result == 0)
+                        {
+                            return kv0.Value.CompareTo(kv1.Value);
+                        }
+
+                        return result;
+                    }
+                }
             }
         }
 
         // classes for iterating over a predicate's clauses (used by clause/2)
-        
+
         private class ClauseIterator : IEnumerable<BaseTerm>
         {
-            private PredicateDescr pd;
-            private BaseTerm clauseHead;
-            private IEnumerator<BaseTerm> iterator;
-            public BaseTerm ClauseBody { get; private set; }
-            private VarStack varStack;
+            private readonly BaseTerm clauseHead;
+            private readonly IEnumerator<BaseTerm> iterator;
+            private readonly PredicateDescr pd;
+            private readonly VarStack varStack;
 
             public ClauseIterator(PredicateTable predTable, BaseTerm clauseHead, VarStack varStack)
             {
-                this.pd = predTable[clauseHead.Key]; // null if not found
+                pd = predTable[clauseHead.Key]; // null if not found
                 this.clauseHead = clauseHead;
                 this.varStack = varStack;
                 iterator = GetEnumerator();
             }
+
+            public BaseTerm ClauseBody { get; private set; }
 
             // A predicate consists of one or more clauses. A clause consist of a head and optionally a
             // body. A head is a term, the body is a sequence of terms. A predicate is stored as a chain
@@ -829,7 +915,10 @@ namespace Prolog
 
             public IEnumerator<BaseTerm> GetEnumerator()
             {
-                if (pd == null) yield break;
+                if (pd == null)
+                {
+                    yield break;
+                }
 
                 ClauseNode clause = pd.ClauseList;
 
@@ -842,11 +931,17 @@ namespace Prolog
                     if (clause.Head.Unify(clauseHead, varStack))
                     {
                         if (bodyNode == null) // a fact
+                        {
                             ClauseBody = new BoolTerm(clause.Term.Symbol, true);
+                        }
                         else if (bodyNode.BuiltinId == BI.none)
+                        {
                             ClauseBody = bodyNode.TermSeq(varStack);
+                        }
                         else
+                        {
                             ClauseBody = new StringTerm(clause.Term.Symbol, "<builtin>");
+                        }
 
                         yield return ClauseBody;
                     }
@@ -857,17 +952,15 @@ namespace Prolog
                 }
             }
 
-
             IEnumerator IEnumerable.GetEnumerator()
             {
                 return GetEnumerator();
             }
-
 
             public bool MoveNext()
             {
                 return iterator.MoveNext();
             }
         }
-            }
+    }
 }

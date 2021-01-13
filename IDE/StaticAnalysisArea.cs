@@ -4,11 +4,12 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
 namespace Prolog
 {
-    public partial class StaticAnalysisArea : WeifenLuo.WinFormsUI.Docking.DockContent
+    public partial class StaticAnalysisArea : DockContent
     {
         private readonly PrologEngine _pe;
         private readonly SourceArea _sourceArea;
@@ -63,7 +64,8 @@ namespace Prolog
             int warningCount = 0;
 
             List<PredicateDescr> userPreds = _pe.PredTable.Predicates.Values
-                .Where(x => !x.IsPredefined && x.DefinitionFile != null && !x.DefinitionFile.Contains(Path.DirectorySeparatorChar))
+                .Where(x => !x.IsPredefined && x.DefinitionFile != null &&
+                            !x.DefinitionFile.Contains(Path.DirectorySeparatorChar))
                 .ToList();
             foreach (PredicateDescr pred in userPreds)
             {
@@ -73,20 +75,27 @@ namespace Prolog
                     // Name defined - 1
                     if (!_pe.PredTable.Predicates.Values.Any(x => x.Functor == nextNode.Term.FunctorToString))
                     {
-                        warningCount = AddWarning(warningCount, nextNode, $"Predicate with name '{nextNode.Term.FunctorToString}' not defined in KB. Is it dynamically asserted?", 1);
+                        warningCount = AddWarning(warningCount, nextNode,
+                            $"Predicate with name '{nextNode.Term.FunctorToString}' not defined in KB. Is it dynamically asserted?",
+                            1);
                     }
                     // Name & arity defined - 2
-                    else if (!_pe.PredTable.Predicates.Values.Any(x => x.Functor == nextNode.Term.FunctorToString && x.Arity == nextNode.Term.Arity))
+                    else if (!_pe.PredTable.Predicates.Values.Any(x =>
+                        x.Functor == nextNode.Term.FunctorToString && x.Arity == nextNode.Term.Arity))
                     {
-                        string closeMatches = _pe.PredTable.Predicates.Values.Where(x => x.Functor == nextNode.Term.FunctorToString).Select(x => x.Name).Aggregate((x, y) => x + ", " + y);
-                        warningCount = AddWarning(warningCount, nextNode, $"Predicate '{nextNode.Term.Name}' not defined in KB. Possible close matches are: {closeMatches}.", 2);
+                        string closeMatches = _pe.PredTable.Predicates.Values
+                            .Where(x => x.Functor == nextNode.Term.FunctorToString).Select(x => x.Name)
+                            .Aggregate((x, y) => x + ", " + y);
+                        warningCount = AddWarning(warningCount, nextNode,
+                            $"Predicate '{nextNode.Term.Name}' not defined in KB. Possible close matches are: {closeMatches}.",
+                            2);
                     }
 
                     // Next node
                     nextNode = nextNode.NextNode;
                 }
             }
-            
+
             if (warningCount == 0)
             {
                 Text = "Static Analysis - ok";
@@ -109,8 +118,9 @@ namespace Prolog
             int endPos = nextNode.Term.Symbol.Final;
             int line = _sourceArea.sourceEditor.Editor.LineFromPosition(startPos);
 
-            dataGridView1.Rows.Add(new object[] { line, "Warning", msg, type });
-            _sourceArea.sourceEditor.IndicatorFillRange(PrologEditor.StaticWarningIndicator, startPos, endPos - startPos, msg);
+            dataGridView1.Rows.Add(line, "Warning", msg, type);
+            _sourceArea.sourceEditor.IndicatorFillRange(PrologEditor.StaticWarningIndicator, startPos,
+                endPos - startPos, msg);
             warningCount++;
             return warningCount;
         }

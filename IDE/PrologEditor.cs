@@ -1,81 +1,20 @@
-﻿using AutocompleteMenuNS;
-using ScintillaNET;
-//using ScintillaNET_FindReplaceDialog;
+﻿//using ScintillaNET_FindReplaceDialog;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Windows.Forms;
-using System.Collections;
-using System.Linq;
-using System;
-using System.Resources;
 using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Resources;
+using System.Windows.Forms;
+using AutocompleteMenuNS;
+using ScintillaNET;
 using static Prolog.PrologEngine;
 
 namespace Prolog
 {
     public class PrologEditor
     {
-        public static class VisualPrologStyle
-        {
-
-            public const int SCE_VISUALPROLOG_DEFAULT = 0;
-            public const int SCE_VISUALPROLOG_KEY_MAJOR = 1;
-            public const int SCE_VISUALPROLOG_KEY_MINOR = 2;
-            public const int SCE_VISUALPROLOG_KEY_DIRECTIVE = 3;
-            public const int SCE_VISUALPROLOG_COMMENT_BLOCK = 4;
-            public const int SCE_VISUALPROLOG_COMMENT_LINE = 5;
-            public const int SCE_VISUALPROLOG_COMMENT_KEY = 6;
-            public const int SCE_VISUALPROLOG_COMMENT_KEY_ERROR = 7;
-            public const int SCE_VISUALPROLOG_IDENTIFIER = 8;
-            public const int SCE_VISUALPROLOG_VARIABLE = 9;
-            public const int SCE_VISUALPROLOG_ANONYMOUS = 10;
-            public const int SCE_VISUALPROLOG_NUMBER = 11;
-            public const int SCE_VISUALPROLOG_OPERATOR = 12;
-            public const int SCE_VISUALPROLOG_CHARACTER = 13;
-            public const int SCE_VISUALPROLOG_CHARACTER_TOO_MANY = 14;
-            public const int SCE_VISUALPROLOG_CHARACTER_ESCAPE_ERROR = 15;
-            public const int SCE_VISUALPROLOG_STRING = 16;
-            public const int SCE_VISUALPROLOG_STRING_ESCAPE = 17;
-            public const int SCE_VISUALPROLOG_STRING_ESCAPE_ERROR = 18;
-            public const int SCE_VISUALPROLOG_STRING_EOL_OPEN = 19;
-            public const int SCE_VISUALPROLOG_STRING_VERBATIM = 20;
-            public const int SCE_VISUALPROLOG_STRING_VERBATIM_SPECIAL = 21;
-            public const int SCE_VISUALPROLOG_STRING_VERBATIM_EOL = 22;
-
-            /// <summary>
-            /// Default (whitespace) style index.
-            /// </summary>
-            public const int Default = SCE_VISUALPROLOG_DEFAULT;
-            public const int KeyMajor = SCE_VISUALPROLOG_KEY_MAJOR;
-            public const int KeyMinor = SCE_VISUALPROLOG_KEY_MINOR;
-            public const int KeyDirective = SCE_VISUALPROLOG_KEY_DIRECTIVE;
-            public const int CommentBlock = SCE_VISUALPROLOG_COMMENT_BLOCK;
-            public const int CommentLine = SCE_VISUALPROLOG_COMMENT_LINE;
-            public const int CommentKey = SCE_VISUALPROLOG_COMMENT_KEY;
-            public const int CommentKeyError = SCE_VISUALPROLOG_COMMENT_KEY_ERROR;
-            public const int Identifier = SCE_VISUALPROLOG_IDENTIFIER;
-            public const int Variable = SCE_VISUALPROLOG_VARIABLE;
-            public const int Anonymous = SCE_VISUALPROLOG_ANONYMOUS;
-            public const int Number = SCE_VISUALPROLOG_NUMBER;
-            public const int Operator = SCE_VISUALPROLOG_OPERATOR;
-            public const int Character = SCE_VISUALPROLOG_CHARACTER;
-            public const int CharacterTooMany = SCE_VISUALPROLOG_CHARACTER_TOO_MANY;
-            public const int CharacterEscapeError = SCE_VISUALPROLOG_CHARACTER_ESCAPE_ERROR;
-            public const int String = SCE_VISUALPROLOG_STRING;
-            public const int StringEscape = SCE_VISUALPROLOG_STRING_ESCAPE;
-            public const int StringEscapeError = SCE_VISUALPROLOG_STRING_ESCAPE_ERROR;
-            public const int StringEolOpen = SCE_VISUALPROLOG_STRING_EOL_OPEN;
-            public const int Verbatim = SCE_VISUALPROLOG_STRING_VERBATIM;
-            public const int VerbatimSpecial = SCE_VISUALPROLOG_STRING_VERBATIM_SPECIAL;
-            public const int VerbatimEol = SCE_VISUALPROLOG_STRING_VERBATIM_EOL;
-        }
-
-        public event Action<BaseTerm> InspectTermRequested;
-
-        public bool IsDirty { get; private set; }
-
-        public bool DrawDependencyArrows { get; set; }
-
         public const int BREAKPOINT_MARGIN = 1; // Conventionally the symbol margin
         public const int BREAKPOINT_MARKER = 3; // Arbitrary. Any valid index would work.
 
@@ -83,12 +22,36 @@ namespace Prolog
         public static readonly int StaticWarningIndicator = 10;
         public static readonly int DebugLineIndicator = 11;
         public static readonly int HighlightIndicator = 8;
-
-        public Scintilla Editor;
-        public Panel Map;
         private readonly AutocompleteMenu _autocompleteMenu;
+        private readonly Pen _dependencyArrowPen;
+        private readonly Pen _dependencyArrowPenBlowup;
+
+        private readonly Pen _dependencyArrowPenHighlight;
+
         //private readonly FindReplace _findReplaceDialog;
         private readonly ImageList _imageList1;
+
+        private readonly List<Tuple<int, int, string>> _indicatorDescriptions = new List<Tuple<int, int, string>>();
+        private readonly ToolStripMenuItem _inspectTermContextMenuItem;
+        private readonly Dictionary<GraphicsPath, Pen> _paths = new Dictionary<GraphicsPath, Pen>();
+        private readonly Dictionary<GraphicsPath, int> _pathsToStartPos = new Dictionary<GraphicsPath, int>();
+        private readonly PrologEngine prologEngine;
+
+        private Point _mouseLocation = new Point(0, 0);
+        private Dictionary<string, PredicateDescr> _referenceArrowsPredTable;
+        private string callTip;
+
+        public Scintilla Editor;
+        private int lastCaretPos;
+
+        private int lastDrawnPosition;
+        private int lastFirstVisibleLine;
+        private bool lastWasNull;
+        public Panel Map;
+
+        private int? openParenPosition;
+
+        private int positionToMoveTo = -1;
 
         public PrologEditor(PrologEngine prologEngine)
         {
@@ -122,14 +85,14 @@ namespace Prolog
             Editor.Margins[2].Sensitive = true;
             Editor.Margins[2].Width = 20;*/
 
-            var breakPointMargin = Editor.Margins[BREAKPOINT_MARGIN];
+            Margin breakPointMargin = Editor.Margins[BREAKPOINT_MARGIN];
             breakPointMargin.Width = 16;
             breakPointMargin.Sensitive = true;
             breakPointMargin.Type = MarginType.Symbol;
             breakPointMargin.Mask = Marker.MaskAll;
             breakPointMargin.Cursor = MarginCursor.ReverseArrow;
 
-            var marker = Editor.Markers[BREAKPOINT_MARKER];
+            Marker marker = Editor.Markers[BREAKPOINT_MARKER];
             marker.Symbol = MarkerSymbol.Circle;
             marker.SetBackColor(Color.IndianRed);
             marker.SetForeColor(Color.DarkRed);
@@ -209,11 +172,10 @@ namespace Prolog
 
             // Set the keywords
             Editor.SetKeywords(0, string.Join(" ",
-                    prologEngine.PredTable.Predicates.Values.Select(x => x.ToString())));
+                prologEngine.PredTable.Predicates.Values.Select(x => x.ToString())));
             Editor.SetKeywords(1, string.Join(" ",
-                        prologEngine.OpTable.Values.Where(x => !x.Name.Contains("^")).Select(x => x.Name)
-                    ));
-            
+                prologEngine.OpTable.Values.Where(x => !x.Name.Contains("^")).Select(x => x.Name)
+            ));
 
             //_findReplaceDialog = new FindReplace(Editor);
 
@@ -246,7 +208,7 @@ namespace Prolog
             Map = new Panel();
             Map.Width = 25;
             Map.BackColor = Color.LightGray;
-            Map.Height = Editor.Height-4;
+            Map.Height = Editor.Height - 4;
             Map.Paint += PaintMap;
             Map.MouseDown += HandleMapMouseDown;
             Map.MouseMove += HandleMapMouseMove;
@@ -257,7 +219,7 @@ namespace Prolog
 
             ToolStripMenuItem undo = new ToolStripMenuItem("Undo");
             undo.Click += (x, y) => Editor.Undo();
-            undo.ShortcutKeys = Keys.Control|Keys.Z;
+            undo.ShortcutKeys = Keys.Control | Keys.Z;
             Editor.ContextMenuStrip.Items.Add(undo);
 
             ToolStripMenuItem redo = new ToolStripMenuItem("Redo");
@@ -277,20 +239,18 @@ namespace Prolog
             copy.ShortcutKeys = Keys.Control | Keys.C;
             Editor.ContextMenuStrip.Items.Add(copy);
 
-
             ToolStripMenuItem paste = new ToolStripMenuItem("Paste");
             paste.Click += (x, y) => Editor.Paste();
             paste.ShortcutKeys = Keys.Control | Keys.V;
             Editor.ContextMenuStrip.Items.Add(paste);
 
-
             ToolStripMenuItem selectAll = new ToolStripMenuItem("Select All");
             selectAll.Click += (x, y) => Editor.SelectAll();
             selectAll.ShortcutKeys = Keys.Control | Keys.A;
             Editor.ContextMenuStrip.Items.Add(selectAll);
-            
+
             Editor.ContextMenuStrip.Items.Add("-");
-            
+
             _inspectTermContextMenuItem = new ToolStripMenuItem("Inspect term");
             _inspectTermContextMenuItem.Click += InspectTerm;
             Editor.ContextMenuStrip.Items.Add(_inspectTermContextMenuItem);
@@ -303,16 +263,24 @@ namespace Prolog
             _dependencyArrowPen = new Pen(Color.FromArgb(255, 10, 50, 255), 1);
             _dependencyArrowPen.CustomEndCap = new AdjustableArrowCap(3, 3, true);
             _dependencyArrowPen.StartCap = LineCap.RoundAnchor;
-            _dependencyArrowPenBlowup = ((Pen)_dependencyArrowPen.Clone());
+            _dependencyArrowPenBlowup = (Pen)_dependencyArrowPen.Clone();
             _dependencyArrowPenBlowup.Width = 10;
             _dependencyArrowPenHighlight = (Pen)_dependencyArrowPen.Clone();
             _dependencyArrowPenHighlight.Color = Color.FromArgb(255, 70, 180, 255);
             _dependencyArrowPenHighlight.Width = 3;
         }
 
+        public bool IsDirty { get; private set; }
+
+        public bool DrawDependencyArrows { get; set; }
+        public bool InitialCallTipDisplay { get; set; }
+
+        public event Action<BaseTerm> InspectTermRequested;
+
         private void HandleIndicatorClick(object sender, IndicatorClickEventArgs e)
         {
-            Tuple<int, int, string> res = _indicatorDescriptions.FirstOrDefault(x => x.Item1 <= e.Position && x.Item2 >= e.Position);
+            Tuple<int, int, string> res =
+                _indicatorDescriptions.FirstOrDefault(x => x.Item1 <= e.Position && x.Item2 >= e.Position);
 
             if (res != null)
             {
@@ -329,7 +297,7 @@ namespace Prolog
             if (predDescr != null)
             {
                 Editor.SetSelection(predDescr.Symbol.Final, predDescr.Symbol.Start);
-                _inspectTermContextMenuItem.Text = $"Inspect Term '{predDescr.ToString()}'";
+                _inspectTermContextMenuItem.Text = $"Inspect Term '{predDescr}'";
                 _inspectTermContextMenuItem.Visible = true;
             }
             else
@@ -363,8 +331,8 @@ namespace Prolog
             int currentPosition = pos ?? Editor.CurrentPosition;
             List<PredicateDescr> predDescrs =
                 prologEngine.PredTable.Predicates.Values
-                .Where(x => !x.IsPredefined)
-                .ToList();
+                    .Where(x => !x.IsPredefined)
+                    .ToList();
 
             BaseTerm res = FindDepthFirst(predDescrs, currentPosition);
             return res;
@@ -372,12 +340,12 @@ namespace Prolog
 
         private BaseTerm FindDepthFirst(IEnumerable<PredicateDescr> predDescrs, int pos)
         {
-            foreach(TermNode pd in predDescrs.Select(x => x.ClauseList))
+            foreach (TermNode pd in predDescrs.Select(x => x.ClauseList))
             {
                 if (pd == null)
                 {
                     continue;
-                } 
+                }
 
                 {
                     if (pd.Term != null)
@@ -403,7 +371,6 @@ namespace Prolog
                 {
                     return pd.Term;
                 }
-                
             }
 
             return predDescrs.FirstOrDefault().ClauseList.Term;
@@ -430,11 +397,10 @@ namespace Prolog
                 {
                     return pd;
                 }
-                
             }
+
             return null;
         }
-
 
         private void MouseEnterLeave(object sender, EventArgs e)
         {
@@ -458,8 +424,8 @@ namespace Prolog
                 float allLines = Editor.Lines.Count;
 
                 float mouseRelativeScroll = e.Y / (float)Map.Height;
-                int firstLine = (int)(mouseRelativeScroll * allLines - linesOnScreen / 2.0);
-                int lastLine = (int)(mouseRelativeScroll * allLines + linesOnScreen / 2.0);
+                int firstLine = (int)((mouseRelativeScroll * allLines) - (linesOnScreen / 2.0));
+                int lastLine = (int)((mouseRelativeScroll * allLines) + (linesOnScreen / 2.0));
 
                 Editor.ScrollRange(Editor.Lines[lastLine].Position, Editor.Lines[lastLine].Position);
                 Editor.ScrollRange(Editor.Lines[firstLine].Position, Editor.Lines[firstLine].Position);
@@ -479,7 +445,8 @@ namespace Prolog
             // Current range
             float rangeY = mapHeight * firstLineOnScreen / allLines;
             float rangeHeight = mapHeight * linesOnScreen / allLines;
-            bool highlight = (mousePos.Y >= rangeY && mousePos.Y <= rangeY + rangeHeight && mousePos.X > 0 && mousePos.X <= 25);
+            bool highlight = mousePos.Y >= rangeY && mousePos.Y <= rangeY + rangeHeight && mousePos.X > 0 &&
+                             mousePos.X <= 25;
             Brush rangeBrush = new SolidBrush(highlight ? Color.DeepSkyBlue : Color.LightSkyBlue);
             e.Graphics.FillRectangle(rangeBrush,
                 0, rangeY,
@@ -499,9 +466,9 @@ namespace Prolog
             DrawIndicator(e, allLines, mapHeight, Editor.Indicators[DebugLineIndicator], Color.DarkOrange, 0, false);
 
             // Breakpoints
-            foreach (var line in Editor.Lines)
+            foreach (Line line in Editor.Lines)
             {
-                const uint mask = (1 << BREAKPOINT_MARKER);
+                const uint mask = 1 << BREAKPOINT_MARKER;
                 if ((line.MarkerGet() & mask) > 0)
                 {
                     float lineInRange = mapHeight * line.Index / allLines;
@@ -512,21 +479,22 @@ namespace Prolog
             }
         }
 
-        private void DrawIndicator(PaintEventArgs e, float allLines, float mapHeight, Indicator indicator, Color color, int markXOffset, bool thickBar)
+        private void DrawIndicator(PaintEventArgs e, float allLines, float mapHeight, Indicator indicator, Color color,
+            int markXOffset, bool thickBar)
         {
-            var textLength = Editor.TextLength;
-            var bitmapFlag = (1 << indicator.Index);
+            int textLength = Editor.TextLength;
+            int bitmapFlag = 1 << indicator.Index;
 
-            var startPos = 0;
-            var endPos = 0;
+            int startPos = 0;
+            int endPos = 0;
 
             do
             {
                 startPos = indicator.Start(endPos);
                 endPos = indicator.End(startPos);
 
-                var bitmap = Editor.IndicatorAllOnFor(startPos);
-                var filled = ((bitmapFlag & bitmap) == bitmapFlag);
+                uint bitmap = Editor.IndicatorAllOnFor(startPos);
+                bool filled = (bitmapFlag & bitmap) == bitmapFlag;
                 if (filled)
                 {
                     float indicatorY = mapHeight * Editor.LineFromPosition(startPos) / allLines;
@@ -595,8 +563,8 @@ namespace Prolog
             if (e.Margin == BREAKPOINT_MARGIN)
             {
                 // Do we have a marker for this line?
-                const uint mask = (1 << BREAKPOINT_MARKER);
-                var line = Editor.Lines[Editor.LineFromPosition(e.Position)];
+                const uint mask = 1 << BREAKPOINT_MARKER;
+                Line line = Editor.Lines[Editor.LineFromPosition(e.Position)];
                 if ((line.MarkerGet() & mask) > 0)
                 {
                     // Remove existing bookmark
@@ -617,9 +585,11 @@ namespace Prolog
             if (openParenPosition.HasValue && Editor.CurrentPosition >= openParenPosition.Value)
             {
                 if (Editor.LineFromPosition(openParenPosition.Value) == Editor.CurrentLine
-                    && Editor.Text.IndexOf(')', Editor.CurrentPosition) == Editor.Text.IndexOf(')', openParenPosition.Value))
+                    && Editor.Text.IndexOf(')', Editor.CurrentPosition) ==
+                    Editor.Text.IndexOf(')', openParenPosition.Value))
                 {
-                    string leftSide = Editor.Text.Substring(openParenPosition.Value, Editor.CurrentPosition - openParenPosition.Value);
+                    string leftSide = Editor.Text.Substring(openParenPosition.Value,
+                        Editor.CurrentPosition - openParenPosition.Value);
                     int paramIdx = leftSide.Count(x => x == ',');
 
                     int paramCount = 0;
@@ -630,7 +600,9 @@ namespace Prolog
                         paramCount++;
                     }
 
-                    int nextIdx = callTip.IndexOf(",", currIdx) > 0 ? callTip.IndexOf(",", currIdx) : callTip.IndexOf(")", currIdx);
+                    int nextIdx = callTip.IndexOf(",", currIdx) > 0
+                        ? callTip.IndexOf(",", currIdx)
+                        : callTip.IndexOf(")", currIdx);
 
                     Editor.CallTipSetHlt(currIdx, nextIdx);
 
@@ -642,7 +614,7 @@ namespace Prolog
 
             // Brace matching
             // Has the caret changed position?
-            var caretPos = Editor.CurrentPosition;
+            int caretPos = Editor.CurrentPosition;
             if (lastCaretPos != caretPos)
             {
                 if (!InitialCallTipDisplay)
@@ -653,23 +625,31 @@ namespace Prolog
                 InitialCallTipDisplay = false;
 
                 lastCaretPos = caretPos;
-                var bracePos1 = -1;
-                var bracePos2 = -1;
+                int bracePos1 = -1;
+                int bracePos2 = -1;
 
                 // Is there a brace to the left or right?
                 if (caretPos > 0 && IsBrace(Editor.GetCharAt(caretPos - 1)))
-                    bracePos1 = (caretPos - 1);
+                {
+                    bracePos1 = caretPos - 1;
+                }
                 else if (IsBrace(Editor.GetCharAt(caretPos)))
+                {
                     bracePos1 = caretPos;
+                }
 
                 if (bracePos1 >= 0)
                 {
                     // Find the matching brace
                     bracePos2 = Editor.BraceMatch(bracePos1);
                     if (bracePos2 == Scintilla.InvalidPosition)
+                    {
                         Editor.BraceBadLight(bracePos1);
+                    }
                     else
+                    {
                         Editor.BraceHighlight(bracePos1, bracePos2);
+                    }
                 }
                 else
                 {
@@ -678,15 +658,6 @@ namespace Prolog
                 }
             }
         }
-
-        private int lastDrawnPosition = 0;
-        private int lastFirstVisibleLine = 0;
-        private bool lastWasNull = false;
-        private Dictionary<string, PredicateDescr> _referenceArrowsPredTable;
-        private readonly Dictionary<GraphicsPath, Pen> _paths = new Dictionary<GraphicsPath, Pen>();
-        private readonly Dictionary<GraphicsPath, int> _pathsToStartPos = new Dictionary<GraphicsPath, int>();
-
-        private Point _mouseLocation = new Point(0, 0);
 
         private void Editor_MouseMove(object sender, MouseEventArgs e)
         {
@@ -732,8 +703,6 @@ namespace Prolog
             }
         }
 
-        private int positionToMoveTo = -1;
-
         private void Editor_MouseDown(object sender, MouseEventArgs e)
         {
             foreach (GraphicsPath path in _paths.Keys)
@@ -777,7 +746,7 @@ namespace Prolog
                     {
                         g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                        foreach (var pathPen in _paths)
+                        foreach (KeyValuePair<GraphicsPath, Pen> pathPen in _paths)
                         {
                             g.DrawPath(pathPen.Value, pathPen.Key);
                         }
@@ -802,8 +771,8 @@ namespace Prolog
                 List<PredicateDescr> clauses = _referenceArrowsPredTable.Values
                     .Where(
                         x => !x.IsPredefined
-                        && x.ClauseList.Term.Symbol.Start <= pos
-                        && x.ClauseList.Term.Symbol.Final >= pos)
+                             && x.ClauseList.Term.Symbol.Start <= pos
+                             && x.ClauseList.Term.Symbol.Final >= pos)
                     .ToList();
 
                 PredicateDescr clause = clauses.FirstOrDefault();
@@ -814,7 +783,8 @@ namespace Prolog
                     int? clauseHeadEnd = clause.ClauseList.Term.Symbol.Final;
 
                     List<PredicateDescr> res;
-                    if (clauseHeadEnd.HasValue && prologEngine.PredTable.CrossRefTable.ReverseDirectRefIndex.TryGetValue(clause, out res))
+                    if (clauseHeadEnd.HasValue &&
+                        prologEngine.PredTable.CrossRefTable.ReverseDirectRefIndex.TryGetValue(clause, out res))
                     {
                         for (int i = 0; i < res.Count; i++)
                         {
@@ -833,14 +803,24 @@ namespace Prolog
                                 _paths.Add(path, _dependencyArrowPen);
                                 _pathsToStartPos.Add(path, refClauseStart);
 
-                                int startX = Editor.PointXFromPosition(refClauseStart) + (Editor.PointXFromPosition(refClauseEnd.Value) - Editor.PointXFromPosition(refClauseStart)) / 2;
-                                int startY = Editor.PointYFromPosition(refClauseStart) + (Editor.PointYFromPosition(refClauseEnd.Value) - Editor.PointYFromPosition(refClauseStart)) / 2 + 7;
-                                int endX = Editor.PointXFromPosition(clauseHeadStart) + (Editor.PointXFromPosition(clauseHeadEnd.Value) - Editor.PointXFromPosition(clauseHeadStart)) / 2;
-                                int endY = Editor.PointYFromPosition(clauseHeadStart) + (Editor.PointYFromPosition(clauseHeadEnd.Value) - Editor.PointYFromPosition(clauseHeadStart)) / 2 + 7;
-                                path.AddCurve(new Point[] {
-                                        new Point(startX, startY),
-                                        new Point((startX + endX) / 2 - 10, (startY + endY) / 2 - 3),
-                                        new Point(endX, endY) });
+                                int startX = Editor.PointXFromPosition(refClauseStart) +
+                                             ((Editor.PointXFromPosition(refClauseEnd.Value) -
+                                               Editor.PointXFromPosition(refClauseStart)) / 2);
+                                int startY = Editor.PointYFromPosition(refClauseStart) +
+                                             ((Editor.PointYFromPosition(refClauseEnd.Value) -
+                                               Editor.PointYFromPosition(refClauseStart)) / 2) + 7;
+                                int endX = Editor.PointXFromPosition(clauseHeadStart) +
+                                           ((Editor.PointXFromPosition(clauseHeadEnd.Value) -
+                                             Editor.PointXFromPosition(clauseHeadStart)) / 2);
+                                int endY = Editor.PointYFromPosition(clauseHeadStart) +
+                                           ((Editor.PointYFromPosition(clauseHeadEnd.Value) -
+                                             Editor.PointYFromPosition(clauseHeadStart)) / 2) + 7;
+                                path.AddCurve(new[]
+                                {
+                                    new Point(startX, startY),
+                                    new Point(((startX + endX) / 2) - 10, ((startY + endY) / 2) - 3),
+                                    new Point(endX, endY)
+                                });
                             }
                         }
                     }
@@ -849,17 +829,6 @@ namespace Prolog
                 Editor.Invalidate();
             }
         }
-
-        private int? openParenPosition = null;
-        private string callTip = null;
-        private readonly PrologEngine prologEngine;
-        private int lastCaretPos;
-        private readonly ToolStripMenuItem _inspectTermContextMenuItem;
-        private readonly List<Tuple<int, int, string>> _indicatorDescriptions = new List<Tuple<int, int, string>>();
-        public bool InitialCallTipDisplay { get; set; }
-        private readonly Pen _dependencyArrowPen;
-        private readonly Pen _dependencyArrowPenBlowup;
-        private readonly Pen _dependencyArrowPenHighlight;
 
         private void AutocompletionItemSelected(object sender, SelectedEventArgs e)
         {
@@ -928,10 +897,10 @@ namespace Prolog
         {
             Scintilla target = (Scintilla)sender;
 
-           // if (target.Indicators.Any(x => x.Style == IndicatorStyle.Squiggle))
-           // {
-           //     return;
-           // }
+            // if (target.Indicators.Any(x => x.Style == IndicatorStyle.Squiggle))
+            // {
+            //     return;
+            // }
 
             if (!string.IsNullOrWhiteSpace(target.SelectedText))
             {
@@ -940,19 +909,19 @@ namespace Prolog
             else
             {
                 // Clean everything apart from error squiggles
-                var textLength = Editor.TextLength;
-                var bitmapFlag = (1 << Editor.Indicators[SquiggleIndicator].Index);
+                int textLength = Editor.TextLength;
+                int bitmapFlag = 1 << Editor.Indicators[SquiggleIndicator].Index;
 
-                var startPos = 0;
-                var endPos = 0;
+                int startPos = 0;
+                int endPos = 0;
 
                 do
                 {
                     startPos = Editor.Indicators[SquiggleIndicator].Start(endPos);
                     endPos = Editor.Indicators[SquiggleIndicator].End(startPos);
 
-                    var bitmap = Editor.IndicatorAllOnFor(startPos);
-                    var filled = ((bitmapFlag & bitmap) == bitmapFlag);
+                    uint bitmap = Editor.IndicatorAllOnFor(startPos);
+                    bool filled = (bitmapFlag & bitmap) == bitmapFlag;
                     if (!filled)
                     {
                         target.IndicatorClearRange(startPos, endPos);
@@ -963,7 +932,8 @@ namespace Prolog
 
         public void IndicatorFillRange(int indicatorType, int startPos, int length, string description)
         {
-            _indicatorDescriptions.Add(Tuple.Create<int, int, string>(startPos, startPos + length + 1, description.Trim(new char[] { ' ', '\n', '\t', '\r' })));
+            _indicatorDescriptions.Add(Tuple.Create(startPos, startPos + length + 1,
+                description.Trim(' ', '\n', '\t', '\r')));
             Editor.IndicatorCurrent = indicatorType;
             Editor.IndicatorFillRange(startPos, length);
         }
@@ -1002,9 +972,72 @@ namespace Prolog
             }
         }
 
+        public static class VisualPrologStyle
+        {
+            public const int SCE_VISUALPROLOG_DEFAULT = 0;
+            public const int SCE_VISUALPROLOG_KEY_MAJOR = 1;
+            public const int SCE_VISUALPROLOG_KEY_MINOR = 2;
+            public const int SCE_VISUALPROLOG_KEY_DIRECTIVE = 3;
+            public const int SCE_VISUALPROLOG_COMMENT_BLOCK = 4;
+            public const int SCE_VISUALPROLOG_COMMENT_LINE = 5;
+            public const int SCE_VISUALPROLOG_COMMENT_KEY = 6;
+            public const int SCE_VISUALPROLOG_COMMENT_KEY_ERROR = 7;
+            public const int SCE_VISUALPROLOG_IDENTIFIER = 8;
+            public const int SCE_VISUALPROLOG_VARIABLE = 9;
+            public const int SCE_VISUALPROLOG_ANONYMOUS = 10;
+            public const int SCE_VISUALPROLOG_NUMBER = 11;
+            public const int SCE_VISUALPROLOG_OPERATOR = 12;
+            public const int SCE_VISUALPROLOG_CHARACTER = 13;
+            public const int SCE_VISUALPROLOG_CHARACTER_TOO_MANY = 14;
+            public const int SCE_VISUALPROLOG_CHARACTER_ESCAPE_ERROR = 15;
+            public const int SCE_VISUALPROLOG_STRING = 16;
+            public const int SCE_VISUALPROLOG_STRING_ESCAPE = 17;
+            public const int SCE_VISUALPROLOG_STRING_ESCAPE_ERROR = 18;
+            public const int SCE_VISUALPROLOG_STRING_EOL_OPEN = 19;
+            public const int SCE_VISUALPROLOG_STRING_VERBATIM = 20;
+            public const int SCE_VISUALPROLOG_STRING_VERBATIM_SPECIAL = 21;
+            public const int SCE_VISUALPROLOG_STRING_VERBATIM_EOL = 22;
+
+            /// <summary>
+            ///     Default (whitespace) style index.
+            /// </summary>
+            public const int Default = SCE_VISUALPROLOG_DEFAULT;
+
+            public const int KeyMajor = SCE_VISUALPROLOG_KEY_MAJOR;
+            public const int KeyMinor = SCE_VISUALPROLOG_KEY_MINOR;
+            public const int KeyDirective = SCE_VISUALPROLOG_KEY_DIRECTIVE;
+            public const int CommentBlock = SCE_VISUALPROLOG_COMMENT_BLOCK;
+            public const int CommentLine = SCE_VISUALPROLOG_COMMENT_LINE;
+            public const int CommentKey = SCE_VISUALPROLOG_COMMENT_KEY;
+            public const int CommentKeyError = SCE_VISUALPROLOG_COMMENT_KEY_ERROR;
+            public const int Identifier = SCE_VISUALPROLOG_IDENTIFIER;
+            public const int Variable = SCE_VISUALPROLOG_VARIABLE;
+            public const int Anonymous = SCE_VISUALPROLOG_ANONYMOUS;
+            public const int Number = SCE_VISUALPROLOG_NUMBER;
+            public const int Operator = SCE_VISUALPROLOG_OPERATOR;
+            public const int Character = SCE_VISUALPROLOG_CHARACTER;
+            public const int CharacterTooMany = SCE_VISUALPROLOG_CHARACTER_TOO_MANY;
+            public const int CharacterEscapeError = SCE_VISUALPROLOG_CHARACTER_ESCAPE_ERROR;
+            public const int String = SCE_VISUALPROLOG_STRING;
+            public const int StringEscape = SCE_VISUALPROLOG_STRING_ESCAPE;
+            public const int StringEscapeError = SCE_VISUALPROLOG_STRING_ESCAPE_ERROR;
+            public const int StringEolOpen = SCE_VISUALPROLOG_STRING_EOL_OPEN;
+            public const int Verbatim = SCE_VISUALPROLOG_STRING_VERBATIM;
+            public const int VerbatimSpecial = SCE_VISUALPROLOG_STRING_VERBATIM_SPECIAL;
+            public const int VerbatimEol = SCE_VISUALPROLOG_STRING_VERBATIM_EOL;
+        }
+
         public class DynamicCollection : IEnumerable<AutocompleteItem>
         {
-            public DynamicCollection(List<PredicateDescr> predicateDescriptors, List<AtomTerm> atoms, ResourceManager helpRm)
+            private readonly List<AutocompleteItem> _items;
+
+            private readonly List<MulticolumnAutocompleteItem> _staticMulticolumn =
+                new List<MulticolumnAutocompleteItem>();
+
+            private readonly List<SnippetAutocompleteItem> _staticSnippets = new List<SnippetAutocompleteItem>();
+
+            public DynamicCollection(List<PredicateDescr> predicateDescriptors, List<AtomTerm> atoms,
+                ResourceManager helpRm)
             {
                 _items = new List<AutocompleteItem>();
 
@@ -1050,73 +1083,65 @@ All predicates are imported regardless of any module declarations.
 [builtin]"
                 });
 
-                List<string> functorNames = predicateDescriptors.Where(x => x.Name.Contains("_")).Select(x => x.Name.Substring(0, x.Name.LastIndexOf("_")).ToLower().Replace(" ", "_")).ToList();
+                List<string> functorNames = predicateDescriptors.Where(x => x.Name.Contains("_"))
+                    .Select(x => x.Name.Substring(0, x.Name.LastIndexOf("_")).ToLower().Replace(" ", "_")).ToList();
 
                 HashSet<string> functorSet = new HashSet<string>(functorNames);
-                IEnumerable<string> atomsSet = atoms.Select(x => x.ToString()).Except(functorSet).Distinct().OrderBy(x => x);
+                IEnumerable<string> atomsSet =
+                    atoms.Select(x => x.ToString()).Except(functorSet).Distinct().OrderBy(x => x);
 
                 // User atoms
                 _items = _items.Concat(
-                    atomsSet
-                    .Select(x =>
-                    {
-                        var item = new SnippetAutocompleteItem(x)
-                        {
-                            ImageIndex = 2,
-                            //   MenuText = x,
-                            ToolTipTitle = x,
-                            ToolTipText = "atom term"
-                        };
+                        atomsSet
+                            .Select(x =>
+                            {
+                                SnippetAutocompleteItem item = new SnippetAutocompleteItem(x)
+                                {
+                                    ImageIndex = 2,
+                                    //   MenuText = x,
+                                    ToolTipTitle = x,
+                                    ToolTipText = "atom term"
+                                };
 
-                        return item;
-                    })
-                .Cast<AutocompleteItem>())
-                .ToList();
+                                return item;
+                            }))
+                    .ToList();
 
                 // All predicates
                 _items = _items.Concat(predicateDescriptors.Select(x =>
-                {
-                    /* TODO: migrate
-                    string file = x.DefinitionFile.Contains(Path.DirectorySeparatorChar) ? 
-                    x.DefinitionFile.Substring(x.DefinitionFile.LastIndexOf(Path.DirectorySeparatorChar) + 1) 
+                    {
+                        /* TODO: migrate
+                    string file = x.DefinitionFile.Contains(Path.DirectorySeparatorChar) ?
+                    x.DefinitionFile.Substring(x.DefinitionFile.LastIndexOf(Path.DirectorySeparatorChar) + 1)
                     : (x.IsPredefined ? "builtin" : "current");
                     */
-                    var item = new SnippetAutocompleteItem(PredicateHeadString(x))
-                    {
-                        ImageIndex = /*x.IsPredefined ? 0 : */1,
-                        //   MenuText = x,
-                        ToolTipTitle = x.Name, /*x?.CommentHeader ?? x.ToString()
+                        SnippetAutocompleteItem item = new SnippetAutocompleteItem(PredicateHeadString(x))
+                        {
+                            ImageIndex = /*x.IsPredefined ? 0 : */1,
+                            //   MenuText = x,
+                            ToolTipTitle = x.Name, /*x?.CommentHeader ?? x.ToString()
                         + ((x?.TestGroup == null) ? string.Empty : (" - test " + x?.TestGroup)),*/
-                        ToolTipText = helpRm.GetString(x.Name.ToLower().Replace(" ", "_")) ?? ""//?? (x?.CommentBody)) + $"\n[{file}]"
-                    };
+                            ToolTipText =
+                                helpRm.GetString(x.Name.ToLower().Replace(" ", "_")) ??
+                                "" //?? (x?.CommentBody)) + $"\n[{file}]"
+                        };
 
-                    if (string.IsNullOrWhiteSpace(item.ToolTipTitle))
-                    {
-                        item.ToolTipTitle = item.Text.Replace("^", "");
-                    }
+                        if (string.IsNullOrWhiteSpace(item.ToolTipTitle))
+                        {
+                            item.ToolTipTitle = item.Text.Replace("^", "");
+                        }
 
-                    item.ToolTipText = item.ToolTipText.Trim(new char[] { ' ', '\n', '\t', '\r' });
+                        item.ToolTipText = item.ToolTipText.Trim(' ', '\n', '\t', '\r');
 
-                    if (string.IsNullOrWhiteSpace(item.ToolTipText))
-                    {
-                        item.ToolTipText = " ";
-                    }
+                        if (string.IsNullOrWhiteSpace(item.ToolTipText))
+                        {
+                            item.ToolTipText = " ";
+                        }
 
-                    return item;
-                })
-                .Cast<AutocompleteItem>())
-                .ToList();
+                        return item;
+                    }))
+                    .ToList();
             }
-
-            private readonly List<AutocompleteItem> _items;
-
-            private readonly List<SnippetAutocompleteItem> _staticSnippets = new List<SnippetAutocompleteItem> {
-            //    new SnippetAutocompleteItem("foo(^Abc, Def, ef)") { ToolTipText = "foo(Abc, Def, ef)"},
-            //    new SnippetAutocompleteItem("bar()^") { ToolTipText = "bar()"},
-            };
-            private readonly List<MulticolumnAutocompleteItem> _staticMulticolumn = new List<MulticolumnAutocompleteItem> {
-            //    new MulticolumnAutocompleteItem(new string[] { "abc", "def" }, "abcdef") { ColumnWidth = new int[] { 30, 100 }, ImageIndex = 1 }
-            };
 
             IEnumerator IEnumerable.GetEnumerator()
             {
@@ -1131,8 +1156,10 @@ All predicates are imported regardless of any module declarations.
             private IEnumerable<AutocompleteItem> BuildList()
             {
                 //return autocomplete items
-                foreach (var item in _items.Concat(_staticSnippets).Concat(_staticMulticolumn))
+                foreach (AutocompleteItem item in _items.Concat(_staticSnippets).Concat(_staticMulticolumn))
+                {
                     yield return item;
+                }
             }
 
             private static string PredicateHeadString(PredicateDescr predicateDesc)

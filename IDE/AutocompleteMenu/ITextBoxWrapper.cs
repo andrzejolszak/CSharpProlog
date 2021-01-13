@@ -5,7 +5,7 @@ using System.Windows.Forms;
 namespace AutocompleteMenuNS
 {
     /// <summary>
-    /// Wrapper over the control like TextBox.
+    ///     Wrapper over the control like TextBox.
     /// </summary>
     public interface ITextBoxWrapper
     {
@@ -14,11 +14,16 @@ namespace AutocompleteMenuNS
         string SelectedText { get; set; }
         int SelectionLength { get; set; }
         int SelectionStart { get; set; }
-        Point GetPositionFromCharIndex(int pos);
         bool Readonly { get; }
+
+        Point GetPositionFromCharIndex(int pos);
+
         event EventHandler LostFocus;
+
         event ScrollEventHandler Scroll;
+
         event KeyEventHandler KeyDown;
+
         event MouseEventHandler MouseDown;
     }
 }

@@ -1,31 +1,31 @@
-﻿using ScintillaNET;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ScintillaNET;
+using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
 namespace Prolog
 {
-    public partial class SourceArea : WeifenLuo.WinFormsUI.Docking.DockContent
+    public partial class SourceArea : DockContent
     {
-        public event Action SourceConsultedSuccess;
-        public event Action SourceConsultedError;
-        public PrologEditor sourceEditor;
         private readonly Timer _stoppedTypingTimer;
-        private PrologEngine stoppedTypingEngine;
-        private Task stoppedTypingParseTask;
-        private readonly OutputArea winIO;
-        private readonly TextBox tbAnswer;
-        private string _currentFile = "Untitled";
         private readonly string namePrefix = "";
-        private bool wasModified = false;
         private readonly PrologEngine pe;
         private readonly Action<ProgressChangedEventArgs> progressChangedHandler;
+        private readonly TextBox tbAnswer;
+        private readonly OutputArea winIO;
+        private string _currentFile = "Untitled";
+        public PrologEditor sourceEditor;
+        private PrologEngine stoppedTypingEngine;
+        private Task stoppedTypingParseTask;
+        private bool wasModified;
 
-        public SourceArea(PrologEngine pe, OutputArea winIO, TextBox tbAnswer, Action<ProgressChangedEventArgs> progressChangedHandler)
+        public SourceArea(PrologEngine pe, OutputArea winIO, TextBox tbAnswer,
+            Action<ProgressChangedEventArgs> progressChangedHandler)
         {
             InitializeComponent();
 
@@ -40,8 +40,8 @@ namespace Prolog
             sourceEditor = new PrologEditor(pe);
             Scintilla scintillaSource = sourceEditor.Editor;
 
-            scintillaSource.Anchor = (AnchorStyles.Top | AnchorStyles.Left)
-                                     | AnchorStyles.Right | AnchorStyles.Bottom;
+            scintillaSource.Anchor = AnchorStyles.Top | AnchorStyles.Left
+                                                      | AnchorStyles.Right | AnchorStyles.Bottom;
             scintillaSource.Location = new Point(0, 0);
             scintillaSource.Size = sourcePanel.Size;
             scintillaSource.TabIndex = 19;
@@ -57,8 +57,8 @@ namespace Prolog
 
             sourcePanel.Controls.Add(scintillaSource);
 
-            sourceEditor.Map.Anchor = (AnchorStyles.Top | AnchorStyles.Left)
-                                      | AnchorStyles.Right | AnchorStyles.Bottom;
+            sourceEditor.Map.Anchor = AnchorStyles.Top | AnchorStyles.Left
+                                                       | AnchorStyles.Right | AnchorStyles.Bottom;
             sourceEditor.Map.Height = scintillaSource.Height;
             mapPanel.Controls.Add(sourceEditor.Map);
 
@@ -74,6 +74,10 @@ namespace Prolog
 
             sourceEditor.DrawDependencyArrows = true;
         }
+
+        public event Action SourceConsultedSuccess;
+
+        public event Action SourceConsultedError;
 
         private void ResetBackgroundWorker()
         {
@@ -112,7 +116,7 @@ namespace Prolog
                 stoppedTypingEngine = new PrologEngine(false);
                 string text = sourceEditor.Editor.Text;
 
-                stoppedTypingParseTask = new Task(new Action(() =>
+                stoppedTypingParseTask = new Task(() =>
                 {
                     try
                     {
@@ -142,8 +146,9 @@ namespace Prolog
                             tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {ex.Message}");*/
                         }));
                     }
+
                     stoppedTypingParseTask = null;
-                }));
+                });
 
                 stoppedTypingParseTask.Start();
             }
@@ -183,7 +188,10 @@ namespace Prolog
 
         private void consultButton_Click(object sender, EventArgs e)
         {
-            if (bgwLoadSource.IsBusy) return;
+            if (bgwLoadSource.IsBusy)
+            {
+                return;
+            }
 
             _stoppedTypingTimer.Stop();
 
@@ -247,7 +255,8 @@ namespace Prolog
         {
             if (wasModified)
             {
-                DialogResult result = MessageBox.Show(this, "Changes to the current document will be lost.\nContinue?", "Please Confirm", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+                DialogResult result = MessageBox.Show(this, "Changes to the current document will be lost.\nContinue?",
+                    "Please Confirm", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
                 return result == DialogResult.OK;
             }
 

@@ -1,10 +1,10 @@
 //#define showToken
 
+using System;
+using System.Text;
+
 namespace Prolog
 {
-    using System;
-    using System.Text;
-
     /* _______________________________________________________________________________________________
       |                                                                                               |
       |  C#Prolog -- Copyright (C) 2007-2014 John Pool -- j.pool@ision.nl                                  |
@@ -21,21 +21,9 @@ namespace Prolog
 
     public partial class PrologEngine
     {
-                public partial class PrologParser : BaseParser
+        public partial class PrologParser : BaseParser
         {
-            private StringBuilder _lastCommentBlock = new StringBuilder();
-
-            
             private const char USCORE = '_';
-            private char extraUnquotedAtomChar = '_';
-
-            private PrologEngine engine;
-            private PredicateTable predTable;
-            private OperatorTable opTable;
-            private TermNode queryNode = null;
-
-            public TermNode QueryNode => queryNode;
-            public int nargs;
 
             public const string IMPLIES = ":-";
             public const string DCGIMPL = "-->";
@@ -63,41 +51,49 @@ namespace Prolog
             public const string TIMESSYM = "*";
             public const string QUESTIONMARK = "?";
 
-            private int savePlusSym;
-            private int saveTimesSym;
-            private int saveQuestionMark;
-
             public static readonly int Infinite = int.MaxValue;
+            private readonly StringBuilder _lastCommentBlock = new StringBuilder();
+
+            private readonly PrologEngine engine;
+            private readonly OperatorTable opTable;
+            private readonly PredicateTable predTable;
+            private char extraUnquotedAtomChar = '_';
+
+            private bool isReservedOperatorSetting;
+            private TermNode queryNode;
+            private bool readingDcgClause; // determines how to interpret {t1, ... , tn}
 
             private BaseTerm readTerm; // result of read (X)
+
+            private int savePlusSym;
+            private int saveQuestionMark;
+            private int saveTimesSym;
+
+            public TermNode QueryNode => queryNode;
             public BaseTerm ReadTerm => readTerm;
-            private bool jsonMode; // determines how curly brackets will be interpreted ('normal' vs. list)
-            private bool readingDcgClause; // determines how to interpret {t1, ... , tn}
             public bool InQueryMode { get; private set; }
 
             private void Initialize()
             {
                 SetReservedOperators(false);
-                terminalTable[PLUSSYM] = Operator;
-                terminalTable[TIMESSYM] = Operator;
-                terminalTable[QUESTIONMARK] = Atom;
-                terminalTable.Remove("module");            // will be temporarily set after an initial ':-' only
-                terminalTable.Remove("dynamic");           // ...
-                terminalTable.Remove("discontiguous");
-                terminalTable.Remove("alldiscontiguous");
+                TerminalTable[PLUSSYM] = Operator;
+                TerminalTable[TIMESSYM] = Operator;
+                TerminalTable[QUESTIONMARK] = Atom;
+                TerminalTable.Remove("module"); // will be temporarily set after an initial ':-' only
+                TerminalTable.Remove("dynamic"); // ...
+                TerminalTable.Remove("discontiguous");
+                TerminalTable.Remove("alldiscontiguous");
                 //terminalTable.Remove ("stringstyle");
-                jsonMode = false; // Standard Prolog interpretation
 
                 //if (!ConfigSettings.VerbatimStringsAllowed)
                 //    terminalTable.Remove(@"@""");
             }
 
-
             private void Terminate()
             {
                 InQueryMode = true;
             }
-            
+
             public OperatorDescr AddPrologOperator(int prec, string type, string name, bool user)
             {
                 AssocType assoc = AssocType.None;
@@ -112,14 +108,17 @@ namespace Prolog
                 }
 
                 if (prec < 0 || prec > 1200)
+                {
                     IO.ErrorConsult($"Illegal precedence value {prec} for operator '{name}'", symbol);
+                }
 
                 TerminalDescr td;
                 OpDescrTriplet triplet;
 
-                if (terminalTable.Find(name, out td))
+                if (TerminalTable.Find(name, out td))
 
-                { // some operator symbols (:-, -->, +, ...) already exist prior to their op/3 definition
+                {
+                    // some operator symbols (:-, -->, +, ...) already exist prior to their op/3 definition
                     if (td.Payload == null)
                     {
                         td.Payload = opTable.Add(prec, type, name, user);
@@ -127,21 +126,20 @@ namespace Prolog
                     }
                     else // no need to add it -- just change its properties
                     {
-                        ((OpDescrTriplet)td.Payload).Assign(name, prec, assoc, user);
+                        td.Payload.Assign(name, prec, assoc, user);
                         td.IVal = Operator;
                     }
 
-                    triplet = (OpDescrTriplet)td.Payload;
+                    triplet = td.Payload;
                 }
                 else // new operator
                 {
                     triplet = opTable.Add(prec, type, name, user);
-                    terminalTable.Add(name, Operator, triplet);
+                    TerminalTable.Add(name, Operator, triplet);
                 }
 
                 return triplet[assoc];
             }
-
 
             public void RemovePrologOperator(string type, string name, bool user)
             {
@@ -158,38 +156,45 @@ namespace Prolog
 
                 TerminalDescr td;
 
-                if (terminalTable.Find(name, out td) && td.Payload != null)
+                if (TerminalTable.Find(name, out td) && td.Payload != null)
                 {
                     if (!user)
+                    {
                         IO.ErrorConsult($"Undefine of operator ({type}, {name}) not allowed", symbol);
+                    }
                     else
                     {
-                        ((OpDescrTriplet)td.Payload).Unassign(name, assoc);
+                        td.Payload.Unassign(name, assoc);
 
-                        foreach (OperatorDescr od in ((OpDescrTriplet)td.Payload))
-                            if (od.IsDefined) return;
+                        foreach (OperatorDescr od in td.Payload)
+                        {
+                            if (od.IsDefined)
+                            {
+                                return;
+                            }
+                        }
 
-                        terminalTable.Remove(name); // name no longer used
+                        TerminalTable.Remove(name); // name no longer used
                     }
                 }
                 else // unknown operator
+                {
                     IO.ErrorConsult($"Operator not found: ({type}, {name})", symbol);
+                }
             }
-
-            private bool isReservedOperatorSetting;
 
             private void SetReservedOperators(bool asOpr)
             {
                 if (asOpr) // parsed as Operator
                 {
-                    terminalTable[IMPLIES] = Operator;
-                    terminalTable[DCGIMPL] = Operator;
+                    TerminalTable[IMPLIES] = Operator;
+                    TerminalTable[DCGIMPL] = Operator;
                 }
                 else // parsed 'normally'
                 {
-                    terminalTable[IMPLIES] = ImpliesSym;
-                    terminalTable[DCGIMPL] = DCGArrowSym;
-                    terminalTable[OP] = OpSym;
+                    TerminalTable[IMPLIES] = ImpliesSym;
+                    TerminalTable[DCGIMPL] = DCGArrowSym;
+                    TerminalTable[OP] = OpSym;
                 }
 
                 isReservedOperatorSetting = asOpr;
@@ -197,32 +202,35 @@ namespace Prolog
 
             private bool SetCommaAsSeparator(bool mode)
             {
-                bool result = (terminalTable[COMMA] == Comma); // returnvalue is *current* status
+                bool result = TerminalTable[COMMA] == Comma; // returnvalue is *current* status
 
-                terminalTable[COMMA] = mode ? Comma : Operator; // 'Comma' is separator
+                TerminalTable[COMMA] = mode ? Comma : Operator; // 'Comma' is separator
 
                 return result;
             }
-            
-                        public void AddBracketPair(string openBracket, string closeBracket, bool useAsList)
+
+            public void AddBracketPair(string openBracket, string closeBracket, bool useAsList)
             {
                 if (openBracket == closeBracket)
+                {
                     IO.ErrorConsult("Wrapper open and wrapper close token must be different", symbol);
+                }
 
                 if (useAsList)
                 {
                     engine.AltListTable.Add(ref openBracket, ref closeBracket); // possible quotes are removed
-                    terminalTable.AddOrReplace(AltListOpen, "AltListOpen", openBracket);
-                    terminalTable.AddOrReplace(AltListClose, "AltListClose", closeBracket);
+                    TerminalTable.AddOrReplace(AltListOpen, "AltListOpen", openBracket);
+                    TerminalTable.AddOrReplace(AltListClose, "AltListClose", closeBracket);
                 }
                 else
                 {
                     engine.WrapTable.Add(ref openBracket, ref closeBracket);
-                    terminalTable.AddOrReplace(WrapOpen, "WrapOpen", openBracket);
-                    terminalTable.AddOrReplace(WrapClose, "WrapClose", closeBracket);
+                    TerminalTable.AddOrReplace(WrapOpen, "WrapOpen", openBracket);
+                    TerminalTable.AddOrReplace(WrapClose, "WrapClose", closeBracket);
                 }
             }
-                        protected void ScanVerbatimString()
+
+            protected void ScanVerbatimString()
             {
                 do
                 {
@@ -246,26 +254,26 @@ namespace Prolog
                 symbol.Final = streamInPtr.Position;
 
                 if (symbol.TerminalId != VerbatimStringLiteral)
+                {
                     SyntaxError =
                         $"Unterminated verbatim string: {symbol}\r\n(remember to use \"\" instead of \\\" for an embedded \")";
-
+                }
             }
-            
 
-                        protected override void ScanIdOrTerminalOrCommentStart()
+            protected override void ScanIdOrTerminalOrCommentStart()
             {
                 TerminalDescr tRec;
                 bool special = ch.IsSpecialAtomChar();
                 bool firstLow = Char.IsLower(ch);
                 StreamPointer iPtr = streamInPtr;
                 StreamPointer tPtr = iPtr;
-                int aLen = (ch.IsIdStartChar() || special) ? 1 : 0; // length of longest Atom sofar
+                int aLen = ch.IsIdStartChar() || special ? 1 : 0; // length of longest Atom sofar
                 int tLen = 0; // length of longest Terminal sofar
                 int fCnt = 0; // count of calls to FindCharAndSubtree
-                bool isDot = (ch == '.'); // remains valid only if symbol length is 1
-                terminalTable.FindCharInSubtreeReset();
+                bool isDot = ch == '.'; // remains valid only if symbol length is 1
+                TerminalTable.FindCharInSubtreeReset();
 
-                while (fCnt++ >= 0 && terminalTable.FindCharInSubtree(ch, out tRec))
+                while (fCnt++ >= 0 && TerminalTable.FindCharInSubtree(ch, out tRec))
                 {
                     if (tRec != null)
                     {
@@ -275,18 +283,24 @@ namespace Prolog
                         tLen = fCnt;
                         tPtr = streamInPtr; // next char to be processed
 
-                        if (symbol.TerminalId == CommentStart || symbol.TerminalId == CommentSingle) return;
+                        if (symbol.TerminalId == CommentStart || symbol.TerminalId == CommentSingle)
+                        {
+                            return;
+                        }
 
-                        if (terminalTable.AtLeaf) break; // terminal cannot be extended
+                        if (TerminalTable.AtLeaf)
+                        {
+                            break; // terminal cannot be extended
+                        }
                     }
 
                     NextCh();
 
                     if (aLen == fCnt &&
-                         (special && ch.IsSpecialAtomChar() ||
-                           !special && ch.IsIdAtomContinueChar(extraUnquotedAtomChar)
-                         )
-                       )
+                        ((special && ch.IsSpecialAtomChar()) ||
+                         (!special && ch.IsIdAtomContinueChar(extraUnquotedAtomChar))
+                        )
+                    )
                     {
                         aLen++;
                         iPtr = streamInPtr;
@@ -315,56 +329,73 @@ namespace Prolog
                             iPtr = streamInPtr;
                         }
                         else
+                        {
                             break;
+                        }
                     }
                 }
 
                 if (aLen > tLen) // tLen = 0 iff Terminal == Undefined
                 {
                     if (firstLow || special)
+                    {
                         symbol.TerminalId = Atom;
+                    }
                     else
+                    {
                         symbol.TerminalId = Identifier;
+                    }
 
                     symbol.Class = SymbolClass.Id;
                     InitCh(iPtr);
                 }
                 else if (symbol.TerminalId == Undefined)
+                {
                     InitCh(iPtr);
+                }
                 else // we have a terminal != Identifier
                 {
-                    if (aLen == tLen) symbol.Class = SymbolClass.Id;
+                    if (aLen == tLen)
+                    {
+                        symbol.Class = SymbolClass.Id;
+                    }
+
                     InitCh(tPtr);
                 }
 
                 NextCh();
 
-                // a bit hacky: find erroneous conditional define symbols 
+                // a bit hacky: find erroneous conditional define symbols
                 // such as e.g. !ifxxx (space omitted between !if and xxx)
 
                 if (symbol.Class == SymbolClass.Meta)
                 {
                     int pos = streamInPtr.Position;
 
-                    while (ch.IsIdAtomContinueChar(extraUnquotedAtomChar)) NextCh();
+                    while (ch.IsIdAtomContinueChar(extraUnquotedAtomChar))
+                    {
+                        NextCh();
+                    }
 
-                    if (pos != streamInPtr.Position) symbol.TerminalId = Undefined;
+                    if (pos != streamInPtr.Position)
+                    {
+                        symbol.TerminalId = Undefined;
+                    }
                 }
 
                 // Dot-patch: a '.' is a Dot only if it is followed by layout,
                 // otherwise it is an atom (or an operator if defined as such)
                 if (isDot && aLen == 1 && (ch == '\0' || ch == '%' || Char.IsWhiteSpace(ch)))
+                {
                     symbol.TerminalId = Dot;
-
+                }
             }
 
             public void SetDollarAsPossibleUnquotedAtomChar(bool set)
             {
                 extraUnquotedAtomChar = set ? '$' : '_';
             }
-            
 
-            
             private void ScanQuotedAtom(out bool canUnquote)
             {
                 canUnquote = true;
@@ -388,24 +419,32 @@ namespace Prolog
                                 symbol.TerminalId = Atom;
                             }
                             else // atom contains quote
+                            {
                                 canUnquote = false;
+                            }
                         }
                         else
                         {
                             if (first)
+                            {
                                 canUnquote = Char.IsLower(ch);
+                            }
                             else
+                            {
                                 canUnquote = canUnquote && (ch == '_' || Char.IsLetterOrDigit(ch));
+                            }
 
-                            specialsOnly = specialsOnly && (ch.IsSpecialAtomChar());
+                            specialsOnly = specialsOnly && ch.IsSpecialAtomChar();
                         }
 
                         first = false;
                     }
-                } while (!(streamInPtr.EndLine) && symbol.TerminalId != Atom);
+                } while (!streamInPtr.EndLine && symbol.TerminalId != Atom);
 
                 if (streamInPtr.EndLine && symbol.TerminalId != StringLiteral)
+                {
                     SyntaxError = "Unterminated atom: " + symbol;
+                }
 
                 canUnquote |= specialsOnly;
 
@@ -414,22 +453,29 @@ namespace Prolog
                 int stop = streamInPtr.Position - (canUnquote ? 1 : 0);
                 TerminalDescr tRec;
 
-                if (terminalTable.Find(StreamInClip(start, stop), out tRec))
+                if (TerminalTable.Find(StreamInClip(start, stop), out tRec))
+                {
                     if (tRec.Payload != null)
                     {
                         symbol.TerminalId = Operator;
                         symbol.Payload = tRec.Payload;
                     }
+                }
             }
-            
-                        protected override void NextSymbol(string _Proc)
+
+            protected override void NextSymbol(string _Proc)
             {
-                if (symbol.AbsSeqNo != 0 && streamInPtr.FOnLine) streamInPtr.FOnLine = false;
+                if (symbol.AbsSeqNo != 0 && streamInPtr.FOnLine)
+                {
+                    streamInPtr.FOnLine = false;
+                }
 
                 symbol.PrevFinal = symbol.Final;
 
                 if (symbol.TerminalId == EndOfInput)
+                {
                     SyntaxError = "*** Trying to read beyond end of input";
+                }
 
                 prevTerminal = symbol.TerminalId;
                 symbol.Class = SymbolClass.None;
@@ -439,9 +485,12 @@ namespace Prolog
 
                 do
                 {
-                                        do
+                    do
                     {
-                        while (Char.IsWhiteSpace(ch)) NextCh();
+                        while (Char.IsWhiteSpace(ch))
+                        {
+                            NextCh();
+                        }
 
                         symbol.Start = streamInPtr.Position;
                         symbol.LineNo = streamInPtr.LineNo;
@@ -453,29 +502,42 @@ namespace Prolog
                         if (endText)
                         {
                             symbol.TerminalId = EndOfInput;
-                            cdh.HandleSymbol(symbol); // check for missing #endif missing
+                            Cdh.HandleSymbol(symbol); // check for missing #endif missing
                         }
                         else if (streamInPtr.EndLine)
+                        {
                             symbol.TerminalId = EndOfLine;
+                        }
                         else if (Char.IsDigit(ch))
+                        {
                             ScanNumber();
+                        }
                         else if (ch == SQUOTE)
+                        {
                             ScanQuotedAtom(out canUnquote);
+                        }
                         else if (ch == DQUOTE)
+                        {
                             ScanString();
+                        }
                         else
+                        {
                             ScanIdOrTerminalOrCommentStart();
+                        }
 
                         symbol.Final = streamInPtr.Position;
-                        symbol.IsFollowedByLayoutChar = (ch == '%' || Char.IsWhiteSpace(ch)); // '/*' not covered
+                        symbol.IsFollowedByLayoutChar = ch == '%' || Char.IsWhiteSpace(ch); // '/*' not covered
 
-                        if (symbol.Class == SymbolClass.Comment) break;
+                        if (symbol.Class == SymbolClass.Comment)
+                        {
+                            break;
+                        }
 
-                        if (cdh.IsExpectingId || symbol.Class == SymbolClass.Meta)
-                            cdh.HandleSymbol(symbol); // if expecting: symbol must be an identifier
-
-                    } while (cdh.CodeIsInactive || symbol.Class == SymbolClass.Meta);
-                    
+                        if (Cdh.IsExpectingId || symbol.Class == SymbolClass.Meta)
+                        {
+                            Cdh.HandleSymbol(symbol); // if expecting: symbol must be an identifier
+                        }
+                    } while (Cdh.CodeIsInactive || symbol.Class == SymbolClass.Meta);
 
                     if (canUnquote)
                     {
@@ -499,23 +561,38 @@ namespace Prolog
                             case Atom:
                                 Break = true;
                                 break;
+
                             case EndOfInput:
                                 Break = true;
                                 break;
+
                             case VerbatimStringStart:
                                 ScanVerbatimString();
                                 Break = true;
                                 break;
+
                             case CommentStart:
                                 if (stringMode)
+                                {
                                     Break = true;
+                                }
 
                                 if (!DoComment("*/", true, streamInPtr.FOnLine))
+                                {
                                     ErrorMessage = "Unterminated comment starting at line " + symbol.LineNo;
+                                }
 
                                 break;
+
                             case CommentSingle:
-                                if (stringMode) Break = true; else Break = false;
+                                if (stringMode)
+                                {
+                                    Break = true;
+                                }
+                                else
+                                {
+                                    Break = false;
+                                }
 
                                 if (symbol.InputLine.TrimStart().StartsWith("%"))
                                 {
@@ -532,8 +609,12 @@ namespace Prolog
                                 }
 
                                 break;
+
                             default:
-                                if (seeEndOfLine && symbol.TerminalId != EndOfLine) streamInPtr.FOnLine = false;
+                                if (seeEndOfLine && symbol.TerminalId != EndOfLine)
+                                {
+                                    streamInPtr.FOnLine = false;
+                                }
 
                                 Break = true;
                                 break;
@@ -544,17 +625,20 @@ namespace Prolog
                 symbol.AbsSeqNo++;
                 symbol.RelSeqNo++;
             }
-            
-                        public BaseTerm ParseTerm()
+
+            public BaseTerm ParseTerm()
             {
-                if (symbol.TerminalId == EndOfInput) return null;
+                if (symbol.TerminalId == EndOfInput)
+                {
+                    return null;
+                }
 
                 BaseTerm result;
 
                 try
                 {
                     OptionalPrologTerm(new TerminalSet(terminalCount), out result);
-                    lineCount = LineNo;
+                    LineCount = LineNo;
 
                     return result;
                 }
@@ -565,26 +649,24 @@ namespace Prolog
                 catch (Exception e) // other errors
                 {
                     errorMessage =
-                        $"*** Line {LineNo}: {e.Message}{(showErrTrace ? Environment.NewLine + e.StackTrace : null)}";
+                        $"*** Line {LineNo}: {e.Message}{(ShowErrTrace ? Environment.NewLine + e.StackTrace : null)}";
 
                     throw new ConsultException(errorMessage, symbol: symbol);
                 }
             }
-                    }
-            }
+        }
+    }
 
-    
     internal static class PrologParserExtensions
     {
         public static bool IsSpecialAtomChar(this char c)
         {
-            return (@"+-*/\^<=>`~:.?@#$&".IndexOf(c) != -1);
+            return @"+-*/\^<=>`~:.?@#$&".IndexOf(c) != -1;
         }
 
         public static bool IsIdAtomContinueChar(this char c, char extraUnquotedAtomChar)
         {
-            return (Char.IsLetterOrDigit(c) || c == '_' || c == extraUnquotedAtomChar);
+            return Char.IsLetterOrDigit(c) || c == '_' || c == extraUnquotedAtomChar;
         }
     }
-    }
-
+}

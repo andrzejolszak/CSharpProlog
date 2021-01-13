@@ -2,15 +2,16 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
+using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
 namespace Prolog
 {
-    public partial class InspectorArea : WeifenLuo.WinFormsUI.Docking.DockContent
+    public partial class InspectorArea : DockContent
     {
+        private readonly StateBrowser.WinForms.StateBrowser _stateBrowser;
         private readonly PrologEngine pe;
         private readonly SourceArea sourceArea;
-        private readonly StateBrowser.WinForms.StateBrowser _stateBrowser;
 
         public InspectorArea(PrologEngine pe, SourceArea sourceArea)
         {
@@ -32,7 +33,8 @@ namespace Prolog
                 x =>
                 {
                     this.sourceArea.sourceEditor.Editor.ClearSelections();
-                    this.sourceArea.sourceEditor.Editor.AddSelection(x.ClauseList.Term.Symbol.Start, x.ClauseListEnd.Term.Symbol.Final);
+                    this.sourceArea.sourceEditor.Editor.AddSelection(x.ClauseList.Term.Symbol.Start,
+                        x.ClauseListEnd.Term.Symbol.Final);
                 });
         }
 
@@ -52,12 +54,15 @@ namespace Prolog
         {
             int pos = sourceArea.sourceEditor.Editor.CurrentPosition;
             List<PredicateDescr> clauses = pe.PredTable.Predicates.Values.Where(
-                    x => x.ClauseList.Term.Symbol.Start <= pos && x.ClauseListEnd.Term.Symbol.Final >= pos && !x.IsPredefined).ToList();
+                x => x.ClauseList.Term.Symbol.Start <= pos && x.ClauseListEnd.Term.Symbol.Final >= pos &&
+                     !x.IsPredefined).ToList();
 
-            RefresthUIState(new Dictionary<string, object> { ["Clauses"] = clauses.ToDictionary(x => x.ToString()) }, "Current caret position");
-            foreach (var t in clauses)
+            RefresthUIState(new Dictionary<string, object> { ["Clauses"] = clauses.ToDictionary(x => x.ToString()) },
+                "Current caret position");
+            foreach (PredicateDescr t in clauses)
             {
-                this.sourceArea.sourceEditor.Editor.AddSelection(t.ClauseList.Term.Symbol.Start, t.ClauseListEnd.Term.Symbol.Final);
+                sourceArea.sourceEditor.Editor.AddSelection(t.ClauseList.Term.Symbol.Start,
+                    t.ClauseListEnd.Term.Symbol.Final);
             }
         }
     }

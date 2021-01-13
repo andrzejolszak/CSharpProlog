@@ -3,167 +3,200 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
 using System;
-using System.Text;
-using System.IO;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
 {
     public partial class PrologEngine
     {
-                public class TryCatchTerm : AtomTerm
+        private static readonly TryCatchTerm TC_CLOSE = new TryCatchTerm(null, ")");
+
+        public BaseTerm NewIsoOrCsStringTerm(Symbol symbol, string s)
         {
-            public TryCatchTerm(Symbol symbol, string a) : base(symbol, a) { }
+            if (CsharpStrings)
+            {
+                return new StringTerm(symbol, s);
+            }
+
+            return new ListTerm(symbol, s);
         }
 
-        private static readonly TryCatchTerm TC_CLOSE = new TryCatchTerm(null, ")");
+        public class TryCatchTerm : AtomTerm
+        {
+            public TryCatchTerm(Symbol symbol, string a) : base(symbol, a)
+            {
+            }
+        }
 
         public class TryOpenTerm : TryCatchTerm
         {
-            public int Id { get; set; }
+            public TryOpenTerm(Symbol symbol) : base(symbol, "TRY")
+            {
+            }
 
-            public TryOpenTerm(Symbol symbol) : base(symbol, "TRY") { }
+            public int Id { get; set; }
         }
 
         public class CatchOpenTerm : TryCatchTerm
         {
+            public CatchOpenTerm(Symbol symbol, string exceptionClass, BaseTerm msgVar, int seqNo)
+                : base(symbol, "CATCH")
+            {
+                ExceptionClass = exceptionClass;
+                SeqNo = seqNo;
+                MsgVar = (Variable)msgVar;
+            }
+
+            public CatchOpenTerm(Symbol symbol, int id, string exceptionClass, BaseTerm msgVar, int seqNo,
+                int saveStackSize)
+                : base(symbol, "CATCH")
+            {
+                Id = id;
+                ExceptionClass = exceptionClass;
+                SeqNo = seqNo;
+                SaveStackSize = saveStackSize;
+                MsgVar = (Variable)msgVar;
+            }
+
             public string ExceptionClass { get; }
             public int Id { get; set; }
 
             public int SeqNo { get; } // CATCH-clauses for one TRY are number from 0 onwards
             public int SaveStackSize { get; set; } // not used
             public Variable MsgVar { get; }
+        }
 
-            public CatchOpenTerm(Symbol symbol, string exceptionClass, BaseTerm msgVar, int seqNo)
-              : base(symbol, "CATCH")
+        public class Variable : BaseTerm
+        {
+            public Variable(Symbol symbol, VarStack varStack)
+                : base(symbol)
             {
-                this.ExceptionClass = exceptionClass;
-                this.SeqNo = seqNo;
-                this.MsgVar = (Variable)msgVar;
+                varNo = varStack.varNoMax++;
+                VerNo = 0;
+                UnifyCount = 0;
+                CompoundTermType = TermType.UnboundVar;
             }
 
-            public CatchOpenTerm(Symbol symbol, int id, string exceptionClass, BaseTerm msgVar, int seqNo, int saveStackSize)
-              : base(symbol, "CATCH")
+            public BaseTerm NewVar { get; set; }
+            protected BaseTerm ULink { get; set; }
+            protected int UnifyCount { get; set; }
+            public int VerNo { get; set; }
+
+            protected int varNo
             {
-                this.Id = id;
-                this.ExceptionClass = exceptionClass;
-                this.SeqNo = seqNo;
-                this.SaveStackSize = saveStackSize;
-                this.MsgVar = (Variable)msgVar;
+                get => TermId;
+                set => TermId = value;
             }
-        }
-        
-                public BaseTerm NewIsoOrCsStringTerm(Symbol symbol, string s)
-        {
-            if (csharpStrings)
-                return new StringTerm(symbol, s);
-            else
-                return new ListTerm(symbol, s);
-        }
-        
-                public class Variable : BaseTerm
-        {
-            protected BaseTerm uLink;
-            public int verNo;
-            protected int unifyCount; // used for tabling
-            protected int visitNo; // for cycle detection only
-            public BaseTerm newVar;
-            protected int varNo { get { return termId; } set { termId = value; } }
+
             public override string Name => "_" + varNo;
             public override int Arity => -1;
+
+            public override bool IsUnified => ULink != null;
 
             public bool IsUnifiedWith(Variable v)
             {
                 return ChainEnd() == v.ChainEnd();
             }
 
-            public Variable(BaseParser.Symbol symbol, VarStack varStack)
-                : base(symbol)
+            public override BaseTerm ChainEnd()
             {
-                varNo = varStack.varNoMax++;
-                verNo = 0;
-                unifyCount = 0;
-                termType = TermType.UnboundVar;
+                return IsUnified ? ULink.ChainEnd() : this;
             }
 
-            public override BaseTerm ChainEnd() { return (IsUnified) ? uLink.ChainEnd() : this; }
             // - this is a non-unified var, or is is a var with a refUnifyCount > arg  -> return this
             // - return ChainEnd (refUnifyCount)
             public override BaseTerm ChainEnd(int refUnifyCount)
             {
-                return (uLink == null || unifyCount > refUnifyCount)
-                       ? this
-                       : uLink.ChainEnd(refUnifyCount); // resolves to uLink for a nonvar
+                return ULink == null || UnifyCount > refUnifyCount
+                    ? this
+                    : ULink.ChainEnd(refUnifyCount); // resolves to uLink for a nonvar
             }
 
-            public override bool IsUnified => (uLink != null);
-            protected override int CompareValue(BaseTerm t) { return varNo.CompareTo(((Variable)t).varNo); }
+            protected override int CompareValue(BaseTerm t)
+            {
+                return varNo.CompareTo(((Variable)t).varNo);
+            }
 
             public override bool Unify(BaseTerm t, VarStack varStack)
             {
-                if (IsUnified) return ChainEnd().Unify(t, varStack);
+                if (IsUnified)
+                {
+                    return ChainEnd().Unify(t, varStack);
+                }
 
-                if (t.IsUnified) return this.Unify(t.ChainEnd(), varStack);
+                if (t.IsUnified)
+                {
+                    return Unify(t.ChainEnd(), varStack);
+                }
 
                 varStack.NextUnifyCount();
-                this.Bind(t, varStack);
+                Bind(t, varStack);
                 varStack.Push(this);
 
                 return true;
             }
 
-
             public void Bind(BaseTerm t, VarStack varStack)
             {
-                if (this == t) return; // cannot bind to self
+                if (this == t)
+                {
+                    return; // cannot bind to self
+                }
 
-                uLink = t;
-                unifyCount = varStack.CurrUnifyCount;
+                ULink = t;
+                UnifyCount = varStack.CurrUnifyCount;
             }
-
 
             public void Unbind()
             {
-                uLink = null;
-                unifyCount = 0;
+                ULink = null;
+                UnifyCount = 0;
             }
-
 
             public override string ToWriteString(int level)
             {
-                if (uLink == null) return Name;
+                if (ULink == null)
+                {
+                    return Name;
+                }
 
-                return uLink.ToWriteString(level);
+                return ULink.ToWriteString(level);
             }
         }
 
         // carries a variable's symbolic name as found in the source
         public class NamedVariable : Variable
         {
-            protected string name;
-            public override string Name => name;
-
             public NamedVariable(Symbol symbol, string name, VarStack varStack)
                 : base(symbol, varStack)
             {
-                this.name = name;
-                termType = TermType.NamedVar;
+                VarName = name;
+                CompoundTermType = TermType.NamedVar;
             }
 
-            protected override int CompareValue(BaseTerm t) { return name.CompareTo(((NamedVariable)t).name); }
+            protected string VarName { get; }
+
+            public override string Name => VarName;
+
+            protected override int CompareValue(BaseTerm t)
+            {
+                return VarName.CompareTo(((NamedVariable)t).VarName);
+            }
         }
 
         // not really necessary, but it can be convenient to recognize one
@@ -174,67 +207,70 @@ namespace Prolog
             {
             }
         }
-        
+
         public class AtomTerm : BaseTerm
         {
-            public override bool IsCallable => true;
-            public override bool IsEvaluatable => true;
-// engine, pi, i, today, ...
+            // engine, pi, i, today, ...
 
             public AtomTerm(Symbol symbol, object functor)
                 : base(symbol)
             {
-                this.functor = functor;
-                termType = TermType.Atom;
+                CompoundFunctor = functor;
+                CompoundTermType = TermType.Atom;
             }
 
             public AtomTerm(Symbol symbol, string value)
                 : base(symbol)
             {
-                functor = value.Unescaped();
-                termType = TermType.Atom;
+                CompoundFunctor = value.Unescaped();
+                CompoundTermType = TermType.Atom;
             }
 
             public AtomTerm(Symbol symbol, string value, string commentHeader, string commentBody, string testGroup)
                 : base(symbol)
             {
-                functor = value.Unescaped();
-                this.CommentHeader = commentHeader;
-                this.CommentBody = commentBody;
-                this.TestGroup = testGroup;
-                termType = TermType.Atom;
+                CompoundFunctor = value.Unescaped();
+                CommentHeader = commentHeader;
+                CommentBody = commentBody;
+                TestGroup = testGroup;
+                CompoundTermType = TermType.Atom;
             }
+
+            public override bool IsCallable => true;
+            public override bool IsEvaluatable => true;
 
             protected override int CompareValue(BaseTerm t)
             {
                 return FunctorToString.CompareTo(t.FunctorToString);
             }
 
-
             public override string ToWriteString(int level)
             {
-                return (FunctorToString == PrologParser.DOT) ? "'.'" : FunctorToString;
+                return FunctorToString == PrologParser.DOT ? "'.'" : FunctorToString;
             }
         }
-        
-                public class ClauseTerm : BaseTerm
+
+        public class ClauseTerm : BaseTerm
         {
-            public ClauseTerm(Symbol symbol, ClauseNode c, VarStack varStack)  // Create a BaseTerm from a NextClause (= Head + Body)
+            public ClauseTerm(Symbol symbol, ClauseNode c,
+                VarStack varStack) // Create a BaseTerm from a NextClause (= Head + Body)
                 : base(symbol)
             {
-                this.ClauseNode = c;
+                ClauseNode = c;
 
                 if (c.NextNode == null) // fact
+                {
                     CopyValuesFrom(c.Head);
+                }
                 else
                 {
-                    functor = PrologParser.IMPLIES;
-                    args = new BaseTerm[2];
-                    args[0] = c.Head;
-                    termType = TermType.Atom;
-                    assocType = AssocType.xfx;
-                    args[1] = c.NextNode.TermSeq(varStack);
-                    precedence = 1200;
+                    CompoundFunctor = PrologParser.IMPLIES;
+                    CompoundArgs = new BaseTerm[2];
+                    CompoundArgs[0] = c.Head;
+                    CompoundTermType = TermType.Atom;
+                    AssocType = AssocType.xfx;
+                    CompoundArgs[1] = c.NextNode.TermSeq(varStack);
+                    CompoundPrecedence = 1200;
                 }
             }
 
@@ -242,39 +278,50 @@ namespace Prolog
 
             public ClauseNode ClauseNode { get; }
         }
-        
+
         public class WrapperTerm : CompoundTerm
         {
-            private string wrapOpen;
-            private string wrapClose;
-            private string wrapFunctor => (wrapOpen + ".." + wrapClose).ToAtom();
+            private readonly string wrapClose;
+            private readonly string wrapOpen;
 
             public WrapperTerm(Symbol symbol, string wrapOpen, string wrapClose, BaseTerm[] a)
-              : base(symbol, (wrapOpen + ".." + wrapClose).ToAtom(), a)
+                : base(symbol, (wrapOpen + ".." + wrapClose).ToAtom(), a)
             {
                 this.wrapOpen = wrapOpen;
                 this.wrapClose = wrapClose;
-                termType = TermType.Compound;
+                CompoundTermType = TermType.Compound;
             }
 
             public WrapperTerm(WrapperTerm that, BaseTerm[] a) // for Copy only
-              : base(that.Symbol, (that.wrapOpen + ".." + that.wrapClose).ToAtom(), a)
+                : base(that.Symbol, (that.wrapOpen + ".." + that.wrapClose).ToAtom(), a)
             {
                 wrapOpen = that.wrapOpen;
                 wrapClose = that.wrapClose;
-                termType = TermType.Compound;
+                CompoundTermType = TermType.Compound;
             }
+
+            private string wrapFunctor => (wrapOpen + ".." + wrapClose).ToAtom();
 
             public override string ToWriteString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
                 StringBuilder sb = new StringBuilder(wrapOpen + SpaceAtLevel(level));
                 bool first = true;
 
                 for (int i = 0; i < arity; i++)
                 {
-                    if (first) first = false; else sb.Append(CommaAtLevel(level));
+                    if (first)
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        sb.Append(CommaAtLevel(level));
+                    }
 
                     sb.AppendPacked(Arg(i).ToWriteString(level + 1), Arg(i).FunctorIsBinaryComma);
                 }
@@ -284,10 +331,12 @@ namespace Prolog
                 return sb.ToString();
             }
 
-
             public override string ToDisplayString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
                 StringBuilder sb = new StringBuilder(wrapFunctor);
 
@@ -297,7 +346,14 @@ namespace Prolog
 
                 foreach (BaseTerm a in Args)
                 {
-                    if (first) first = false; else sb.Append(CommaAtLevel(level));
+                    if (first)
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        sb.Append(CommaAtLevel(level));
+                    }
 
                     sb.Append(a.ToDisplayString(level + 1));
                 }
@@ -320,107 +376,122 @@ namespace Prolog
 
                 e.WriteLine("{0}{1}", margin, wrapOpen);
 
-                foreach (BaseTerm a in args)
+                foreach (BaseTerm a in CompoundArgs)
+                {
                     a.TreePrint(level + 1, e);
+                }
 
                 e.WriteLine("{0}{1}", margin, wrapClose);
             }
         }
-        
-                public class CompoundTerm : BaseTerm
-        {
-            public override bool IsCallable => true;
-            public override bool IsEvaluatable => true;
 
+        public class CompoundTerm : BaseTerm
+        {
             public CompoundTerm(Symbol symbol, string functor, BaseTerm[] args)
                 : base(symbol)
             {
-                this.functor = functor;
-                this.args = args;
-                termType = TermType.Compound;
+                CompoundFunctor = functor;
+                CompoundArgs = args;
+                CompoundTermType = TermType.Compound;
             }
 
-            public CompoundTerm(Symbol symbol, string functor, string commentHeader, string commentBody, string testGroup, BaseTerm[] args)
+            public CompoundTerm(Symbol symbol, string functor, string commentHeader, string commentBody,
+                string testGroup, BaseTerm[] args)
                 : base(symbol)
             {
-                this.functor = functor;
-                this.CommentHeader = commentHeader;
-                this.CommentBody = commentBody;
-                this.TestGroup = testGroup;
-                this.args = args;
-                termType = TermType.Compound;
+                CompoundFunctor = functor;
+                CommentHeader = commentHeader;
+                CommentBody = commentBody;
+                TestGroup = testGroup;
+                CompoundArgs = args;
+                CompoundTermType = TermType.Compound;
             }
 
             public CompoundTerm(Symbol symbol, string functor, BaseTerm a)
                 : base(symbol)
             {
-                this.functor = functor;
-                args = new BaseTerm[1];
-                args[0] = a;
-                termType = TermType.Compound;
+                CompoundFunctor = functor;
+                CompoundArgs = new BaseTerm[1];
+                CompoundArgs[0] = a;
+                CompoundTermType = TermType.Compound;
             }
-
 
             public CompoundTerm(Symbol symbol, string functor, BaseTerm a0, BaseTerm a1)
                 : base(symbol)
             {
-                this.functor = functor;
-                args = new BaseTerm[2];
-                args[0] = a0;
-                args[1] = a1;
-                termType = TermType.Compound;
+                CompoundFunctor = functor;
+                CompoundArgs = new BaseTerm[2];
+                CompoundArgs[0] = a0;
+                CompoundArgs[1] = a1;
+                CompoundTermType = TermType.Compound;
             }
-
 
             public CompoundTerm(Symbol symbol, object functor, BaseTerm[] args)
                 : base(symbol)
             {
-                this.functor = functor;
-                this.args = args;
-                termType = TermType.Compound;
+                CompoundFunctor = functor;
+                CompoundArgs = args;
+                CompoundTermType = TermType.Compound;
             }
-
 
             public CompoundTerm(Symbol symbol, string functor) // degenerated case (for EMPTYLIST and operator)
                 : base(symbol)
             {
-                this.functor = functor;
-                termType = TermType.Atom;
+                CompoundFunctor = functor;
+                CompoundTermType = TermType.Atom;
             }
-
 
             public CompoundTerm(Symbol symbol)
                 : base(symbol)
             {
             }
 
+            public override bool IsCallable => true;
+            public override bool IsEvaluatable => true;
 
             protected override int CompareValue(BaseTerm t)
             {
                 int result = Arity.CompareTo(t.Arity); // same FunctorString: lowest arity first
 
-                if (result != 0) return result; // different arities
+                if (result != 0)
+                {
+                    return result; // different arities
+                }
 
-                if (Arity == 0) return FunctorToString.CompareTo(t.FunctorToString);
+                if (Arity == 0)
+                {
+                    return FunctorToString.CompareTo(t.FunctorToString);
+                }
 
                 for (int i = 0; i < Arity; i++)
-                    if ((result = Arg(i).CompareTo(t.Arg(i))) != 0) return result;
+                {
+                    if ((result = Arg(i).CompareTo(t.Arg(i))) != 0)
+                    {
+                        return result;
+                    }
+                }
 
                 return 0;
             }
 
-
             public override string ToWriteString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
                 StringBuilder sb = new StringBuilder();
 
                 if (FunctorToString == PrologParser.COMMA && arity == 2)
+                {
                     sb = new StringBuilder("(" + Arg(0).ToWriteString(level) + CommaAtLevel(level)
-                    + Arg(1).ToWriteString(level) + ")");
+                                           + Arg(1).ToWriteString(level) + ")");
+                }
                 else if (this == NULLCURL)
+                {
                     return PrologParser.CURL;
+                }
                 else if (FunctorToString == PrologParser.CURL)
                 {
                     sb.Append("{");
@@ -428,7 +499,14 @@ namespace Prolog
 
                     foreach (BaseTerm arg in Args)
                     {
-                        if (first) first = false; else sb.Append(CommaAtLevel(level));
+                        if (first)
+                        {
+                            first = false;
+                        }
+                        else
+                        {
+                            sb.Append(CommaAtLevel(level));
+                        }
 
                         sb.Append(arg.ToWriteString(level + 1).Packed(arg.FunctorIsBinaryComma));
                     }
@@ -443,7 +521,14 @@ namespace Prolog
 
                     for (int i = 0; i < arity; i++)
                     {
-                        if (first) first = false; else sb.Append(CommaAtLevel(level));
+                        if (first)
+                        {
+                            first = false;
+                        }
+                        else
+                        {
+                            sb.Append(CommaAtLevel(level));
+                        }
 
                         sb.AppendPacked(Arg(i).ToWriteString(level + 1), Arg(i).FunctorIsBinaryComma);
                     }
@@ -454,12 +539,14 @@ namespace Prolog
                 return sb.ToString();
             }
 
-
             public override string ToDisplayString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
-                string functor = (FunctorToString == PrologParser.CURL) ? "'{{}}'" : FunctorToString;
+                string functor = FunctorToString == PrologParser.CURL ? "'{{}}'" : FunctorToString;
 
                 StringBuilder sb = new StringBuilder(FunctorIsBinaryComma ? "','" : functor);
                 bool first = true;
@@ -468,7 +555,14 @@ namespace Prolog
 
                 foreach (BaseTerm a in Args)
                 {
-                    if (first) first = false; else sb.Append(CommaAtLevel(level));
+                    if (first)
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        sb.Append(CommaAtLevel(level));
+                    }
 
                     sb.Append(a.ToDisplayString(level + 1));
                 }
@@ -478,148 +572,156 @@ namespace Prolog
                 return sb.ToString();
             }
         }
-        
-                public class OperatorTerm : CompoundTerm
+
+        public class OperatorTerm : CompoundTerm
         {
-            // ConfigSettings.VerbatimStringsAllowed
-            public OperatorDescr od;
-            private AssocType assoc;
+            private readonly AssocType assoc;
 
-            public OperatorTerm(Symbol symbol, OperatorTable opTable, string name, BaseTerm a0, BaseTerm a1)
-              : base(symbol, name, a0, a1)
+            public OperatorTerm(Symbol symbol, OperatorDescr opDescr, BaseTerm a0, BaseTerm a1)
+                : base(symbol, opDescr.Name, a0, a1)
             {
-                if (!opTable.IsBinaryOperator(name, out od))
-                    IO.Fatal(MessageKind.Runtime, "OperatorTerm/4: not a binary operator: '{0}'", name);
-
-                assoc = od.Assoc;
-                precedence = (short)od.Prec;
+                OpDescr = opDescr;
+                assoc = opDescr.Assoc;
+                CompoundPrecedence = (short)opDescr.Prec;
             }
 
-
-            public OperatorTerm(Symbol symbol, OperatorDescr od, BaseTerm a0, BaseTerm a1)
-              : base(symbol, od.Name, a0, a1)
+            public OperatorTerm(Symbol symbol, OperatorDescr opDescr, BaseTerm a)
+                : base(symbol, opDescr.Name, a)
             {
-                this.od = od;
-                assoc = od.Assoc;
-                precedence = (short)od.Prec;
+                OpDescr = opDescr;
+                assoc = opDescr.Assoc;
+                CompoundPrecedence = (short)opDescr.Prec;
             }
 
-
-            public OperatorTerm(Symbol symbol, OperatorDescr od, BaseTerm a)
-              : base(symbol, od.Name, a)
+            public OperatorTerm(Symbol symbol, OperatorDescr opDescr, BaseTerm[] a)
+                : base(symbol, opDescr.Name, a)
             {
-                this.od = od;
-                assoc = od.Assoc;
-                precedence = (short)od.Prec;
+                OpDescr = opDescr;
+                assoc = opDescr.Assoc;
+                CompoundPrecedence = (short)opDescr.Prec;
             }
-
-
-            public OperatorTerm(Symbol symbol, OperatorDescr od, BaseTerm[] a)
-              : base(symbol, od.Name, a)
-            {
-                this.od = od;
-                assoc = od.Assoc;
-                precedence = (short)od.Prec;
-            }
-
 
             public OperatorTerm(Symbol symbol, string name) // stand-alone operator used as term
-              : base(symbol, name)
+                : base(symbol, name)
             {
-                this.od = null;
+                OpDescr = null;
                 assoc = AssocType.None;
-                precedence = 1001;
+                CompoundPrecedence = 1001;
             }
 
+            // ConfigSettings.VerbatimStringsAllowed
+            public OperatorDescr OpDescr { get; }
 
             public override bool HasUnaryOperator()
             {
-                return (od.IsPostfix || od.IsPrefix);
+                return OpDescr.IsPostfix || OpDescr.IsPrefix;
             }
-
 
             public override bool HasBinaryOperator()
             {
-                return (od.IsInfix);
+                return OpDescr.IsInfix;
             }
-
 
             public override bool HasUnaryOperator(params string[] names)
             {
-                if (!(od.IsPrefix || od.IsPostfix)) return false;
+                if (!(OpDescr.IsPrefix || OpDescr.IsPostfix))
+                {
+                    return false;
+                }
 
                 foreach (string name in names)
-                    if (od.Name == name) return true;
+                {
+                    if (OpDescr.Name == name)
+                    {
+                        return true;
+                    }
+                }
 
                 return false;
             }
-
 
             public override bool HasBinaryOperator(params string[] names)
             {
-                if (!od.IsInfix) return false;
+                if (!OpDescr.IsInfix)
+                {
+                    return false;
+                }
 
                 foreach (string name in names)
-                    if (od.Name == name) return true;
+                {
+                    if (OpDescr.Name == name)
+                    {
+                        return true;
+                    }
+                }
 
                 return false;
             }
 
-
             public override string ToWriteString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
                 StringBuilder sb = new StringBuilder();
                 bool mustPack;
 
                 if (arity == 2)
                 {
-                    mustPack = (precedence < Arg(0).Precedence ||
-                    (precedence == Arg(0).Precedence && (assoc == AssocType.xfx || assoc == AssocType.xfy)));
+                    mustPack = CompoundPrecedence < Arg(0).Precedence ||
+                               (CompoundPrecedence == Arg(0).Precedence &&
+                                (assoc == AssocType.xfx || assoc == AssocType.xfy));
                     sb.AppendPacked(Arg(0).ToWriteString(level + 1), mustPack);
 
                     sb.AppendPossiblySpaced(FunctorToString);
 
                     mustPack =
-                      (precedence < Arg(1).Precedence ||
-                      (precedence == Arg(1).Precedence && (assoc == AssocType.xfx || assoc == AssocType.yfx)));
+                        CompoundPrecedence < Arg(1).Precedence ||
+                        (CompoundPrecedence == Arg(1).Precedence && (assoc == AssocType.xfx || assoc == AssocType.yfx));
                     sb.AppendPacked(Arg(1).ToWriteString(level + 1), mustPack);
 
                     return sb.ToString();
                 }
-                else if (arity == 1)
+
+                if (arity == 1)
                 {
                     switch (assoc)
                     {
                         case AssocType.fx:
                             sb.Append(FunctorToString);
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), (precedence <= Arg(0).Precedence));
+                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
                             break;
+
                         case AssocType.fy:
                             sb.Append(FunctorToString);
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), (precedence < Arg(0).Precedence));
+                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
                             break;
+
                         case AssocType.xf:
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), (precedence <= Arg(0).Precedence));
+                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
                             sb.AppendPossiblySpaced(FunctorToString);
                             break;
+
                         case AssocType.yf:
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), (precedence < Arg(0).Precedence));
+                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
                             sb.AppendPossiblySpaced(FunctorToString);
                             break;
                     }
 
                     return sb.ToString();
                 }
-                else // arity == 0
-                    return FunctorToString;
-            }
 
+                return FunctorToString;
+            }
 
             public override string ToDisplayString(int level)
             {
-                if (MaxWriteDepthExceeded(level)) return "...";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "...";
+                }
 
                 StringBuilder sb = new StringBuilder(FunctorIsBinaryComma ? "','" : FunctorToString);
 
@@ -631,7 +733,14 @@ namespace Prolog
 
                     foreach (BaseTerm a in Args)
                     {
-                        if (first) first = false; else sb.Append(CommaAtLevel(level));
+                        if (first)
+                        {
+                            first = false;
+                        }
+                        else
+                        {
+                            sb.Append(CommaAtLevel(level));
+                        }
 
                         sb.Append(a.ToDisplayString(level + 1));
                     }
@@ -642,81 +751,48 @@ namespace Prolog
                 return sb.ToString();
             }
         }
-        
-                public class ValueTerm : BaseTerm // a BaseTerm that can be expression-evaluated by is/2.
-        {
-            public override bool IsEvaluatable => true;
 
+        public class ValueTerm : BaseTerm // a BaseTerm that can be expression-evaluated by is/2.
+        {
             public ValueTerm(Symbol symbol)
                 : base(symbol)
             {
-                
             }
+
+            public override bool IsEvaluatable => true;
         }
 
         public class StringTerm : ValueTerm
         {
-            public string Value { get; set; }
-
             public StringTerm(Symbol symbol, string value)
                 : base(symbol)
             {
-                functor = value;
-                this.Value = value;
-                termType = TermType.String;
+                CompoundFunctor = value;
+                Value = value;
+                CompoundTermType = TermType.String;
             }
 
             public StringTerm(Symbol symbol, char value)
                 : base(symbol)
             {
-                functor = value.ToString();
-                termType = TermType.String;
+                CompoundFunctor = value.ToString();
+                CompoundTermType = TermType.String;
             }
+
+            public string Value { get; set; }
 
             public override string ToWriteString(int level)
             {
                 return '"' + FunctorToString.Replace(@"\", @"\\").Replace(@"""", @"\""") + '"';
             }
         }
-                
-                public class DecimalTerm : ValueTerm
+
+        public class DecimalTerm : ValueTerm
         {
-            public decimal Value { get; }
-            public double ValueD => (double)Value;
-            public override string FunctorToString => Value.ToString(CIC);
+            private const double EPS = 1.0e-6; // arbitrary, cosmetic
             public static readonly DecimalTerm ZERO;
             public static readonly DecimalTerm ONE;
             public static readonly DecimalTerm MINUS_ONE;
-            private const double EPS = 1.0e-6; // arbitrary, cosmetic
-
-            public DecimalTerm(Symbol symbol, decimal value)
-                : base(symbol)
-            {
-                this.Value = value;
-                functor = value;
-                termType = TermType.Number;
-            }
-
-            public DecimalTerm(Symbol symbol, int value)
-                : base(symbol)
-            {
-                functor = this.Value = (decimal)value;
-                termType = TermType.Number;
-            }
-
-            public DecimalTerm(Symbol symbol, double value)
-                : base(symbol)
-            {
-                functor = this.Value = (decimal)value;
-                termType = TermType.Number;
-            }
-
-            public DecimalTerm(Symbol symbol, long value)
-                : base(symbol)
-            {
-                functor = this.Value = (decimal)value;
-                termType = TermType.Number;
-            }
 
             static DecimalTerm()
             {
@@ -725,98 +801,135 @@ namespace Prolog
                 MINUS_ONE = new DecimalTerm(null, -1);
             }
 
+            public DecimalTerm(Symbol symbol, decimal value)
+                : base(symbol)
+            {
+                Value = value;
+                CompoundFunctor = value;
+                CompoundTermType = TermType.Number;
+            }
+
+            public DecimalTerm(Symbol symbol, int value)
+                : base(symbol)
+            {
+                CompoundFunctor = Value = value;
+                CompoundTermType = TermType.Number;
+            }
+
+            public DecimalTerm(Symbol symbol, double value)
+                : base(symbol)
+            {
+                CompoundFunctor = Value = (decimal)value;
+                CompoundTermType = TermType.Number;
+            }
+
+            public DecimalTerm(Symbol symbol, long value)
+                : base(symbol)
+            {
+                CompoundFunctor = Value = value;
+                CompoundTermType = TermType.Number;
+            }
+
+            public decimal Value { get; }
+            public override string FunctorToString => Value.ToString(CIC);
 
             public override bool Unify(BaseTerm t, VarStack varStack)
             {
-                if (t is Variable) return t.Unify(this, varStack);
+                if (t is Variable)
+                {
+                    return t.Unify(this, varStack);
+                }
 
                 varStack.NextUnifyCount();
 
                 if (t is DecimalTerm)
-                    return (Value == ((DecimalTerm)t).Value);
+                {
+                    return Value == ((DecimalTerm)t).Value;
+                }
 
                 return false;
             }
 
-
             protected override int CompareValue(BaseTerm t)
-            { return (To<decimal>().CompareTo(t.To<decimal>())); }
+            {
+                return To<decimal>().CompareTo(t.To<decimal>());
+            }
 
             public override string ToWriteString(int level)
             {
-                if (Value == Math.Truncate(Value)) return Value.ToString();
+                if (Value == Math.Truncate(Value))
+                {
+                    return Value.ToString();
+                }
 
-                return (Value.ToString(Math.Abs(Value) < (decimal)EPS ? "e" : "0.######", CIC));
+                return Value.ToString(Math.Abs(Value) < (decimal)EPS ? "e" : "0.######", CIC);
             }
         }
-        
 
-                public class DateTimeTerm : ValueTerm
+        public class DateTimeTerm : ValueTerm
         {
             public DateTimeTerm(Symbol symbol, DateTime value)
                 : base(symbol)
             {
-                functor = value;
-                termType = TermType.DateTime;
+                CompoundFunctor = value;
+                CompoundTermType = TermType.DateTime;
             }
 
             protected override int CompareValue(BaseTerm t)
-            { return (To<DateTime>().CompareTo(t.To<DateTime>())); }
+            {
+                return To<DateTime>().CompareTo(t.To<DateTime>());
+            }
 
             public override string ToWriteString(int level)
             {
-                return "'" + ((DateTime)functor).ToString("yyyy-MM-dd HH-mm-ss") + "'";
+                return "'" + ((DateTime)CompoundFunctor).ToString("yyyy-MM-dd HH-mm-ss") + "'";
             }
         }
-        
 
-                public class TimeSpanTerm : ValueTerm
+        public class TimeSpanTerm : ValueTerm
         {
             public TimeSpanTerm(Symbol symbol, TimeSpan value)
                 : base(symbol)
             {
-                functor = value;
-                termType = TermType.TimeSpan;
+                CompoundFunctor = value;
+                CompoundTermType = TermType.TimeSpan;
             }
 
             protected override int CompareValue(BaseTerm t)
-            { return (To<TimeSpan>().CompareTo(t.To<TimeSpan>())); }
+            {
+                return To<TimeSpan>().CompareTo(t.To<TimeSpan>());
+            }
 
             public override string ToWriteString(int level)
             {
-                return "'" + ((TimeSpan)functor) + "'";
+                return "'" + (TimeSpan)CompoundFunctor + "'";
             }
         }
-        
 
         public class BoolTerm : ValueTerm
         {
-            //static byte orderPosition = 7;
-
             public BoolTerm(Symbol symbol, bool value)
                 : base(symbol)
             {
-                functor = value;
-                termType = TermType.Bool;
+                CompoundFunctor = value;
+                CompoundTermType = TermType.Bool;
             }
 
             protected override int CompareValue(BaseTerm t)
-            { return (To<bool>().CompareTo(t.To<bool>())); }
+            {
+                return To<bool>().CompareTo(t.To<bool>());
+            }
 
             public override string ToWriteString(int level)
             {
-                return ((bool)functor ? "true" : "false");
+                return (bool)CompoundFunctor ? "true" : "false";
             }
         }
-        
 
-                public class FileTerm : BaseTerm
+        public class FileTerm : BaseTerm
         {
             // in order to be able to close all open streams after command termination:
             public static readonly AtomTerm END_OF_FILE;
-            protected PrologEngine engine;
-            protected string fileName;
-            public virtual bool IsOpen => false;
 
             static FileTerm()
             {
@@ -824,31 +937,36 @@ namespace Prolog
             }
 
             public FileTerm(Symbol symbol)
-                :base(symbol)
+                : base(symbol)
             {
             }
+
+            protected PrologEngine Engine { get; set; }
+            protected string FileName { get; set; }
+
+            public virtual bool IsOpen => false;
 
             public virtual void Close()
             {
             }
         }
 
-
         public class FileReaderTerm : FileTerm
         {
-            private TextReader tr;
             private FileStream fs;
 
             private PrologParser p;
-            public override bool IsOpen => (tr != null);
+            private TextReader tr;
 
             public FileReaderTerm(Symbol symbol, PrologEngine engine, string fileName)
                 : base(symbol)
             {
-                this.engine = engine;
-                functor = this.fileName = fileName;
-                termType = TermType.FileReader;
+                Engine = engine;
+                CompoundFunctor = FileName = fileName;
+                CompoundTermType = TermType.FileReader;
             }
+
+            public override bool IsOpen => tr != null;
 
             public void Open()
             {
@@ -856,42 +974,38 @@ namespace Prolog
                 {
                     if (tr == null)
                     {
-                        fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        fs = new FileStream(FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                         tr = new StreamReader(fs);
                     }
 
-                    p = new PrologParser(engine);
+                    p = new PrologParser(Engine);
                     p.SetInputStream(tr);
                     p.InitParse();
                 }
                 catch (Exception e)
                 {
-                    engine.Throw(PrologEngine.IOException,
-                      "Error while opening file '{0}' for input.\r\nMessage was:\r\n{1}",
-                      fileName, e.Message);
+                    Engine.Throw(IOException,
+                        "Error while opening file '{0}' for input.\r\nMessage was:\r\n{1}",
+                        FileName, e.Message);
                 }
             }
-
 
             public int ReadChar() // returns -1 at end of file
             {
                 return p.ReadChar();
             }
 
-
             public string ReadLine() // returns null at end of file
             {
                 return p.ReadLine();
             }
 
-
             public BaseTerm ReadTerm()
             {
                 BaseTerm result = p.ParseTerm();
 
-                return (result == null) ? END_OF_FILE : result;
+                return result == null ? END_OF_FILE : result;
             }
-
 
             public override void Close()
             {
@@ -901,20 +1015,20 @@ namespace Prolog
             }
         }
 
-
         public class FileWriterTerm : FileTerm
         {
-            private TextWriter tw;
             private FileStream fs;
-            public override bool IsOpen => (tw != null);
+            private TextWriter tw;
 
             public FileWriterTerm(Symbol symbol, PrologEngine engine, string fileName)
                 : base(symbol)
             {
-                this.engine = engine;
-                functor = this.fileName = fileName;
-                termType = TermType.FileWriter;
+                Engine = engine;
+                CompoundFunctor = FileName = fileName;
+                CompoundTermType = TermType.FileWriter;
             }
+
+            public override bool IsOpen => tw != null;
 
             public void Open()
             {
@@ -922,43 +1036,44 @@ namespace Prolog
                 {
                     if (tw == null)
                     {
-                        fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
+                        fs = new FileStream(FileName, FileMode.Create, FileAccess.Write);
                         tw = new StreamWriter(fs);
                     }
                 }
                 catch (Exception e)
                 {
-                    engine.Throw(PrologEngine.IOException,
-                     "Error while opening file '{0}' for output.\r\nMessage was:\r\n{1}",
-                     fileName, e.Message);
+                    Engine.Throw(IOException,
+                        "Error while opening file '{0}' for output.\r\nMessage was:\r\n{1}",
+                        FileName, e.Message);
                 }
             }
-
 
             public void Write(string s)
             {
                 tw.Write(s);
             }
 
-
             public override void Close()
             {
                 if (tw != null)
+                {
                     tw.Dispose();
+                }
             }
         }
-                
-                public class CollectionTerm : AtomTerm // for creating collections of terms (e.g. setof)
+
+        public class CollectionTerm : AtomTerm // for creating collections of terms (e.g. setof)
         {
-            private BaseTermSet set;
-            public int Count => set.Count;
-            public override bool IsCallable => false;
+            private readonly BaseTermSet set;
 
             public CollectionTerm(Symbol symbol, DupMode dupMode)
-              : base(symbol, "<term collection>")
+                : base(symbol, "<term collection>")
             {
                 set = new BaseTermSet(dupMode);
             }
+
+            public int Count => set.Count;
+            public override bool IsCallable => false;
 
             public void Add(BaseTerm t)
             {
@@ -975,90 +1090,77 @@ namespace Prolog
                 return set.ToList();
             }
         }
-                
-                public class Cut : BaseTerm
-        {
-            public override bool IsCallable => false;
-            public override bool IsEvaluatable => false;
 
+        public class Cut : BaseTerm
+        {
             public Cut(Symbol symbol, int stackSize)
                 : base(symbol)
             {
-                functor = PrologParser.CUT;
+                CompoundFunctor = PrologParser.CUT;
                 TermId = stackSize;
             }
+
+            public override bool IsCallable => false;
+            public override bool IsEvaluatable => false;
 
             public override string ToWriteString(int level)
             {
                 return PrologParser.CUT;
             }
         }
-        
-                public class ListTerm : CompoundTerm
+
+        public class ListTerm : CompoundTerm
         {
-            protected string leftBracket = "[";
-            protected string rightBracket = "]";
-            protected ListTerm EmptyList = EMPTYLIST;
-            protected bool isAltList = false;
-            public override bool IsEvaluatable => true;
-// evaluate all members
-
-            public string LeftBracket => leftBracket;
-            public string RightBracket => rightBracket;
-            public string CharCodeString { get; } = null;
-            public bool IsEvaluated { get; set; } = false;
-
             public ListTerm(Symbol symbol)
-              : base(symbol, "[]") { }
+                : base(symbol, "[]")
+            {
+            }
 
             public ListTerm(Symbol symbol, BaseTerm t)
-              : base(symbol, PrologParser.DOT, t.ChainEnd(), EMPTYLIST) { }
+                : base(symbol, PrologParser.DOT, t.ChainEnd(), EMPTYLIST)
+            {
+            }
 
             public ListTerm(Symbol symbol, BaseTerm t0, BaseTerm t1)
-              : base(symbol, PrologParser.DOT, t0.ChainEnd(), t1.ChainEnd()) { }
+                : base(symbol, PrologParser.DOT, t0.ChainEnd(), t1.ChainEnd())
+            {
+            }
 
             // for ListPattern; *not* intended for creating a list from an array, use ListFromArray
             public ListTerm(Symbol symbol, BaseTerm[] a)
-              : base(symbol, PrologParser.DOT, a) { }
+                : base(symbol, PrologParser.DOT, a)
+            {
+            }
 
             public ListTerm(Symbol symbol, string charCodeString)
-              : base(symbol, PrologParser.DOT)
+                : base(symbol, PrologParser.DOT)
             {
                 if (charCodeString.Length == 0)
                 {
-                    functor = "[]";
+                    CompoundFunctor = "[]";
 
                     return;
                 }
 
-                this.CharCodeString = charCodeString;
-                args = new BaseTerm[2];
+                CharCodeString = charCodeString;
+                CompoundArgs = new BaseTerm[2];
 
-                args[0] = new DecimalTerm(this.Symbol, (decimal)charCodeString[0]);
-                args[1] = new ListTerm(this.Symbol, charCodeString.Substring(1));
+                CompoundArgs[0] = new DecimalTerm(Symbol, (decimal)charCodeString[0]);
+                CompoundArgs[1] = new ListTerm(Symbol, charCodeString.Substring(1));
             }
 
+            protected ListTerm EmptyList { get; } = EMPTYLIST;
+            protected bool IsAltList { get; set; } = false;
 
-            public static ListTerm ListFromArray(BaseTerm[] ta, BaseTerm afterBar)
-            {
-                ListTerm result = null;
+            public override bool IsEvaluatable => true;
+            // evaluate all members
 
-                for (int i = ta.Length - 1; i >= 0; i--)
-                    result = new ListTerm(ta[i].Symbol, ta[i], result == null ? afterBar : result);
+            public string LeftBracket { get; set; } = "[";
 
-                return result;
-            }
+            public string RightBracket { get; set; } = "]";
 
-
-            public List<BaseTerm> ToList()
-            {
-                List<BaseTerm> result = new List<BaseTerm>();
-
-                foreach (BaseTerm t in this)
-                    result.Add(t);
-
-                return result;
-            }
+            public string CharCodeString { get; }
+            public bool IsEvaluated { get; set; } = false;
 
             //public override bool IsCallable { get { return false; } }
             private int properLength // only defined for proper lists
@@ -1074,13 +1176,20 @@ namespace Prolog
                         len++;
                     }
 
-                    return (t.IsEmptyList) ? len : -1;
+                    return t.IsEmptyList ? len : -1;
                 }
             }
+
             public int ProperLength => properLength;
 
             public override bool IsListNode
-            { get { BaseTerm t = ChainEnd(); return (t is ListTerm && t.Arity == 2); } }
+            {
+                get
+                {
+                    BaseTerm t = ChainEnd();
+                    return t is ListTerm && t.Arity == 2;
+                }
+            }
 
             public override bool IsProperOrPartialList
             {
@@ -1088,12 +1197,14 @@ namespace Prolog
                 {
                     BaseTerm t = ChainEnd();
 
-                    while (t.Arity == 2 && t is ListTerm) t = t.Arg(1);
+                    while (t.Arity == 2 && t is ListTerm)
+                    {
+                        t = t.Arg(1);
+                    }
 
-                    return (t.IsEmptyList || t is Variable);
+                    return t.IsEmptyList || t is Variable;
                 }
             }
-
 
             public override bool IsProperList // e.g. [foo] (= [foo|[]])
             {
@@ -1101,12 +1212,14 @@ namespace Prolog
                 {
                     BaseTerm t = ChainEnd();
 
-                    while (t.Arity == 2 && t is ListTerm) t = t.Arg(1);
+                    while (t.Arity == 2 && t is ListTerm)
+                    {
+                        t = t.Arg(1);
+                    }
 
-                    return (t.IsEmptyList);
+                    return t.IsEmptyList;
                 }
             }
-
 
             public override bool IsPartialList // e.g. [foo|Atom]
             {
@@ -1114,12 +1227,14 @@ namespace Prolog
                 {
                     BaseTerm t = ChainEnd();
 
-                    while (t.Arity == 2 && t is ListTerm) t = t.Arg(1);
+                    while (t.Arity == 2 && t is ListTerm)
+                    {
+                        t = t.Arg(1);
+                    }
 
-                    return (t is Variable);
+                    return t is Variable;
                 }
             }
-
 
             public override bool IsPseudoList // e.g.: [foo|baz]
             {
@@ -1127,17 +1242,43 @@ namespace Prolog
                 {
                     BaseTerm t = ChainEnd();
 
-                    while (t.Arity == 2 && t is ListTerm) t = t.Arg(1);
+                    while (t.Arity == 2 && t is ListTerm)
+                    {
+                        t = t.Arg(1);
+                    }
 
-                    return (!(t.IsEmptyList || t is Variable));
+                    return !(t.IsEmptyList || t is Variable);
                 }
+            }
+
+            public static ListTerm ListFromArray(BaseTerm[] ta, BaseTerm afterBar)
+            {
+                ListTerm result = null;
+
+                for (int i = ta.Length - 1; i >= 0; i--)
+                {
+                    result = new ListTerm(ta[i].Symbol, ta[i], result == null ? afterBar : result);
+                }
+
+                return result;
+            }
+
+            public List<BaseTerm> ToList()
+            {
+                List<BaseTerm> result = new List<BaseTerm>();
+
+                foreach (BaseTerm t in this)
+                {
+                    result.Add(t);
+                }
+
+                return result;
             }
 
             public static ListTerm ListFromArray(BaseTerm[] ta)
             {
                 return ListFromArray(ta, EMPTYLIST);
             }
-
 
             public IEnumerator GetEnumerator()
             {
@@ -1151,22 +1292,29 @@ namespace Prolog
                 }
             }
 
-
             public virtual ListTerm Reverse()
             {
                 ListTerm result = EmptyList;
 
-                foreach (BaseTerm t in this) result = new ListTerm(t.Symbol, t, result);
+                foreach (BaseTerm t in this)
+                {
+                    result = new ListTerm(t.Symbol, t, result);
+                }
 
                 return result;
             }
 
-
             public BaseTerm Append(BaseTerm list) // append t to 'this'
             {
-                if (this.IsEmptyList) return list; // not necessarily a ListTerm
+                if (IsEmptyList)
+                {
+                    return list; // not necessarily a ListTerm
+                }
 
-                if (list.IsEmptyList) return this;
+                if (list.IsEmptyList)
+                {
+                    return this;
+                }
 
                 BaseTerm t0, t1;
                 t1 = t0 = this;
@@ -1178,30 +1326,29 @@ namespace Prolog
                     t1 = t1.Arg(1);
                 }
 
-              ((ListTerm)t0.ChainEnd()).SetArg(1, list);
+                ((ListTerm)t0.ChainEnd()).SetArg(1, list);
 
                 return this;
             }
-
 
             public BaseTerm AppendElement(BaseTerm last) // append last to 'this'
             {
                 return Append(new ListTerm(last.Symbol, last));
             }
 
-
             public virtual ListTerm FlattenList()
             {
-                List<BaseTerm> a = FlattenListEx(functor); // only sublists with the same functor
+                List<BaseTerm> a = FlattenListEx(CompoundFunctor); // only sublists with the same functor
 
                 ListTerm result = EmptyList;
 
                 for (int i = a.Count - 1; i >= 0; i--)
+                {
                     result = new ListTerm(a[i].Symbol, a[i], result); // [a0, a0, ...]
+                }
 
                 return result;
             }
-
 
             protected List<BaseTerm> FlattenListEx(object functor)
             {
@@ -1211,15 +1358,22 @@ namespace Prolog
 
                 while (t.IsListNode)
                 {
-                    if ((t0 = t.Arg(0)).IsProperOrPartialList && ((ListTerm)t0).functor.Equals(functor))
+                    if ((t0 = t.Arg(0)).IsProperOrPartialList && ((ListTerm)t0).CompoundFunctor.Equals(functor))
+                    {
                         result.AddRange(((ListTerm)t0).FlattenListEx(functor));
+                    }
                     else
+                    {
                         result.Add(t0);
+                    }
 
                     t = t.Arg(1);
                 }
 
-                if (t.IsVar) result.Add(t); // open tail, i.e. [1|M]
+                if (t.IsVar)
+                {
+                    result.Add(t); // open tail, i.e. [1|M]
+                }
 
                 return result;
             }
@@ -1227,41 +1381,59 @@ namespace Prolog
             public override string ToWriteString(int level)
             {
                 // insert an extra space in case of non-standard list brackets
-                string altListSpace = (isAltList ? " " : null);
+                string altListSpace = IsAltList ? " " : null;
 
                 if (IsEmptyList)
-                    return leftBracket + altListSpace + rightBracket;
+                {
+                    return LeftBracket + altListSpace + RightBracket;
+                }
 
-                if (MaxWriteDepthExceeded(level)) return "[...]";
+                if (MaxWriteDepthExceeded(level))
+                {
+                    return "[...]";
+                }
 
-                StringBuilder sb = new StringBuilder(leftBracket + altListSpace);
+                StringBuilder sb = new StringBuilder(LeftBracket + altListSpace);
                 BaseTerm t = ChainEnd();
 
                 bool first = true;
 
                 while (t.IsListNode)
                 {
-                    if (first) first = false; else sb.Append(CommaAtLevel(level));
+                    if (first)
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        sb.Append(CommaAtLevel(level));
+                    }
 
                     sb.AppendPacked(t.Arg(0).ToWriteString(level + 1), t.Arg(0).FunctorIsBinaryComma);
                     t = t.Arg(1);
                 }
 
                 if (!t.IsEmptyList)
+                {
                     sb.AppendFormat("|{0}", t.ToWriteString(level + 1).Packed(t.FunctorIsBinaryComma));
+                }
 
-                sb.Append(altListSpace + rightBracket);
+                sb.Append(altListSpace + RightBracket);
 
                 if (CharCodeString != null) // show string value in comment
+                {
                     sb.AppendFormat("  /*{0}*/", CharCodeString.Replace("*/", "\\x2A/"));
+                }
 
                 return sb.ToString();
             }
 
-
             public override string ToDisplayString(int level)
             {
-                if (IsEmptyList) return "leftBracket + rightBracket";
+                if (IsEmptyList)
+                {
+                    return "leftBracket + rightBracket";
+                }
 
                 StringBuilder sb = new StringBuilder(".(");
                 sb.Append(Arg(0).ToDisplayString(level));
@@ -1271,7 +1443,6 @@ namespace Prolog
 
                 return sb.ToString();
             }
-
 
             public override void TreePrint(int level, PrologEngine e)
             {
@@ -1284,7 +1455,7 @@ namespace Prolog
                     return;
                 }
 
-                e.WriteLine("{0}{1}", margin, leftBracket);
+                e.WriteLine("{0}{1}", margin, LeftBracket);
 
                 BaseTerm t = ChainEnd();
 
@@ -1294,13 +1465,15 @@ namespace Prolog
                     t = t.Arg(1);
                 }
 
-                e.WriteLine("{0}{1}", margin, rightBracket);
+                e.WriteLine("{0}{1}", margin, RightBracket);
             }
-
 
             public string[] ToStringArray()
             {
-                if (!IsProperList) return null;
+                if (!IsProperList)
+                {
+                    return null;
+                }
 
                 string[] result = new string[properLength];
 
@@ -1357,26 +1530,34 @@ namespace Prolog
 
                */
         }
-        
-                public class DcgTerm : CompoundTerm
+
+        public class DcgTerm : CompoundTerm
         {
             public DcgTerm(Symbol symbol, BaseTerm t, ref BaseTerm z, VarStack varStack)
-              : base(symbol, t.FunctorToString, new BaseTerm[t.Arity + 2])
+                : base(symbol, t.FunctorToString, new BaseTerm[t.Arity + 2])
             {
-                for (int i = 0; i < t.Arity; i++) args[i] = t.Arg(i);
+                for (int i = 0; i < t.Arity; i++)
+                {
+                    CompoundArgs[i] = t.Arg(i);
+                }
 
-                args[arity - 2] = z;
-                args[arity - 1] = z = new Variable(symbol, varStack);
+                CompoundArgs[arity - 2] = z;
+                CompoundArgs[arity - 1] = z = new Variable(symbol, varStack);
             }
 
-            public DcgTerm(Symbol symbol, BaseTerm t0, BaseTerm t1) : base(symbol, PrologParser.CURL, t0, t1) { }
+            public DcgTerm(Symbol symbol, BaseTerm t0, BaseTerm t1) : base(symbol, PrologParser.CURL, t0, t1)
+            {
+            }
 
-            public DcgTerm(Symbol symbol) : base(symbol, PrologParser.CURL) { }
+            public DcgTerm(Symbol symbol) : base(symbol, PrologParser.CURL)
+            {
+            }
 
-            public DcgTerm(Symbol symbol, object functor, BaseTerm[] args) : base(symbol, functor, args) { }
+            public DcgTerm(Symbol symbol, object functor, BaseTerm[] args) : base(symbol, functor, args)
+            {
+            }
 
-
-            public override bool IsDcgList => (ChainEnd() == NULLCURL || ChainEnd() is DcgTerm);
+            public override bool IsDcgList => ChainEnd() == NULLCURL || ChainEnd() is DcgTerm;
 
             public DcgTerm FlattenDcgList()
             {
@@ -1385,7 +1566,9 @@ namespace Prolog
                 DcgTerm result = NULLCURL; // {}
 
                 for (int i = a.Count - 1; i >= 0; i--)
+                {
                     result = new DcgTerm(a[i].Symbol, a[i], result); // {a0, a0, ...}
+                }
 
                 return result;
             }
@@ -1399,22 +1582,31 @@ namespace Prolog
                 while (t.FunctorToString == PrologParser.CURL && t.Arity == 2)
                 {
                     if ((t0 = t.Arg(0)).IsDcgList)
+                    {
                         result.AddRange(((DcgTerm)t0).FlattenDcgListEx());
+                    }
                     else
+                    {
                         result.Add(t0);
+                    }
 
                     t = t.Arg(1);
                 }
 
-                if (t.IsVar) result.Add(t);
+                if (t.IsVar)
+                {
+                    result.Add(t);
+                }
 
                 return result;
             }
 
-
             public override string ToDisplayString(int level)
             {
-                if (this == NULLCURL) return PrologParser.CURL;
+                if (this == NULLCURL)
+                {
+                    return PrologParser.CURL;
+                }
 
                 StringBuilder sb = new StringBuilder("'{}'(");
                 sb.Append(Arg(0).ToDisplayString(level));
@@ -1424,7 +1616,6 @@ namespace Prolog
 
                 return sb.ToString();
             }
-
 
             public override void TreePrint(int level, PrologEngine e)
             {
@@ -1443,16 +1634,16 @@ namespace Prolog
                 e.WriteLine("{0}{1}", margin, '}');
             }
         }
-        
-                public class UserClassTerm<T> : BaseTerm
-        {
-            public T UserObject { get; set; }
 
+        public class UserClassTerm<T> : BaseTerm
+        {
             public UserClassTerm(Symbol symbol, T obj)
                 : base(symbol)
             {
-                this.UserObject = obj;
+                UserObject = obj;
             }
+
+            public T UserObject { get; set; }
         }
-            }
+    }
 }

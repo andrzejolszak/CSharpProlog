@@ -3,24 +3,21 @@
   C#Prolog -- Copyright (C) 2007-2015 John Pool -- j.pool@ision.nl
 
   This library is free software; you can redistribute it and/or modify it under the terms of
-  the GNU Lesser General Public License as published by the Free Software Foundation; either 
+  the GNU Lesser General Public License as published by the Free Software Foundation; either
   version 3.0 of the License, or any later version.
 
   This library is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
   without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or 
+  See the GNU Lesser General Public License (http://www.gnu.org/licenses/lgpl-3.0.html), or
   enter 'license' at the command prompt.
 
 -------------------------------------------------------------------------------------------*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,266 +25,45 @@ namespace Prolog
 {
     public class AbortQueryException : Exception
     {
-        public AbortQueryException() : base(" Execution terminated by user") { }
+        public AbortQueryException() : base(" Execution terminated by user")
+        {
+        }
     }
 
     public partial class PrologEngine
     {
         public delegate void CurrentTerm(TermNode termNode);
-        public event CurrentTerm OnCurrentTermChanged;
-        public event Action FoundAllSolutions;
-        public event Func<TermNode, TermNode, bool, VarStack, Stack<CallReturn>, bool> DebugEventBlocking;
+
+        private const int INF = Int32.MaxValue;
 
         private static readonly string IOException = "ioException";
-        public class ChoicePoint
-        {
-            protected TermNode goalListHead;
-            protected ClauseNode nextClause; // next clause to be tried for goalListHead
-            protected bool active;
-            public TermNode GoalListHead => goalListHead;
-            public ClauseNode NextClause { get { return nextClause; } set { nextClause = value; } }
-            public bool IsActive => active;
 
-            public ChoicePoint(TermNode goal, ClauseNode nextClause)
-            {
-                this.goalListHead = goal;
-                this.nextClause = nextClause;
-                active = true;
-            }
+        public static readonly int
+            maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
 
-            public void Kill()
-            {
-                active = false;
-            }
+        private static readonly string YES = "\r\n" + "Yes";
+        private static readonly string NO = "\r\n" + "No";
+        private ChoicePoint currentCp;
+        private bool debug;
 
-            public override String ToString()
-            {
-                return $"choicepoint\r\ngoal {goalListHead}\r\nclause {nextClause}\r\nactive {active}";
-            }
-        }
+        private bool
+            findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
 
-        public class CallReturn : TermNode
-        {
-            public TermNode SavedGoal { get; }
+        private int gensymInt;
+        private GlobalTermsTable globalTermsTable;
 
-            public CallReturn(TermNode goal)
-            {
-                this.SavedGoal = goal;
-            }
-        }
+        private TermNode goalListHead;
+        private bool goalListProcessed;
+        private bool goalListResult;
 
-        public class VarStack : Stack<object>
-        {
-            public int verNoMax;
-            public int varNoMax;
+        private OpenFiles openFiles;
 
-            public OperatorDescr CommaOpDescr;
-            public OpDescrTriplet CommaOpTriplet;
-            public OperatorDescr SemiOpDescr;
-
-            public void NextUnifyCount() { CurrUnifyCount++; }
-
-            public int CurrUnifyCount { get; set; }
-
-            public void DisableChoices(int n)
-            {
-                int i = Count;
-
-                foreach (object o in this) // works its way down from the top !!!
-                {
-                    if (i-- == n) return;
-
-                    (o as ChoicePoint)?.Kill();
-                }
-            }
-        }
-
-        public interface IVarValue
-        {
-            string Name { get; }
-            ITermNode Value { get; }
-            string DataType { get; }
-        }
-
-        public class VarValue : IVarValue
-        {
-            public string name;
-            public BaseTerm value;
-            public string Name => name;
-            public ITermNode Value => value;
-            public string DataType => value.TermType.ToString().ToLower();
-            public bool IsSingleton { get; set; }
-
-
-            public VarValue(string name, BaseTerm value)
-            {
-                this.name = name;
-                this.value = value;
-                IsSingleton = true;
-            }
-
-            public override string ToString()
-            {
-                if (!value.IsVar)
-                {
-                    bool mustPack = (value.Precedence >= 700);
-
-                    return $"{name} = {value.ToString().Packed(mustPack)}";
-                }
-
-                return null;
-            }
-        }
-
-        public class VarValues : Dictionary<string, VarValue>
-        {
-            public BaseTerm GetValue(string name)
-            {
-                VarValue result;
-                TryGetValue(name, out result); // result is null if value not found
-
-                return (result == null) ? null : result.value;
-            }
-
-        }
-
-        public interface ISolution
-        {
-            IEnumerable<IVarValue> VarValuesIterator { get; }
-            bool IsLast { get; }
-            bool Solved { get; }
-        }
-
-        // contains the answer to a query or the response to a history command
-        public class Solution : ISolution
-        {
-            public VarValues variables;
-            private PrologEngine engine;
-            public RuntimeException Error { get; set; }
-            public bool Solved { get; set; }
-
-            public bool IsLast { get; set; }
-
-            public string msg;
-            public IEnumerable<IVarValue> VarValuesIterator { get; }
-
-            public Solution(PrologEngine engine)
-            {
-                this.engine = engine;
-                variables = new VarValues();
-                VarValuesIterator = GetEnumerator();
-                Solved = true;
-                msg = null;
-            }
-
-
-            public IEnumerable<IVarValue> GetEnumerator()
-            {
-                foreach (IVarValue varValue in variables.Values)
-                {
-                    if (engine.Halted) yield break;
-
-                    yield return (varValue);
-                }
-            }
-
-
-            public void Clear()
-            {
-                variables.Clear();
-            }
-
-
-            public void SetMessage(string msg)
-            {
-                this.msg = msg;
-            }
-
-
-            public void SetMessage(string msg, params object[] args)
-            {
-                SetMessage(string.Format(msg, args));
-            }
-
-
-            public void ResetMessage()
-            {
-                this.msg = null;
-            }
-
-
-            public void SetVar(string name, BaseTerm value)
-            {
-                variables[name] = new VarValue(name, value);
-            }
-
-
-            public void RegisterVarNonSingleton(string name)
-            {
-                variables[name].IsSingleton = false;
-            }
-
-
-            public void ReportSingletons(ClauseNode c, int lineNo, ref bool firstReport)
-            {
-                List<string> singletons = new List<string>();
-
-                foreach (VarValue var in variables.Values)
-                    if (var.IsSingleton) singletons.Add(var.Name);
-
-                if (singletons.Count == 0) return;
-
-                if (firstReport)
-                {
-                    IO.WriteLine();
-                    firstReport = false;
-                }
-
-                IO.Write("    Warning: '{0}' at line {1} has {2}singleton variable{3} [",
-                  c.Head.Name, lineNo,
-                  singletons.Count == 1 ? "a " : null,
-                  singletons.Count == 1 ? null : "s");
-
-                bool first = true;
-
-                foreach (string name in singletons)
-                {
-                    if (first) first = false; else IO.Write(", ");
-
-                    IO.Write(name);
-                }
-
-                IO.WriteLine("]");
-            }
-
-
-            public BaseTerm GetVar(string name)
-            {
-                return variables.GetValue(name);
-            }
-
-
-            public override string ToString()
-            {
-                if (engine.Halted) return null;
-
-                if (msg != null) return msg;
-
-                double totSecs = engine.ProcessorTime() / 1000.0;
-
-                string time = (engine.eventDebug || totSecs < 0.1) ? "" : $" ({totSecs:f3} s)";
-
-                if (!Solved) return NO + time;
-
-                StringBuilder sb = new StringBuilder();
-
-                foreach (VarValue varValue in variables.Values)
-                    if (!(varValue.value).IsVar && varValue.name[0] != '_')
-                        sb.AppendFormat("{0}", varValue);
-
-                return (sb.Length == 0 ? YES : sb.ToString()) + time;
-            }
-        }
+        private PrologParser parser;
+        private string query;
+        private int queryTimeout; // maximum Number of milliseconds that a command may run -- 0 means unlimited
+        private bool redo; // set by CanBacktrack if a choice point was found
+        private ClauseNode retractClause;
+        private ManualResetEvent sema;
 
         /* The parser's terminalTable is associated with the engine, not with the parser.
          * For each consult (or read), a new instance of the parser is created. However,
@@ -296,134 +72,6 @@ namespace Prolog
          * recognized by the parser and hence they are stored in the terminalTable)
          */
         private BaseParser.BaseTrie terminalTable;
-        private string query;
-        public Solution solution;
-
-        private OpenFiles openFiles;
-        private const int INF = Int32.MaxValue;
-        public VarStack varStack; // stack of variable bindings and choice points
-        public Stack<CallReturn> CallStack { get; private set; }
-        private GlobalTermsTable globalTermsTable;
-        public PredicateTable PredTable;
-        public List<AtomTerm> UserAtoms;
-        public Stack<int> catchIdStack;
-        public int tryCatchId;
-
-        public class OpenFiles : Dictionary<string, FileTerm>
-        {
-            public FileTerm GetFileReader(string fileName)
-            {
-                FileTerm ft;
-
-                TryGetValue(fileName.ToLower(), out ft);
-
-                return ft;
-            }
-
-            public FileTerm GetFileWriter(string fileName)
-            {
-                FileTerm ft;
-
-                TryGetValue(fileName.ToLower(), out ft);
-
-                return ft;
-            }
-
-            public void CloseAllOpenFiles()
-            {
-                foreach (FileTerm ft in Values)
-                    ft.Close();
-
-                Clear();
-            }
-        }
-
-        private class GlobalTermsTable
-        {
-            private Dictionary<string, int> counterTable;
-            private Dictionary<string, BaseTerm> globvarTable;
-
-            public GlobalTermsTable()
-            {
-                counterTable = new Dictionary<string, int>();
-                globvarTable = new Dictionary<string, BaseTerm>();
-            }
-
-            public void getctr(string a, out int value)
-            {
-                if (!counterTable.TryGetValue(a, out value))
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
-            }
-
-            public void setctr(string a, int value)
-            {
-                counterTable[a] = value;
-            }
-
-            public void incctr(string a)
-            {
-                int value;
-
-                if (counterTable.TryGetValue(a, out value))
-                    counterTable[a] = value + 1;
-                else
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
-            }
-
-            public void decctr(string a)
-            {
-                int value;
-
-                if (counterTable.TryGetValue(a, out value))
-                    counterTable[a] = value - 1;
-                else
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
-            }
-
-            public void getvar(string name, out BaseTerm value)
-            {
-                if (!globvarTable.TryGetValue(name, out value))
-                    IO.ErrorRuntime($"Value of '{name}' is not set", null, null);
-            }
-
-            public void setvar(string name, BaseTerm value)
-            {
-                globvarTable[name] = value;
-            }
-        }
-
-        private TermNode goalListHead;
-        public bool userInterrupted;
-        public bool error;
-        public bool trace;
-        public bool debug;
-        private bool redo; // set by CanBacktrack if a choice point was found
-        public bool eventDebug;
-        public bool reporting;  // debug (also set by 'trace') || xmlTrace
-        public bool profiling;
-        private ClauseNode retractClause;
-        public int levelMin; // lowest recursion level while spying -- for determining left margin
-        public int levelMax; // used while spying for determining end of skip
-        private ChoicePoint currentCp;
-        private object lastCp;
-        public long startTime;
-        public long procTime;
-        private bool goalListProcessed;
-        private ManualResetEvent sema;
-        public static readonly int maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
-        private bool goalListResult;
-        private int queryTimeout = 0; // maximum Number of milliseconds that a command may run -- 0 means unlimited
-        private bool findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
-        public bool csharpStrings = false;
-        public bool userSetShowStackTrace = true; // default value
-
-        public DateTime? LastConsulted;
-
-        public bool Error => error;
-        public OperatorTable OpTable { get; private set; }
-        public BracketTable WrapTable { get; private set; }
-        public BracketTable AltListTable { get; private set; }
-        public string Query { get { return query; } set { query = value.Trim(); } }
 
         public PrologEngine(bool persistentCommandHistory)
         {
@@ -431,20 +79,61 @@ namespace Prolog
             PostBootstrap();
         }
 
-        public int CmdNo = 0;
-        public bool Debugging => debug;
-        public bool Halted { get; set; }
+        public Stack<int> CatchIdStack { get; set; }
 
-        private PrologParser parser = null;
-        private static readonly string YES = "\r\n" + "Yes";
-        private static readonly string NO = "\r\n" + "No";
-        private int gensymInt;
+        public bool CsharpStrings { get; set; }
+        public bool EventDebug { get; set; }
 
-        static public bool MaxWriteDepthExceeded(int level)
+        public DateTime? LastConsulted { get; set; }
+        public int LevelMax { get; set; }
+        public int LevelMin { get; set; }
+        public PredicateTable PredTable { get; set; }
+        public long ProcTime { get; set; }
+        public bool Profiling { get; set; }
+        public bool Reporting { get; set; }
+        public Solution Solution1 { get; set; }
+
+        public IEnumerable<ISolution> SolutionIterator { get; set; }
+        public long StartTime { get; set; }
+        public bool Trace1 { get; set; }
+        public int TryCatchId { get; set; }
+        public List<AtomTerm> UserAtoms { get; set; }
+        public bool UserInterrupted { get; set; }
+        public bool UserSetShowStackTrace { get; set; } = true;
+        public VarStack CurrVarStack { get; set; }
+
+        public Stack<CallReturn> CallStack { get; private set; }
+
+        public bool Error { get; set; }
+
+        public OperatorTable OpTable { get; private set; }
+        public BracketTable WrapTable { get; private set; }
+        public BracketTable AltListTable { get; private set; }
+
+        public string Query
         {
-            return (maxWriteDepth != -1 && level > maxWriteDepth);
+            get => query;
+            set => query = value.Trim();
         }
 
+        public bool Debugging
+        {
+            get => debug;
+            set => debug = value;
+        }
+
+        public bool Halted { get; set; }
+
+        public event CurrentTerm OnCurrentTermChanged;
+
+        public event Action FoundAllSolutions;
+
+        public event Func<TermNode, TermNode, bool, VarStack, Stack<CallReturn>, bool> DebugEventBlocking;
+
+        public static bool MaxWriteDepthExceeded(int level)
+        {
+            return maxWriteDepth != -1 && level > maxWriteDepth;
+        }
 
         public void Reset()
         {
@@ -452,15 +141,14 @@ namespace Prolog
             ReadBuiltinPredicates();
         }
 
-
         private void Initialize() // also called by ClearAll command
         {
-            varStack = new VarStack();
+            CurrVarStack = new VarStack();
             // Needed by BaseTerm.VAR which will get varNo = 0
-            varStack.varNoMax++;
+            CurrVarStack.varNoMax++;
 
             CallStack = new Stack<CallReturn>();
-            solution = new Solution(this);
+            Solution1 = new Solution(this);
             SolutionIterator = GetEnumerator();
             OpTable = new OperatorTable();
             WrapTable = new BracketTable();
@@ -468,16 +156,16 @@ namespace Prolog
             globalTermsTable = new GlobalTermsTable();
             PredTable = new PredicateTable(this);
             UserAtoms = new List<AtomTerm>();
-            catchIdStack = new Stack<int>();
+            CatchIdStack = new Stack<int>();
             openFiles = new OpenFiles();
-            tryCatchId = 0;
+            TryCatchId = 0;
 
-            error = false;
+            Error = false;
             Halted = false;
-            trace = false;
-            eventDebug = false;
-            startTime = -1;
-            procTime = 0;
+            Trace1 = false;
+            EventDebug = false;
+            StartTime = -1;
+            ProcTime = 0;
             currentFileReader = null;
             currentFileWriter = null;
             terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
@@ -489,19 +177,22 @@ namespace Prolog
             parser.AddPrologOperator(1200, "xfx", PrologParser.DCGIMPL, false);
             parser.AddPrologOperator(1150, "xfy", PrologParser.ARROW, false);
 
-            this.varStack.CommaOpDescr = parser.AddPrologOperator(1050, "xfy", PrologParser.COMMA, false);
-            this.OpTable.Find(PrologParser.COMMA, out this.varStack.CommaOpTriplet);
-            this.varStack.SemiOpDescr = parser.AddPrologOperator(1100, "xfy", PrologParser.SEMI, false);
+            CurrVarStack.CommaOpDescr = parser.AddPrologOperator(1050, "xfy", PrologParser.COMMA, false);
+            OpTable.Find(PrologParser.COMMA, out CurrVarStack.CommaOpTriplet);
+            CurrVarStack.SemiOpDescr = parser.AddPrologOperator(1100, "xfy", PrologParser.SEMI, false);
         }
 
         private void PostBootstrap()
         {
             if (!OpTable.IsBinaryOperator(PrologParser.EQ, out _))
-                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.EQ}'", varStack, null);
+            {
+                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.EQ}'", CurrVarStack, null);
+            }
             else if (!OpTable.IsBinaryOperator(PrologParser.COLON, out _))
-                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.COLON}'", varStack, null);
+            {
+                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.COLON}'", CurrVarStack, null);
+            }
         }
-
 
         private void ReadBuiltinPredicates()
         {
@@ -518,8 +209,6 @@ namespace Prolog
             PredTable.ResolveIndices();
         }
 
-        public IEnumerable<ISolution> SolutionIterator;
-
         public IEnumerable<Solution> GetEnumerator()
         {
             if (query != null)
@@ -527,20 +216,22 @@ namespace Prolog
                 try
                 {
                     if (PrepareSolutions(query))
+                    {
                         do
                         {
                             RuntimeException ex = Execute(); // run the query
 
-                            solution.Error = ex;
-                            solution.IsLast = Halted || !FindChoicePoint();
+                            Solution1.Error = ex;
+                            Solution1.IsLast = Halted || !FindChoicePoint();
 
-                            yield return solution;
+                            yield return Solution1;
                         } while (!Halted && CanBacktrack(false));
+                    }
                     else // history command
                     {
-                        solution.IsLast = true;
+                        Solution1.IsLast = true;
 
-                        yield return solution;
+                        yield return Solution1;
                     }
                 }
                 finally
@@ -564,41 +255,40 @@ namespace Prolog
             return solutions.Current;
         }
 
-
         public bool PrepareSolutions(string query)
         {
             try
             {
-                solution.ResetMessage();
-                solution.Solved = true;
-                varStack.Clear();
-                catchIdStack.Clear();
-                tryCatchId = 0;
+                Solution1.ResetMessage();
+                Solution1.Solved = true;
+                CurrVarStack.Clear();
+                CatchIdStack.Clear();
+                TryCatchId = 0;
                 findFirstClause = true;
-                userInterrupted = false;
+                UserInterrupted = false;
                 parser.StreamIn = query;
-                levelMin = 0;
-                levelMax = INF;
-                lastCp = null;
+                LevelMin = 0;
+                LevelMax = INF;
                 gensymInt = 0;
                 IO.Reset(); // clear input character buffer
                 goalListHead = parser.QueryNode;
 
-                if (goalListHead == null) return false;
-
+                if (goalListHead == null)
+                {
+                    return false;
+                }
             }
             catch (Exception x)
             {
-                error = true;
-                solution.SetMessage("{0}{1}\r\n",
-                  x.Message, userSetShowStackTrace ? Environment.NewLine + x.StackTrace : "");
+                Error = true;
+                Solution1.SetMessage("{0}{1}\r\n",
+                    x.Message, UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "");
 
                 return false;
             }
 
             return true;
         }
-
 
         public void PostQueryTidyUp()
         {
@@ -607,7 +297,6 @@ namespace Prolog
             currentFileWriter = null;
         }
 
-
         private RuntimeException Execute()
         {
             ElapsedTime();
@@ -615,25 +304,25 @@ namespace Prolog
 
             try
             {
-                solution.Solved = (queryTimeout == 0) ? ExecuteGoalList() : StartExecuteGoalListThread();
+                Solution1.Solved = queryTimeout == 0 ? ExecuteGoalList() : StartExecuteGoalListThread();
             }
             catch (AbortQueryException x)
             {
-                solution.SetMessage(x.Message);
-                solution.Solved = true;
+                Solution1.SetMessage(x.Message);
+                Solution1.Solved = true;
             }
             catch (Exception x)
             {
-                error = true;
-                solution.Solved = false;
-                string msg = $"{x.Message}{(userSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}\r\n";
-                solution.SetMessage(msg);
+                Error = true;
+                Solution1.Solved = false;
+                string msg = $"{x.Message}{(UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}\r\n";
+                Solution1.SetMessage(msg);
 
-                RuntimeException rex = x as RuntimeException ?? new RuntimeException(msg, null, this.varStack);
+                RuntimeException rex = x as RuntimeException ?? new RuntimeException(msg, null, CurrVarStack);
 
                 if (rex.VarStack == null)
                 {
-                    rex.VarStack = this.varStack;
+                    rex.VarStack = CurrVarStack;
                 }
 
                 return rex;
@@ -641,7 +330,6 @@ namespace Prolog
 
             return null;
         }
-
 
         private bool StartExecuteGoalListThread()
         {
@@ -653,14 +341,14 @@ namespace Prolog
 
             if (!goalListProcessed) // goalListProcessed is set by RunExecuteGoalList()
             {
-                solution.Solved = false;
+                Solution1.Solved = false;
 
-                return IO.ErrorRuntime($"Query execution timed out after {queryTimeout} milliseconds", varStack, null);
+                return IO.ErrorRuntime($"Query execution timed out after {queryTimeout} milliseconds", CurrVarStack,
+                    null);
             }
 
             return goalListResult;
         }
-
 
         private void RunExecuteGoalList()
         {
@@ -671,11 +359,11 @@ namespace Prolog
             }
             catch (Exception e) // any other exception
             {
-                error = true;
+                Error = true;
                 goalListProcessed = true;
-                solution.Solved = false;
+                Solution1.Solved = false;
 
-                throw (e);
+                throw e;
             }
             finally
             {
@@ -692,6 +380,7 @@ namespace Prolog
             So technically spoken, the bool 'caching' will never have a true-value in the code
             below (nor anywhere else).
         */
+
         // The ExecuteGoalList() algorithm is the standard algorithm as for example
         // described in Ivan Bratko's "Prolog Programming for Artificial Intelligence",
         // 3rd edition p.45+
@@ -713,29 +402,38 @@ namespace Prolog
 
             while (goalListHead != null) // consume the last of goalNodes until it is exhausted
             {
-                if (userInterrupted)
+                if (UserInterrupted)
+                {
                     throw new AbortQueryException();
+                }
 
                 if (goalListHead.Term is TryCatchTerm)
                 {
                     if (goalListHead.Term is TryOpenTerm)
                     {
-                        catchIdStack.Push(((TryOpenTerm)goalListHead.Term).Id); // CATCH-id of corresponding CATCH-clause(s) now on top
+                        CatchIdStack.Push(((TryOpenTerm)goalListHead.Term)
+                            .Id); // CATCH-id of corresponding CATCH-clause(s) now on top
                         goalListHead = goalListHead.NextGoal;
 
                         continue;
                     }
-                    else if (goalListHead.Term is CatchOpenTerm)
+
+                    if (goalListHead.Term is CatchOpenTerm)
                     {
                         if (((CatchOpenTerm)goalListHead.Term).SeqNo == 0) // only once:
-                            catchIdStack.Pop(); // CATCH-id of CATCH-clause enclosing this TRY/CATCH now on top
+                        {
+                            CatchIdStack.Pop(); // CATCH-id of CATCH-clause enclosing this TRY/CATCH now on top
+                        }
 
                         while (goalListHead.Term != TC_CLOSE)
+                        {
                             goalListHead = goalListHead.NextGoal;
+                        }
 
                         continue;
                     }
-                    else if (goalListHead.Term == TC_CLOSE)
+
+                    if (goalListHead.Term == TC_CLOSE)
                     {
                         goalListHead = goalListHead.NextGoal;
 
@@ -747,7 +445,11 @@ namespace Prolog
                 {
                     TermNode sp = ((CallReturn)goalListHead).SavedGoal;
 
-                    if (reporting) Debugger(sp, sp, true);
+                    if (Reporting)
+                    {
+                        Debugger(sp, sp, true);
+                    }
+
                     CallStack.Pop();
 
                     goalListHead = sp.NextGoal;
@@ -755,17 +457,16 @@ namespace Prolog
                     continue;
                 }
 
-                stackSize = varStack.Count; // varStack reflects the current program state
+                stackSize = CurrVarStack.Count; // varStack reflects the current program state
 
                 // FindPredicateDefinition tries to find in the program the predicate definition for the
                 // functor+arity of goalNode.Term. This definition is stored in goalListHead.NextClause
                 if (findFirstClause)
                 {
-
                     // CALL, REDO
                     //if (reporting)
                     //    Debugger(goalListHead, currClause, false);
-                        
+
                     if (!goalListHead.FindPredicateDefinition(PredTable)) // undefined predicate
                     {
                         BaseTerm goal = goalListHead.Head;
@@ -776,14 +477,16 @@ namespace Prolog
                                 goalListHead.PredDescr = PredTable[BaseTerm.FAIL.Key];
                                 goalListHead.NextClause = goalListHead.PredDescr.ClauseList;
                                 break;
+
                             case UndefAction.Error:
-                                return IO.ErrorRuntime($"Undefined predicate: {goal.Name}", varStack, goal);
+                                return IO.ErrorRuntime($"Undefined predicate: {goal.Name}", CurrVarStack, goal);
+
                             default:
                                 PredicateDescr pd = PredTable.FindClosestMatch(goal.Name);
-                                string suggestion = (pd == null)
-                                ? null
-                                : $". Maybe '{pd.Name}' is what you mean?";
-                                IO.ErrorRuntime($"Undefined predicate: {goal.Name}{suggestion}", varStack, goal);
+                                string suggestion = pd == null
+                                    ? null
+                                    : $". Maybe '{pd.Name}' is what you mean?";
+                                IO.ErrorRuntime($"Undefined predicate: {goal.Name}{suggestion}", CurrVarStack, goal);
                                 break;
                         }
                     }
@@ -791,7 +494,7 @@ namespace Prolog
                     findFirstClause = false; // i.e. advance to the next clause upon backtracking (redoing)
                 }
 
-                if (profiling && goalListHead.PredDescr != null)
+                if (Profiling && goalListHead.PredDescr != null)
                 {
                     goalListHead.PredDescr.IncProfileCount();
                 }
@@ -803,21 +506,29 @@ namespace Prolog
                 saveGoal = goalListHead; // remember the original saveGoal (which may be NextGoal-ed, see below)
 
                 if (currClause.NextClause != null) // no redo possible => fail, make explicit when tracing
-                    varStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
+                {
+                    CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
+                }
 
-                cleanClauseHead = currClause.Head.Copy(varStack); // instantiations must be retained for clause body -> create newVars
+                cleanClauseHead =
+                    currClause.Head
+                        .Copy(CurrVarStack); // instantiations must be retained for clause body -> create newVars
 
                 // CALL, REDO
-                if (reporting)
+                if (Reporting)
+                {
                     Debugger(saveGoal, currClause, false);
+                }
 
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
-                if (cleanClauseHead.Unify(goalListHead.Term, varStack))
+                if (cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
                 {
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
 
-                    if (reporting)
+                    if (Reporting)
+                    {
                         Debugger(saveGoal, currClause, false);
+                    }
 
                     // FACT
                     if (currClause == null) // body is null, so matching was against a fact
@@ -833,8 +544,11 @@ namespace Prolog
                         {
                             t = goalListHead.Head.Arg(0);
 
-                            if (t.IsVar) return IO.ErrorRuntime(
-                                $"Unbound variable '{((Variable)t).Name}' in goal list", varStack, t);
+                            if (t.IsVar)
+                            {
+                                return IO.ErrorRuntime(
+                                    $"Unbound variable '{((Variable)t).Name}' in goal list", CurrVarStack, t);
+                            }
 
                             if (goalListHead.Head.Arity > 1) // implementation of SWI call/1..8
                             {
@@ -847,39 +561,45 @@ namespace Prolog
                             CallReturn callReturn = new CallReturn(saveGoal);
                             CallStack.Push(callReturn);
 
-                            if (reporting)
-                               tn0.Append(callReturn);
+                            if (Reporting)
+                            {
+                                tn0.Append(callReturn);
+                            }
 
-                            goalListHead = (goalListHead == null) ? tn0 : tn0.Append(goalListHead.NextGoal);
+                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextGoal);
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.or)
                         {
                             tn1 = goalListHead.Head.Arg(1).ToGoalList(stackSize, goalListHead.Level);
-                            varStack.Push(new ChoicePoint((goalListHead == null)
-                              ? tn1
-                              : tn1.Append(goalListHead.NextGoal), null));
+                            CurrVarStack.Push(new ChoicePoint(goalListHead == null
+                                ? tn1
+                                : tn1.Append(goalListHead.NextGoal), null));
 
                             tn0 = goalListHead.Head.Arg(0).ToGoalList(stackSize, goalListHead.Level);
-                            goalListHead = (goalListHead == null) ? tn0 : tn0.Append(goalListHead.NextGoal);
+                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextGoal);
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.cut)
                         {
-                            varStack.DisableChoices(goalListHead.Term.TermId);
+                            CurrVarStack.DisableChoices(goalListHead.Term.TermId);
                             goalListHead = goalListHead.NextGoal;
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.fail)
                         {
-                            if (!(redo = CanBacktrack())) return false;
+                            if (!(redo = CanBacktrack()))
+                            {
+                                return false;
+                            }
                         }
                         else if (DoBuiltin(builtinId, out findFirstClause))
                         {
-
                         }
                         else if (!(redo = CanBacktrack()))
+                        {
                             return false;
+                        }
                     }
                     // PREDICATE RULE
                     else // replace goal by body of matching clause of defining predicate
@@ -894,24 +614,34 @@ namespace Prolog
 
                             if (currTerm is TryOpenTerm)
                             {
-                                ((TryOpenTerm)currTerm).Id = ++tryCatchId;
+                                ((TryOpenTerm)currTerm).Id = ++TryCatchId;
                                 p = new TermNode(currTerm, null, 0);
                             }
                             else if (currTerm is CatchOpenTerm)
                             {
-                                ((CatchOpenTerm)currTerm).Id = tryCatchId; // same id as for corresponding TRY
-                                p = new TermNode(currTerm.Copy(false, varStack), null, 0);
+                                ((CatchOpenTerm)currTerm).Id = TryCatchId; // same id as for corresponding TRY
+                                p = new TermNode(currTerm.Copy(false, CurrVarStack), null, 0);
                             }
                             else if (currTerm is Cut)
-                                p = new TermNode(new Cut(currTerm.Symbol, stackSize), null, goalListHead.Level + 1); // save the pre-unification state
+                            {
+                                p = new TermNode(new Cut(currTerm.Symbol, stackSize), null,
+                                    goalListHead.Level + 1); // save the pre-unification state
+                            }
                             else // Copy (false): keep the varNo constant over all terms of the predicate head+body
                                  // (otherwise each term would get new variables, independent of their previous incarnations)
-                                p = new TermNode(currTerm.Copy(false, varStack), currClause.PredDescr, goalListHead.Level + 1); // gets the newVar version
+                            {
+                                p = new TermNode(currTerm.Copy(false, CurrVarStack), currClause.PredDescr,
+                                    goalListHead.Level + 1); // gets the newVar version
+                            }
 
                             if (pHead == null)
+                            {
                                 pHead = p;
+                            }
                             else
+                            {
                                 pTail.NextGoal = p;
+                            }
 
                             pTail = p;
                             currClause = currClause.NextNode;
@@ -920,7 +650,7 @@ namespace Prolog
                         CallReturn callReturn = new CallReturn(saveGoal);
                         CallStack.Push(callReturn);
 
-                        if (reporting)
+                        if (Reporting)
                         {
                             pTail.NextGoal = callReturn;
                             pTail = pTail.NextNode;
@@ -932,13 +662,13 @@ namespace Prolog
                     }
                 }
                 else if (!(redo = CanBacktrack())) // unify failed - try backtracking
+                {
                     return false;
-
+                }
             } // end of while
 
             return true;
         }
-
 
         private void InsertCutFail()
         {
@@ -947,7 +677,6 @@ namespace Prolog
             ClauseNode cut = new ClauseNode(BaseTerm.CUT, null) { NextGoal = fail };
             goalListHead = cut;
         }
-
 
         private bool CanBacktrack() // returns true if choice point was found
         {
@@ -961,21 +690,26 @@ namespace Prolog
 
             findFirstClause = false; // to prevent resetting to the first clause upon re-entering ExecuteGoalList
 
-            while (varStack.Count != 0)
+            while (CurrVarStack.Count != 0)
             {
-                o = varStack.Pop();
-                lastCp = o;
+                o = CurrVarStack.Pop();
 
                 if (o is Variable)
+                {
                     ((Variable)o).Unbind();
+                }
                 else if (o is ChoicePoint && ((ChoicePoint)o).IsActive)
                 {
                     goalListHead = (cp = (ChoicePoint)o).GoalListHead; // this was the goal we wanted to prove ...
 
                     if (cp.NextClause == null) // no next predicate clause ...
-                        findFirstClause = true;  // ... so find predicate belonging to the goal last head
+                    {
+                        findFirstClause = true; // ... so find predicate belonging to the goal last head
+                    }
                     else
+                    {
                         goalListHead.NextClause = cp.NextClause; // ... and this is next predicate clause to be tried
+                    }
 
                     return true;
                 }
@@ -984,38 +718,39 @@ namespace Prolog
             return false;
         }
 
-
         private bool FindChoicePoint()
         {
-            foreach (Object o in varStack)
+            foreach (Object o in CurrVarStack)
+            {
                 if (o is ChoicePoint && ((ChoicePoint)o).IsActive)
+                {
                     return true;
+                }
+            }
 
             return false;
         }
 
-
         /// <summary>
-        /// Prolog throw.
+        ///     Prolog throw.
         /// </summary>
         private void Throw(string exceptionClass, string exceptionMessage)
         {
             if (!SearchMatchingCatchClause(exceptionClass, exceptionMessage))
             {
-                string comma = (exceptionClass == null || exceptionMessage == null) ? null : ", ";
+                string comma = exceptionClass == null || exceptionMessage == null ? null : ", ";
                 string msg = $"No CATCH found for throw( {exceptionClass}{comma}\"{exceptionMessage}\")";
-                IO.ErrorRuntime(msg, varStack, null);
+                IO.ErrorRuntime(msg, CurrVarStack, null);
             }
         }
 
         /// <summary>
-        /// Prolog throw.
+        ///     Prolog throw.
         /// </summary>
         private void Throw(string exceptionClass, string exceptionFmtMessage, params object[] args)
         {
             Throw(exceptionClass, string.Format(exceptionFmtMessage, args));
         }
-
 
         private void AddCallArgs(TermNode GoalListHead)
         {
@@ -1025,16 +760,17 @@ namespace Prolog
             BaseTerm[] callArgs = new BaseTerm[arity];
 
             for (int i = 0; i < arity0; i++)
+            {
                 callArgs[i] = callPred.Arg(i);
+            }
 
             for (int i = arity0; i < arity; i++)
+            {
                 callArgs[i] = GoalListHead.Head.Arg(1 + i - arity0);
+            }
 
             GoalListHead.Head = new CompoundTerm(callPred.Symbol, callPred.Functor, callArgs);
         }
-
-
-        private enum Status { NextCatchId, CompareIds, NextGoalNode, TestGoalNode, TryMatch }
 
         private bool SearchMatchingCatchClause(string exceptionClass, string exceptionMessage)
         {
@@ -1075,9 +811,12 @@ namespace Prolog
                be carried out.
             */
 
-            if (catchIdStack.Count == 0) return false;
+            if (CatchIdStack.Count == 0)
+            {
+                return false;
+            }
 
-            int catchId = catchIdStack.Pop();
+            int catchId = CatchIdStack.Pop();
             bool catchIdFoundInGoalList = false; // true iff the catchId was found in the list of goals
             Status status = Status.TestGoalNode;
             CatchOpenTerm t = null;
@@ -1087,7 +826,10 @@ namespace Prolog
                 switch (status)
                 {
                     case Status.TestGoalNode:
-                        if (goalListHead == null) return false;
+                        if (goalListHead == null)
+                        {
+                            return false;
+                        }
 
                         if (goalListHead.Term is CatchOpenTerm)
                         {
@@ -1095,19 +837,28 @@ namespace Prolog
                             status = Status.CompareIds;
                         }
                         else
+                        {
                             status = Status.NextGoalNode;
+                        }
+
                         break;
+
                     case Status.NextGoalNode:
                         goalListHead = goalListHead.NextGoal;
                         status = Status.TestGoalNode;
                         break;
-                    case Status.NextCatchId: // get the Id of a potentially matching CATCH-clause
-                        if (catchIdStack.Count == 0) return false;
 
-                        catchId = catchIdStack.Pop();
+                    case Status.NextCatchId: // get the Id of a potentially matching CATCH-clause
+                        if (CatchIdStack.Count == 0)
+                        {
+                            return false;
+                        }
+
+                        catchId = CatchIdStack.Pop();
                         catchIdFoundInGoalList = false;
                         status = Status.CompareIds;
                         break;
+
                     case Status.CompareIds:
                         if (t.Id == catchId)
                         {
@@ -1115,33 +866,42 @@ namespace Prolog
                             status = Status.TryMatch;
                         }
                         else if (catchIdFoundInGoalList) // CATCH-id does not match anymore, so try ...
-                            status = Status.NextCatchId;   // ... the next CATCH (at an enclosing level)
+                        {
+                            status = Status.NextCatchId; // ... the next CATCH (at an enclosing level)
+                        }
                         else
-                            status = Status.NextGoalNode;  // catchId not yet found, try next goal
+                        {
+                            status = Status.NextGoalNode; // catchId not yet found, try next goal
+                        }
+
                         break;
+
                     case Status.TryMatch:
                         if (t.ExceptionClass == null || t.ExceptionClass == exceptionClass)
                         {
-                            t.MsgVar.Unify(new StringTerm(t.Symbol, exceptionMessage), varStack);
+                            t.MsgVar.Unify(new StringTerm(t.Symbol, exceptionMessage), CurrVarStack);
 
                             return true;
                         }
+
                         status = Status.NextGoalNode;
                         break;
                 }
             }
         }
 
-
         private bool Debugger(TermNode goalNode, TermNode currClause, bool isReturn)
         {
-            if (!reporting) return false;
+            if (!Reporting)
+            {
+                return false;
+            }
 
             redo = false;
 
-            if (eventDebug)
+            if (EventDebug)
             {
-                return DebugEventBlocking?.Invoke(goalNode, currClause, isReturn, varStack, CallStack) ?? false;
+                return DebugEventBlocking?.Invoke(goalNode, currClause, isReturn, CurrVarStack, CallStack) ?? false;
             }
 
             return false;
@@ -1151,62 +911,60 @@ namespace Prolog
         {
             Object o;
 
-            while (varStack.Count != 0)
+            while (CurrVarStack.Count != 0)
             {
-                o = varStack.Pop();
+                o = CurrVarStack.Pop();
 
                 if (o is Variable)
+                {
                     ((Variable)o).Unbind();
+                }
             }
         }
 
         public BaseTerm GetVariable(string s)
         {
-            return solution.GetVar(s);
+            return Solution1.GetVar(s);
         }
-
 
         public void SetVariable(BaseTerm t, string s)
         {
-            solution.SetVar(s, t);
+            Solution1.SetVar(s, t);
         }
-
 
         public void EraseVariables()
         {
-            solution.Clear();
+            Solution1.Clear();
         }
 
         public void RegisterVarNonSingleton(string s)
         {
-            solution.RegisterVarNonSingleton(s);
+            Solution1.RegisterVarNonSingleton(s);
         }
 
         public void ReportSingletons(ClauseNode c, int lineNo, ref bool firstReport)
         {
-            solution.ReportSingletons(c, lineNo, ref firstReport);
+            Solution1.ReportSingletons(c, lineNo, ref firstReport);
         }
 
         public void SetProfiling(bool mode)
         {
-            profiling = mode;
+            Profiling = mode;
         }
 
         public int ElapsedTime() // returns numer of milliseconds since last Call
         {
-            long prevStartTime = (startTime == -1) ? DateTime.Now.Ticks : startTime;
+            long prevStartTime = StartTime == -1 ? DateTime.Now.Ticks : StartTime;
 
-            return (int)((startTime = DateTime.Now.Ticks) - prevStartTime) / 10000;
+            return (int)((StartTime = DateTime.Now.Ticks) - prevStartTime) / 10000;
         }
-
 
         public long ProcessorTime() // returns numer of milliseconds since last Call
         {
-            long prevProcTime = (procTime == 0) ? Stopwatch.GetTimestamp() : procTime;
+            long prevProcTime = ProcTime == 0 ? Stopwatch.GetTimestamp() : ProcTime;
 
-            return (long)(1000 * ((procTime = Stopwatch.GetTimestamp()) - prevProcTime) / (double)Stopwatch.Frequency);
+            return (long)(1000 * ((ProcTime = Stopwatch.GetTimestamp()) - prevProcTime) / (double)Stopwatch.Frequency);
         }
-
 
         public long ClockTicksMSecs()
         {
@@ -1215,7 +973,7 @@ namespace Prolog
 
         public void Consult(string fileName)
         {
-            bool csharpStringsSave = csharpStrings;
+            bool csharpStringsSave = CsharpStrings;
             // string as ISO-style charcode lists or as C# strings
 
             try
@@ -1225,13 +983,13 @@ namespace Prolog
             }
             finally
             {
-                csharpStrings = csharpStringsSave;
+                CsharpStrings = csharpStringsSave;
             }
         }
 
         public void Consult(Stream stream, string streamName = null)
         {
-            bool csharpStringsSave = csharpStrings;
+            bool csharpStringsSave = CsharpStrings;
             // string as ISO-style charcode lists or as C# strings
 
             try
@@ -1241,15 +999,17 @@ namespace Prolog
             }
             finally
             {
-                csharpStrings = csharpStringsSave;
+                CsharpStrings = csharpStringsSave;
                 LastConsulted = DateTime.Now;
             }
         }
 
         public void ConsultFromString(string prologCode, string codeTitle = null)
         {
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(prologCode)))
+            using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(prologCode)))
+            {
                 Consult(ms, codeTitle);
+            }
         }
 
         public void SetStringStyle(BaseTerm t)
@@ -1257,21 +1017,409 @@ namespace Prolog
             string arg = t.FunctorToString;
 
             if (!(arg == "csharp" || arg == "iso"))
-                IO.ErrorRuntime($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'", varStack, t);
+            {
+                IO.ErrorRuntime($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'",
+                    CurrVarStack,
+                    t);
+            }
 
-            csharpStrings = (arg == "csharp");
+            CsharpStrings = arg == "csharp";
         }
-
 
         private void SetSwitch(string switchName, ref bool switchVar, bool mode)
         {
             bool current = switchVar;
 
             if (current == (switchVar = mode))
-                IO.Message("{0} already {1}", switchName, (mode ? "on" : "off"));
+            {
+                IO.Message("{0} already {1}", switchName, mode ? "on" : "off");
+            }
             else
-                IO.Message("{0} switched {1}", switchName, (mode ? "on" : "off"));
+            {
+                IO.Message("{0} switched {1}", switchName, mode ? "on" : "off");
+            }
         }
 
+        public class ChoicePoint
+        {
+            protected bool active;
+            protected TermNode goalListHead;
+            protected ClauseNode nextClause; // next clause to be tried for goalListHead
+
+            public ChoicePoint(TermNode goal, ClauseNode nextClause)
+            {
+                goalListHead = goal;
+                this.nextClause = nextClause;
+                active = true;
+            }
+
+            public TermNode GoalListHead => goalListHead;
+
+            public ClauseNode NextClause
+            {
+                get => nextClause;
+                set => nextClause = value;
+            }
+
+            public bool IsActive => active;
+
+            public void Kill()
+            {
+                active = false;
+            }
+
+            public override String ToString()
+            {
+                return $"choicepoint\r\ngoal {goalListHead}\r\nclause {nextClause}\r\nactive {active}";
+            }
+        }
+
+        public class CallReturn : TermNode
+        {
+            public CallReturn(TermNode goal)
+            {
+                SavedGoal = goal;
+            }
+
+            public TermNode SavedGoal { get; }
+        }
+
+        public class VarStack : Stack<object>
+        {
+            public OperatorDescr CommaOpDescr;
+            public OpDescrTriplet CommaOpTriplet;
+            public OperatorDescr SemiOpDescr;
+            public int varNoMax;
+            public int verNoMax;
+
+            public int CurrUnifyCount { get; set; }
+
+            public void NextUnifyCount()
+            {
+                CurrUnifyCount++;
+            }
+
+            public void DisableChoices(int n)
+            {
+                int i = Count;
+
+                foreach (object o in this) // works its way down from the top !!!
+                {
+                    if (i-- == n)
+                    {
+                        return;
+                    }
+
+                    (o as ChoicePoint)?.Kill();
+                }
+            }
+        }
+
+        public interface IVarValue
+        {
+            string Name { get; }
+            ITermNode Value { get; }
+            string DataType { get; }
+        }
+
+        public class VarValue : IVarValue
+        {
+            public string name;
+            public BaseTerm value;
+
+            public VarValue(string name, BaseTerm value)
+            {
+                this.name = name;
+                this.value = value;
+                IsSingleton = true;
+            }
+
+            public bool IsSingleton { get; set; }
+            public string Name => name;
+            public ITermNode Value => value;
+            public string DataType => value.TermType.ToString().ToLower();
+
+            public override string ToString()
+            {
+                if (!value.IsVar)
+                {
+                    bool mustPack = value.Precedence >= 700;
+
+                    return $"{name} = {value.ToString().Packed(mustPack)}";
+                }
+
+                return null;
+            }
+        }
+
+        public class VarValues : Dictionary<string, VarValue>
+        {
+            public BaseTerm GetValue(string name)
+            {
+                VarValue result;
+                TryGetValue(name, out result); // result is null if value not found
+
+                return result == null ? null : result.value;
+            }
+        }
+
+        public interface ISolution
+        {
+            IEnumerable<IVarValue> VarValuesIterator { get; }
+            bool IsLast { get; }
+            bool Solved { get; }
+        }
+
+        // contains the answer to a query or the response to a history command
+        public class Solution : ISolution
+        {
+            private readonly PrologEngine engine;
+
+            public string msg;
+            public VarValues variables;
+
+            public Solution(PrologEngine engine)
+            {
+                this.engine = engine;
+                variables = new VarValues();
+                VarValuesIterator = GetEnumerator();
+                Solved = true;
+                msg = null;
+            }
+
+            public RuntimeException Error { get; set; }
+            public bool Solved { get; set; }
+
+            public bool IsLast { get; set; }
+            public IEnumerable<IVarValue> VarValuesIterator { get; }
+
+            public IEnumerable<IVarValue> GetEnumerator()
+            {
+                foreach (IVarValue varValue in variables.Values)
+                {
+                    if (engine.Halted)
+                    {
+                        yield break;
+                    }
+
+                    yield return varValue;
+                }
+            }
+
+            public void Clear()
+            {
+                variables.Clear();
+            }
+
+            public void SetMessage(string msg)
+            {
+                this.msg = msg;
+            }
+
+            public void SetMessage(string msg, params object[] args)
+            {
+                SetMessage(string.Format(msg, args));
+            }
+
+            public void ResetMessage()
+            {
+                msg = null;
+            }
+
+            public void SetVar(string name, BaseTerm value)
+            {
+                variables[name] = new VarValue(name, value);
+            }
+
+            public void RegisterVarNonSingleton(string name)
+            {
+                variables[name].IsSingleton = false;
+            }
+
+            public void ReportSingletons(ClauseNode c, int lineNo, ref bool firstReport)
+            {
+                List<string> singletons = new List<string>();
+
+                foreach (VarValue var in variables.Values)
+                {
+                    if (var.IsSingleton)
+                    {
+                        singletons.Add(var.Name);
+                    }
+                }
+
+                if (singletons.Count == 0)
+                {
+                    return;
+                }
+
+                if (firstReport)
+                {
+                    IO.WriteLine();
+                    firstReport = false;
+                }
+
+                IO.Write("    Warning: '{0}' at line {1} has {2}singleton variable{3} [",
+                    c.Head.Name, lineNo,
+                    singletons.Count == 1 ? "a " : null,
+                    singletons.Count == 1 ? null : "s");
+
+                bool first = true;
+
+                foreach (string name in singletons)
+                {
+                    if (first)
+                    {
+                        first = false;
+                    }
+                    else
+                    {
+                        IO.Write(", ");
+                    }
+
+                    IO.Write(name);
+                }
+
+                IO.WriteLine("]");
+            }
+
+            public BaseTerm GetVar(string name)
+            {
+                return variables.GetValue(name);
+            }
+
+            public override string ToString()
+            {
+                if (engine.Halted)
+                {
+                    return null;
+                }
+
+                if (msg != null)
+                {
+                    return msg;
+                }
+
+                double totSecs = engine.ProcessorTime() / 1000.0;
+
+                string time = engine.EventDebug || totSecs < 0.1 ? "" : $" ({totSecs:f3} s)";
+
+                if (!Solved)
+                {
+                    return NO + time;
+                }
+
+                StringBuilder sb = new StringBuilder();
+
+                foreach (VarValue varValue in variables.Values)
+                {
+                    if (!varValue.value.IsVar && varValue.name[0] != '_')
+                    {
+                        sb.AppendFormat("{0}", varValue);
+                    }
+                }
+
+                return (sb.Length == 0 ? YES : sb.ToString()) + time;
+            }
+        }
+
+        public class OpenFiles : Dictionary<string, FileTerm>
+        {
+            public FileTerm GetFileReader(string fileName)
+            {
+                FileTerm ft;
+
+                TryGetValue(fileName.ToLower(), out ft);
+
+                return ft;
+            }
+
+            public FileTerm GetFileWriter(string fileName)
+            {
+                FileTerm ft;
+
+                TryGetValue(fileName.ToLower(), out ft);
+
+                return ft;
+            }
+
+            public void CloseAllOpenFiles()
+            {
+                foreach (FileTerm ft in Values)
+                {
+                    ft.Close();
+                }
+
+                Clear();
+            }
+        }
+
+        private class GlobalTermsTable
+        {
+            private readonly Dictionary<string, int> counterTable;
+            private readonly Dictionary<string, BaseTerm> globvarTable;
+
+            public GlobalTermsTable()
+            {
+                counterTable = new Dictionary<string, int>();
+                globvarTable = new Dictionary<string, BaseTerm>();
+            }
+
+            public void getctr(string a, out int value)
+            {
+                if (!counterTable.TryGetValue(a, out value))
+                {
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                }
+            }
+
+            public void setctr(string a, int value)
+            {
+                counterTable[a] = value;
+            }
+
+            public void incctr(string a)
+            {
+                int value;
+
+                if (counterTable.TryGetValue(a, out value))
+                {
+                    counterTable[a] = value + 1;
+                }
+                else
+                {
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                }
+            }
+
+            public void decctr(string a)
+            {
+                int value;
+
+                if (counterTable.TryGetValue(a, out value))
+                {
+                    counterTable[a] = value - 1;
+                }
+                else
+                {
+                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                }
+            }
+
+            public void getvar(string name, out BaseTerm value)
+            {
+                if (!globvarTable.TryGetValue(name, out value))
+                {
+                    IO.ErrorRuntime($"Value of '{name}' is not set", null, null);
+                }
+            }
+
+            public void setvar(string name, BaseTerm value)
+            {
+                globvarTable[name] = value;
+            }
+        }
+
+        private enum Status { NextCatchId, CompareIds, NextGoalNode, TestGoalNode, TryMatch }
     }
 }

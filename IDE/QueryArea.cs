@@ -1,30 +1,32 @@
-﻿using ScintillaNET;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
+using ScintillaNET;
+using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
 namespace Prolog
 {
-    public partial class QueryArea : WeifenLuo.WinFormsUI.Docking.DockContent
+    public partial class QueryArea : DockContent
     {
-        public PrologEditor queryEditor;
+        private readonly PrologEngine pe;
+        private readonly Action<ProgressChangedEventArgs> progressChangedHandler;
+        private readonly List<string> queryCallStack = new List<string>();
+        private readonly SourceArea sourceArea;
+        private readonly TextBox tbAnswer;
+        private readonly OutputArea winIO;
 
         private bool _findAllSolutions;
-        private readonly List<string> queryCallStack = new List<string>();
-        private readonly TextBox tbAnswer;
-        private readonly PrologEngine pe;
-        private readonly OutputArea winIO;
-        private bool? stop;
+        public PrologEditor queryEditor;
         private ManualResetEvent semaMoreStop;
-        private readonly Action<ProgressChangedEventArgs> progressChangedHandler;
-        private readonly SourceArea sourceArea;
+        private bool? stop;
 
-        public QueryArea(PrologEngine pe, SourceArea sourceArea, OutputArea winIO, TextBox tbAnswer, Action<ProgressChangedEventArgs> progressChangedHandler)
+        public QueryArea(PrologEngine pe, SourceArea sourceArea, OutputArea winIO, TextBox tbAnswer,
+            Action<ProgressChangedEventArgs> progressChangedHandler)
         {
             InitializeComponent();
 
@@ -44,8 +46,8 @@ namespace Prolog
             queryEditor = new PrologEditor(pe);
             Scintilla scintillaQuery = queryEditor.Editor;
 
-            scintillaQuery.Anchor = (AnchorStyles.Top | AnchorStyles.Left)
-                                    | AnchorStyles.Right | AnchorStyles.Bottom;
+            scintillaQuery.Anchor = AnchorStyles.Top | AnchorStyles.Left
+                                                     | AnchorStyles.Right | AnchorStyles.Bottom;
             scintillaQuery.Location = new Point(0, 0);
             scintillaQuery.Size = queryPanel.Size;
             scintillaQuery.TabIndex = 20;
@@ -89,7 +91,10 @@ namespace Prolog
 
         private void ExecuteQuery(bool findAllSolutions)
         {
-            if (bgwExecuteQuery.IsBusy && !bgwExecuteQuery.CancellationPending) return;
+            if (bgwExecuteQuery.IsBusy && !bgwExecuteQuery.CancellationPending)
+            {
+                return;
+            }
 
             btnXeqQuery.BackColor = Color.LightBlue;
 
@@ -156,30 +161,35 @@ namespace Prolog
             }
             else
             {
-             pe.Query = e.Argument as string;
-             semaMoreStop = new ManualResetEvent(false);
+                pe.Query = e.Argument as string;
+                semaMoreStop = new ManualResetEvent(false);
 
-             foreach (PrologEngine.ISolution s in pe.SolutionIterator)
-             {
-                 winIO.GuiIO.WriteLine("{0}{1}", s, (s.IsLast ? null : ";"));
+                foreach (ISolution s in pe.SolutionIterator)
+                {
+                    winIO.GuiIO.WriteLine("{0}{1}", s, s.IsLast ? null : ";");
 
-                 if (s.IsLast && !s.Solved && queryCallStack.Count > 0)
-                 {
-                     winIO.GuiIO.Write(queryCallStack.Aggregate((x, y) => x + "---" + y));
-                 }
+                    if (s.IsLast && !s.Solved && queryCallStack.Count > 0)
+                    {
+                        winIO.GuiIO.Write(queryCallStack.Aggregate((x, y) => x + "---" + y));
+                    }
 
-                 if (s.IsLast) break;
+                    if (s.IsLast)
+                    {
+                        break;
+                    }
 
-                 bool stop;
-                 btnMore.Enabled = btnStop.Enabled = true;
-                 WaitForMoreOrStopPressed(out stop);
-                 semaMoreStop.Reset();
+                    bool stop;
+                    btnMore.Enabled = btnStop.Enabled = true;
+                    WaitForMoreOrStopPressed(out stop);
+                    semaMoreStop.Reset();
 
-                 if (stop) break;
-             }
+                    if (stop)
+                    {
+                        break;
+                    }
+                }
             }
         }
-
 
         private void WaitForMoreOrStopPressed(out bool halt)
         {
@@ -197,13 +207,11 @@ namespace Prolog
             }
         }
 
-
         private void btnMore_Click(object sender, EventArgs e)
         {
             stop = false;
             semaMoreStop.Set();
         }
-
 
         private void btnStop_Click(object sender, EventArgs e)
         {
@@ -225,7 +233,6 @@ namespace Prolog
             }
         }
 
-
         private void bgwExecuteQuery_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             btnCancelQuery.Enabled = false;
@@ -234,7 +241,6 @@ namespace Prolog
 
             btnXeqQuery.BackColor = BackColor;
         }
-
 
         private void bgwExecuteQuery_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {

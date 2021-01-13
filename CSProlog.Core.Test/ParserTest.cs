@@ -11,7 +11,7 @@ namespace CSPrologTest
 
         public ParserTest(ITestOutputHelper output)
         {
-            this._output = output;
+            _output = output;
         }
 
         [Theory]
@@ -68,7 +68,8 @@ namespace CSPrologTest
         [InlineData(":-(struct(abba),true)", "struct(abba).")]
         [InlineData(":-(struct(abba,babba,Variable),true)", "struct(abba, babba,Variable ).")]
         [InlineData(":-(struct(innerStruct(a,b,c)),true)", "struct(innerStruct(a,b,c)).")]
-        [InlineData(":-(struct(abba,babba,Variable,innerStruct(a,b,c)),true)", "struct(abba, babba,Variable ,innerStruct(a,b,c)).")]
+        [InlineData(":-(struct(abba,babba,Variable,innerStruct(a,b,c)),true)",
+            "struct(abba, babba,Variable ,innerStruct(a,b,c)).")]
         [InlineData(":-(struct,true)", "(struct()).")]
         public void ParsesStructureCall(string expected, string test)
         {
@@ -223,7 +224,8 @@ namespace CSPrologTest
         [InlineData("a :- \"abc d - 1,\'. :- sd\".")]
         [InlineData("a :- \"\".")]
         [InlineData("a :- \" \".")]
-        [InlineData("a :- X=1.\r\n a :- X=2. \r\n b :- true. \r\n a :- X=3. a() :- X=4. a(1,2):-X=5. a(1):-X=5. a((a,b,c)):-X=5. a.")]
+        [InlineData(
+            "a :- X=1.\r\n a :- X=2. \r\n b :- true. \r\n a :- X=3. a() :- X=4. a(1,2):-X=5. a(1):-X=5. a((a,b,c)):-X=5. a.")]
         [InlineData("a :- X = 2.1234.")]
         [InlineData("a :- (1 + 2) * 2.")]
         [InlineData("a :- 2.0 + 40.")]
@@ -276,7 +278,8 @@ namespace CSPrologTest
         [InlineData("a :- retract((atom(_) :- X == '[]')).")]
         [InlineData("a :- setof(X, X ^ (true; 4), L).")]
         [InlineData("a(F) :- F =..[a|F2].")]
-        [InlineData("a :- '='(f(A, B, C), f(g(B, B), g(C, C), g(D, D))), A=g(g(g(D, D), g(D, D)), g(g(D, D), g(D, D))), B=g(g(D, D), g(D, D)), C=g(D, D).")]
+        [InlineData(
+            "a :- '='(f(A, B, C), f(g(B, B), g(C, C), g(D, D))), A=g(g(g(D, D), g(D, D)), g(g(D, D), g(D, D))), B=g(g(D, D), g(D, D)), C=g(D, D).")]
         [InlineData("a :- once(!).")]
         [InlineData("a :- (X=1; X=2), (X=1;X=2).")]
         [InlineData("a :- (X=1; X=2).")]
@@ -290,7 +293,6 @@ namespace CSPrologTest
         {
             test.CanParse();
         }
-
 
         [Fact]
         public void MultiHeadRecursive()
@@ -339,7 +341,6 @@ concatenate([X|L1], L2, [X|L3]) :-
         }
 
         [Fact]
-
         public void SubAtom()
         {
             //TODO
@@ -348,7 +349,8 @@ concatenate([X|L1], L2, [X|L3]) :-
             @"test([])".False(@"test(X):- '\='(X, []).");
             @"test(1)".True(@"test(X):- '\='(X, []).");
             @"true".True(@"test(X):- X \= [].");
-            @"atom(atom)".True("foo(GAR, foobar(DEDAL), [KAIN, ABEL], banan) :- GAR = IAR, IAR = [DEDAL], DEDAL = abc.");
+            @"atom(atom)".True(
+                "foo(GAR, foobar(DEDAL), [KAIN, ABEL], banan) :- GAR = IAR, IAR = [DEDAL], DEDAL = abc.");
 
             /*
             'sub_atom', [sub_atom(abracadabra, _, 5, 0, S2), [[S2<-- 'dabra']]]).
@@ -406,7 +408,6 @@ concatenate([X|L1], L2, [X|L3]) :-
         }
 
         [Fact]
-
         public void NumberChars()
         {
             //TODO
@@ -416,7 +417,7 @@ concatenate([X|L1], L2, [X|L3]) :-
             "number_chars(X,['3','.','3','E','+','0']), X=3.3".True();
             "number_chars(3.3,['3','.','3'])".True();
 
-            var d = @"'number_chars', [number_chars(A,['-','2','5']), [[A <-- (-25)]]]).
+            string d = @"'number_chars', [number_chars(A,['-','2','5']), [[A <-- (-25)]]]).
 'number_chars', [number_chars(A,['\n',' ','3']), [[A <-- 3]]]).
 'number_chars', [number_chars(A,['3',x]), syntax_error(_)]).
 'number_chars', [number_chars(A,['0',x,f]), [[A <-- 15]]]).
@@ -444,7 +445,6 @@ concatenate([X|L1], L2, [X|L3]) :-
         }
 
         [Fact]
-
         public void AtomCodes()
         {
             //TODO

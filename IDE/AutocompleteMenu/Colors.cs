@@ -6,13 +6,6 @@ namespace AutocompleteMenuNS
     [Serializable]
     public class Colors
     {
-        public Color ForeColor { get; set; }
-        public Color BackColor { get; set; }
-        public Color SelectedForeColor { get; set; }
-        public Color SelectedBackColor { get; set; }
-        public Color SelectedBackColor2 { get; set; }
-        public Color HighlightingColor { get; set; }
-
         public Colors()
         {
             ForeColor = Color.Black;
@@ -22,5 +15,12 @@ namespace AutocompleteMenuNS
             SelectedBackColor2 = Color.LightSkyBlue;
             HighlightingColor = Color.LightSkyBlue;
         }
+
+        public Color ForeColor { get; set; }
+        public Color BackColor { get; set; }
+        public Color SelectedForeColor { get; set; }
+        public Color SelectedBackColor { get; set; }
+        public Color SelectedBackColor2 { get; set; }
+        public Color HighlightingColor { get; set; }
     }
 }

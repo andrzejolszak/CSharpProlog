@@ -1,12 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using ScintillaNET;
 using WeifenLuo.WinFormsUI.Docking;
-using System.IO;
-using System.Linq;
-using System.Collections.Generic;
-using System.Threading;
 using static Prolog.PrologEngine;
 
 namespace Prolog
@@ -14,16 +12,16 @@ namespace Prolog
     public partial class MainForm : Form
     {
         private const string DockPanelConfigFile = "guiLayout.xml";
-        private readonly PrologEngine pe;
+        private readonly DebuggerArea debuggerArea;
 
         private readonly DockPanel dockPanel;
-        private readonly SourceArea sourceArea;
-        private readonly DebuggerArea debuggerArea;
-        private readonly QueryArea queryArea;
-        private readonly OutputArea outputArea;
-        private readonly TestsArea testsArea;
         private readonly InspectorArea inspectorArea;
+        private readonly OutputArea outputArea;
+        private readonly PrologEngine pe;
+        private readonly QueryArea queryArea;
+        private readonly SourceArea sourceArea;
         private readonly StaticAnalysisArea staticAnalysisArea;
+        private readonly TestsArea testsArea;
 
         public MainForm()
         {
@@ -41,7 +39,8 @@ namespace Prolog
 
             sourceArea = new SourceArea(pe, outputArea, outputArea.tbAnswer, outputArea.HandleProgressChanged);
             debuggerArea = new DebuggerArea(pe, sourceArea);
-            queryArea = new QueryArea(pe, sourceArea, outputArea, outputArea.tbAnswer, outputArea.HandleProgressChanged);
+            queryArea = new QueryArea(pe, sourceArea, outputArea, outputArea.tbAnswer,
+                outputArea.HandleProgressChanged);
             testsArea = new TestsArea(pe, sourceArea);
             inspectorArea = new InspectorArea(pe, sourceArea);
             staticAnalysisArea = new StaticAnalysisArea(pe, sourceArea);
@@ -72,7 +71,7 @@ namespace Prolog
 
             sourceArea.sourceEditor.InspectTermRequested += x =>
             {
-                inspectorArea.RefresthUIState(x, $"Source Term: '{x.ToString()}'");
+                inspectorArea.RefresthUIState(x, $"Source Term: '{x}'");
                 inspectorArea.BringToFront();
             };
 
@@ -96,7 +95,7 @@ namespace Prolog
 
         private void HandleShown(object sender, EventArgs e)
         {
-            foreach(string file in Directory.GetFiles(@".\Examples\")
+            foreach (string file in Directory.GetFiles(@".\Examples\")
                 .Where(x => x.EndsWith(".pl"))
                 .Select(x => x.Replace(@".\Examples\", string.Empty))
                 .OrderBy(x => x))
@@ -106,9 +105,9 @@ namespace Prolog
 
             try
             {
-                dockPanel.LoadFromXml(DockPanelConfigFile, new DeserializeDockContent(GetContentFromPersistString));
+                dockPanel.LoadFromXml(DockPanelConfigFile, GetContentFromPersistString);
             }
-            catch 
+            catch
             {
                 sourceArea.Show(dockPanel, DockState.Document);
                 queryArea.Show(sourceArea.Pane, DockAlignment.Bottom, 0.4);
@@ -134,19 +133,39 @@ namespace Prolog
         private IDockContent GetContentFromPersistString(string persistString)
         {
             if (persistString == typeof(SourceArea).ToString())
+            {
                 return sourceArea;
-            else if (persistString == typeof(QueryArea).ToString())
+            }
+
+            if (persistString == typeof(QueryArea).ToString())
+            {
                 return queryArea;
-            else if (persistString == typeof(OutputArea).ToString())
+            }
+
+            if (persistString == typeof(OutputArea).ToString())
+            {
                 return outputArea;
-            else if (persistString == typeof(TestsArea).ToString())
+            }
+
+            if (persistString == typeof(TestsArea).ToString())
+            {
                 return testsArea;
-            else if (persistString == typeof(InspectorArea).ToString())
+            }
+
+            if (persistString == typeof(InspectorArea).ToString())
+            {
                 return inspectorArea;
-            else if (persistString == typeof(StaticAnalysisArea).ToString())
+            }
+
+            if (persistString == typeof(StaticAnalysisArea).ToString())
+            {
                 return staticAnalysisArea;
-            else if (persistString == typeof(DebuggerArea).ToString())
+            }
+
+            if (persistString == typeof(DebuggerArea).ToString())
+            {
                 return debuggerArea;
+            }
 
             return null;
         }
@@ -187,10 +206,8 @@ namespace Prolog
 
         private void menuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
-
         }
     }
-
 
     public static class Extensions
     {
@@ -226,9 +243,13 @@ namespace Prolog
         public static void WriteLine(this TextBox tb, string s, params object[] args)
         {
             if (args.Length == 0)
+            {
                 tb.AppendText(s);
+            }
             else
+            {
                 tb.AppendText(string.Format(s, args));
+            }
 
             tb.AppendText(CRLF);
         }
@@ -242,7 +263,6 @@ namespace Prolog
             }
         }
 
-
         public static void DoGuiAction(this BackgroundWorker bgw, GuiAction a, string s)
         {
             if (bgw != null)
@@ -251,5 +271,4 @@ namespace Prolog
             }
         }
     }
-
 }
