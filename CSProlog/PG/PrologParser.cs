@@ -104,12 +104,12 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.ErrorConsult($"Illegal operator type '{type}'", symbol);
+                    IO.ThrowConsultException($"Illegal operator type '{type}'", symbol);
                 }
 
                 if (prec < 0 || prec > 1200)
                 {
-                    IO.ErrorConsult($"Illegal precedence value {prec} for operator '{name}'", symbol);
+                    IO.ThrowConsultException($"Illegal precedence value {prec} for operator '{name}'", symbol);
                 }
 
                 TerminalDescr td;
@@ -151,7 +151,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.ErrorConsult($"Illegal operator type '{type}'", symbol);
+                    IO.ThrowConsultException($"Illegal operator type '{type}'", symbol);
                 }
 
                 TerminalDescr td;
@@ -160,7 +160,7 @@ namespace Prolog
                 {
                     if (!user)
                     {
-                        IO.ErrorConsult($"Undefine of operator ({type}, {name}) not allowed", symbol);
+                        IO.ThrowConsultException($"Undefine of operator ({type}, {name}) not allowed", symbol);
                     }
                     else
                     {
@@ -179,7 +179,7 @@ namespace Prolog
                 }
                 else // unknown operator
                 {
-                    IO.ErrorConsult($"Operator not found: ({type}, {name})", symbol);
+                    IO.ThrowConsultException($"Operator not found: ({type}, {name})", symbol);
                 }
             }
 
@@ -213,7 +213,7 @@ namespace Prolog
             {
                 if (openBracket == closeBracket)
                 {
-                    IO.ErrorConsult("Wrapper open and wrapper close token must be different", symbol);
+                    IO.ThrowConsultException("Wrapper open and wrapper close token must be different", symbol);
                 }
 
                 if (useAsList)
@@ -633,26 +633,9 @@ namespace Prolog
                     return null;
                 }
 
-                BaseTerm result;
-
-                try
-                {
-                    OptionalPrologTerm(new TerminalSet(terminalCount), out result);
-                    LineCount = LineNo;
-
-                    return result;
-                }
-                catch (ConsultException e)
-                {
-                    throw e;
-                }
-                catch (Exception e) // other errors
-                {
-                    errorMessage =
-                        $"*** Line {LineNo}: {e.Message}{(ShowErrTrace ? Environment.NewLine + e.StackTrace : null)}";
-
-                    throw new ConsultException(errorMessage, symbol: symbol);
-                }
+                OptionalPrologTerm(new TerminalSet(terminalCount), out BaseTerm result);
+                LineCount = LineNo;
+                return result;
             }
         }
     }

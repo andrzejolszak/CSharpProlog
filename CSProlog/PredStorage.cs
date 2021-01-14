@@ -167,9 +167,9 @@ namespace Prolog
                 isDiscontiguous.Clear();
                 //Globals.ConsultModuleName = null;
                 parser.Prefix = "&program\r\n";
-                IO.Write("--- Consulting {0} ... ", fileName);
+                IO.Write($"--- Consulting {fileName} ... ");
                 parser.LoadFromStream(stream, fileName);
-                IO.WriteLine("{0} lines read", parser.LineCount);
+                IO.WriteLine($"{parser.LineCount} lines read");
                 InvalidateCrossRef();
 
                 // Adjust node list ends and populate AllConsultedTerms
@@ -212,7 +212,7 @@ namespace Prolog
                 }
                 else if (prevIndex != null && key != prevIndex)
                 {
-                    IO.ErrorRuntime($"Definition for predefined predicate '{head.Index}' must be contiguous", null,
+                    IO.ThrowRuntimeException($"Definition for predefined predicate '{head.Index}' must be contiguous", null,
                         clause.Term);
                 }
                 else
@@ -227,7 +227,7 @@ namespace Prolog
             {
                 if (t == null || t.FunctorToString != SLASH || !t.Arg(0).IsAtom || !t.Arg(1).IsInteger)
                 {
-                    IO.ErrorConsult("Illegal or missing argument '{0}' for discontiguous/1", t);
+                    IO.ThrowConsultException("Illegal or missing argument '{0}' for discontiguous/1", t);
                 }
 
                 // The predicate descriptor does not yet exist (and may even not come at all!)
@@ -264,18 +264,18 @@ namespace Prolog
                         }
                         else
                         {
-                            IO.ErrorConsult($":- stacktrace: illegal argument '{argument}'; use 'on' or 'off' instead",
+                            IO.ThrowConsultException($":- stacktrace: illegal argument '{argument}'; use 'on' or 'off' instead",
                                 symbol);
                         }
 
                         break;
 
                     case "initialization":
-                        IO.Warning("':- initialization' directive not implemented -- ignored");
+                        IO.Message("':- initialization' directive not implemented -- ignored");
                         break;
 
                     default:
-                        IO.ErrorConsult($"\r\nUnknown directive ':- {directive}'", symbol);
+                        IO.ThrowConsultException($"\r\nUnknown directive ':- {directive}'", symbol);
                         break;
                 }
             }
@@ -292,7 +292,7 @@ namespace Prolog
                 }
                 else if (o != currFile)
                 {
-                    IO.ErrorConsult(string.Format($"Module name {n} already declared in file {o}", n), symbol);
+                    IO.ThrowConsultException(string.Format($"Module name {n} already declared in file {o}", n), symbol);
                 }
 
                 // ACTUAL FUNCTIONALITY TO BE IMPLEMENTED, using a
@@ -308,7 +308,7 @@ namespace Prolog
 
                 if (Predefined.Contains(key))
                 {
-                    IO.ErrorConsult($"Modification of predefined predicate {index} not allowed", clause?.Term?.Symbol);
+                    IO.ThrowConsultException($"Modification of predefined predicate {index} not allowed", clause?.Term?.Symbol);
                 }
 
                 if (prevIndex == key) // previous clause was for the same predicate
@@ -325,7 +325,7 @@ namespace Prolog
                     {
                         if (pd != null && pd.DefinitionFile != ConsultFileName)
                         {
-                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
+                            IO.ThrowConsultException($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
                                 clause.Term);
                         }
 
@@ -344,9 +344,7 @@ namespace Prolog
                         {
                             if (b)
                             {
-                                IO.Warning(
-                                    $"Predicate '{index}' is defined discontiguously but is not declared as such",
-                                    clause.Term);
+                                IO.Message($"Predicate '{index}' {pd.Name} is defined discontiguously but is not declared as such");
                             }
 
                             if (pd.DefinitionFile == ConsultFileName)
@@ -355,19 +353,18 @@ namespace Prolog
                             }
                             else // OK
                             {
-                                IO.ErrorConsult(
+                                IO.ThrowConsultException(
                                     $"Discontiguous predicate {index} must be in one file (also found in {pd.DefinitionFile})",
                                     clause.Term);
                             }
                         }
                         else if (pd.DefinitionFile == ConsultFileName) // Warning or Error?
                         {
-                            IO.Warning($"Predicate '{index}' occurs discontiguously but is not declared as such",
-                                clause.Term);
+                            IO.Message($"Predicate '{index}' {pd.Name} occurs discontiguously but is not declared as such");
                         }
                         else
                         {
-                            IO.ErrorConsult($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
+                            IO.ThrowConsultException($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
                                 clause.Term);
                         }
                     }
@@ -393,14 +390,14 @@ namespace Prolog
 
                 if (!head.IsCallable)
                 {
-                    IO.ErrorRuntime($"Illegal predicate head '{head}'", null, assertion);
+                    IO.ThrowRuntimeException($"Illegal predicate head '{head}'", null, assertion);
                 }
 
                 string key = head.Key;
 
                 if (Predefined.Contains(key) || head.Precedence >= 1000)
                 {
-                    IO.ErrorRuntime(
+                    IO.ThrowRuntimeException(
                         $"assert/1 cannot be applied to predefined predicate or operator '{assertionCopy.Index}'", null,
                         assertion);
                 }
@@ -438,7 +435,7 @@ namespace Prolog
 
                 if (Predefined.Contains(key))
                 {
-                    IO.ErrorRuntime($"retract of predefined predicate {key} not allowed", varStack, t);
+                    IO.ThrowRuntimeException($"retract of predefined predicate {key} not allowed", varStack, t);
                 }
 
                 PredicateDescr pd = this[key];
@@ -517,7 +514,7 @@ namespace Prolog
 
                 if (Predefined.Contains(key))
                 {
-                    IO.ErrorRuntime($"retract of predefined predicate {key} not allowed", varStack, t);
+                    IO.ThrowRuntimeException($"retract of predefined predicate {key} not allowed", varStack, t);
                 }
 
                 PredicateDescr pd = this[key];
@@ -583,7 +580,7 @@ namespace Prolog
 
                 if (Predefined.Contains(key))
                 {
-                    IO.ErrorRuntime($"abolish of predefined predicate '{functor}/{arity}' not allowed", null, null);
+                    IO.ThrowRuntimeException($"abolish of predefined predicate '{functor}/{arity}' not allowed", null, null);
                 }
 
                 PredicateDescr pd = this[key];
@@ -617,8 +614,7 @@ namespace Prolog
 
                 //        if (pd.IsFirstArgIndexed) details += "; arg1-indexed (jump points marked with '.')";
 
-                IO.WriteLine("{0}/{1}: ({2}) {3}", functor, arity, details,
-                    seqno == 1 ? "" : seqno.ToString().Packed());
+                IO.WriteLine($"{functor}/{arity}: ({details}) {(seqno == 1 ? "" : seqno.ToString().Packed())}");
 
                 while (clause != null)
                 {
@@ -626,14 +622,14 @@ namespace Prolog
 
                     //          // prefix a clause that is pointed to by first-argument indexing with '.'
                     //          IO.Write (" {0}{1}", (pd.IsFirstArgMarked (clause))?".":" ", nextClause.Term);
-                    IO.Write("  {0}", clause.Term);
+                    IO.Write($"  {clause.Term}");
 
                     if ((next = clause.NextNode) != null)
                     {
                         BI builtinId = next.BuiltinId;
-                        IO.Write(" :-{0}", builtinId == BI.none
+                        IO.Write(" :-" + (builtinId == BI.none
                             ? next.ToString()
-                            : Environment.NewLine + builtinId);
+                            : Environment.NewLine + builtinId));
                     }
 
                     IO.WriteLine(".");
@@ -720,7 +716,7 @@ namespace Prolog
                                     if (npd.Name == "not/1" || npd.Name == "call/1") // add args to cref
                                     {
                                         TermNode arg = node.NextNode;
-                                        IO.WriteLine("{0} arg is {1}", npd.Name, arg);
+                                        IO.WriteLine($"{npd.Name} arg is {arg}");
                                     }
                                 }
                             }
@@ -804,7 +800,7 @@ namespace Prolog
                         break;
                     }
 
-                    IO.WriteLine(format, kv.Value, kv.Key);
+                    IO.WriteLine(string.Format(format, kv.Value, kv.Key));
                 }
             }
 

@@ -1116,7 +1116,7 @@ namespace Prolog
 
                         if (files > 1)
                         {
-                            IO.Message("Grand total is {0} lines", lines);
+                            IO.Message($"Grand total is {lines} lines");
                         }
 
                         PredTable.ResolveIndices();
@@ -1133,15 +1133,15 @@ namespace Prolog
                             return false;
                         }
 
-                        IO.Write("--- Consulting {0} ... ", fileName);
+                        IO.Write($"--- Consulting {fileName} ... ");
                         PredTable.Consult(fileName);
-                        IO.WriteLine("{0} lines read", parser.LineCount);
+                        IO.WriteLine($"{parser.LineCount} lines read");
                         PredTable.ResolveIndices();
 
                         break;
                     }
 
-                    return IO.ErrorRuntime($"Unable to read file '{t0.Arg(0)}'", CurrVarStack, term);
+                    return IO.ThrowRuntimeException($"Unable to read file '{t0.Arg(0)}'", CurrVarStack, term);
 
                 case BI.asserta:
                     PredTable.Assert(term.Arg(0), true); // true: at beginning
@@ -1773,7 +1773,7 @@ namespace Prolog
                     }
                     else
                     {
-                        IO.ErrorRuntime("datetime/4/7: first argument must be either a DateTime or a var", CurrVarStack,
+                        IO.ThrowRuntimeException("datetime/4/7: first argument must be either a DateTime or a var", CurrVarStack,
                             term);
 
                         return false;
@@ -1817,7 +1817,7 @@ namespace Prolog
                     }
                     else
                     {
-                        IO.ErrorRuntime("timespan/4: first argument must be either a TimeSpan or a var", CurrVarStack,
+                        IO.ThrowRuntimeException("timespan/4: first argument must be either a TimeSpan or a var", CurrVarStack,
                             term);
 
                         return false;
@@ -2027,7 +2027,7 @@ namespace Prolog
 
                     if (!t0.IsAtomOrString)
                     {
-                        IO.ErrorRuntime("see/1 argument must be an atom or a string", CurrVarStack, term);
+                        IO.ThrowRuntimeException("see/1 argument must be an atom or a string", CurrVarStack, term);
                     }
 
                     if (t0.HasFunctor("user"))
@@ -2144,7 +2144,7 @@ namespace Prolog
                     }
                     catch (Exception e)
                     {
-                        IO.ErrorRuntime($"Error reading file {x}. Message was:\r\n{e.Message}", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"Error reading file {x}. Message was:\r\n{e.Message}", CurrVarStack, term);
                     }
 
                     if (!term.Arg(1).Unify(new StringTerm(term.Symbol, fileContents), CurrVarStack))
@@ -2198,7 +2198,7 @@ namespace Prolog
 
                     if (!t0.IsAtomOrString)
                     {
-                        IO.ErrorRuntime("tell/1 argument must be an atom or a string", CurrVarStack, term);
+                        IO.ThrowRuntimeException("tell/1 argument must be an atom or a string", CurrVarStack, term);
                     }
 
                     if (t0.HasFunctor("user"))
@@ -2245,14 +2245,14 @@ namespace Prolog
                     ln = "ln";
                     if (!(term.Arg(0) is StringTerm))
                     {
-                        IO.ErrorRuntime(String.Format("First argument of write(0}f/2 must be a string", ln),
+                        IO.ThrowRuntimeException(String.Format("First argument of write(0}f/2 must be a string", ln),
                             CurrVarStack,
                             term);
                     }
 
                     if (!(term.Arg(1) is ListTerm))
                     {
-                        IO.ErrorRuntime($"Second argument of write{ln}f/2 must be a list", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"Second argument of write{ln}f/2 must be a list", CurrVarStack, term);
                     }
 
                     string fs = Utils.Format(term.Arg(0), term.Arg(1));
@@ -2319,14 +2319,14 @@ namespace Prolog
                 case BI.console:
                     if (term.Arity == 2 && !(term.Arg(0) is StringTerm))
                     {
-                        IO.ErrorRuntime("First argument of console/1/2 must be a string", CurrVarStack, term);
+                        IO.ThrowRuntimeException("First argument of console/1/2 must be a string", CurrVarStack, term);
                     }
 
                     if (term.Arity == 2)
                     {
                         if (!(term.Arg(1) is ListTerm))
                         {
-                            IO.ErrorRuntime("Second argument of console/2 must be a list", CurrVarStack, term);
+                            IO.ThrowRuntimeException("Second argument of console/2 must be a list", CurrVarStack, term);
                         }
 
                         a = Utils.Format(term.Arg(0), term.Arg(1));
@@ -2334,7 +2334,7 @@ namespace Prolog
                     }
                     else
                     {
-                        IO.WriteLine("{0}", term.Arg(0));
+                        IO.WriteLine(term.Arg(0).ToString());
                     }
 
                     break;
@@ -2917,7 +2917,7 @@ namespace Prolog
 
                     if (t1.IsVar)
                     {
-                        IO.ErrorRuntime("term_pattern: uninstantiated first argument not allowed", CurrVarStack, term);
+                        IO.ThrowRuntimeException("term_pattern: uninstantiated first argument not allowed", CurrVarStack, term);
                     }
 
                     t2 = term.Arg(2); // pattern
@@ -2976,13 +2976,13 @@ namespace Prolog
                     }
                     else if (term.Arity == 3) // something is wrong
                     {
-                        IO.ErrorRuntime($"First argument of throw/3 ({t0}) is not an atom or an integer", CurrVarStack,
+                        IO.ThrowRuntimeException($"First argument of throw/3 ({t0}) is not an atom or an integer", CurrVarStack,
                             term);
                     }
 
                     if (!(t0 is StringTerm))
                     {
-                        IO.ErrorRuntime($"Throw/3: string expected instead of '{t0}'", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"Throw/3: string expected instead of '{t0}'", CurrVarStack, term);
                     }
 
                     exceptionMessage = t1 == null ? t0.FunctorToString : Utils.Format(t0, t1);
@@ -3130,7 +3130,7 @@ namespace Prolog
                     {
                         if (!t0.IsString || !DateTime.TryParse(t0.FunctorToString, out dati))
                         {
-                            IO.ErrorRuntime($"string_datetime: invalid date format: '{t0}' for first argument",
+                            IO.ThrowRuntimeException($"string_datetime: invalid date format: '{t0}' for first argument",
                                 CurrVarStack, term);
 
                             return false;
@@ -3163,7 +3163,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"string_datetime: error while parsing first argument: '{t0}'",
+                                IO.ThrowRuntimeException($"string_datetime: error while parsing first argument: '{t0}'",
                                     CurrVarStack, term);
 
                                 return false;
@@ -3180,7 +3180,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"string_datetime: second argument is not a DateTime term: '{t0}'",
+                                IO.ThrowRuntimeException($"string_datetime: second argument is not a DateTime term: '{t0}'",
                                     CurrVarStack, term);
 
                                 return false;
@@ -3188,7 +3188,7 @@ namespace Prolog
                         }
                         else
                         {
-                            IO.ErrorRuntime($"string_datetime: first argument not a string or var: '{t0}'",
+                            IO.ThrowRuntimeException($"string_datetime: first argument not a string or var: '{t0}'",
                                 CurrVarStack,
                                 term);
 
@@ -3203,7 +3203,7 @@ namespace Prolog
 
                     if (!t0.IsDateTime)
                     {
-                        IO.ErrorRuntime($"date_part: first argument not a DateTime: '{t0}'", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"date_part: first argument not a DateTime: '{t0}'", CurrVarStack, term);
 
                         return false;
                     }
@@ -3220,7 +3220,7 @@ namespace Prolog
 
                     if (!t0.IsDateTime)
                     {
-                        IO.ErrorRuntime($"date_part: first argument not a DateTime: '{t0}'", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"date_part: first argument not a DateTime: '{t0}'", CurrVarStack, term);
 
                         return false;
                     }
@@ -3373,7 +3373,7 @@ namespace Prolog
                     }
                     catch
                     {
-                        IO.ErrorRuntime($"dayofyear: Invalid date (Y:{y} M:{m} D:{d})", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"dayofyear: Invalid date (Y:{y} M:{m} D:{d})", CurrVarStack, term);
 
                         return false;
                     }
@@ -3446,7 +3446,7 @@ namespace Prolog
                         }
                         catch // invalid date
                         {
-                            IO.ErrorRuntime($"weekno: Invalid date (Y:{y} M:{m} D:{d})", CurrVarStack, term);
+                            IO.ThrowRuntimeException($"weekno: Invalid date (Y:{y} M:{m} D:{d})", CurrVarStack, term);
 
                             return false;
                         }
@@ -3546,7 +3546,7 @@ namespace Prolog
                         }
                         else
                         {
-                            return IO.ErrorRuntime("Argument for profile/0 must be a positive integer value",
+                            return IO.ThrowRuntimeException("Argument for profile/0 must be a positive integer value",
                                 CurrVarStack,
                                 term);
                         }
@@ -3665,7 +3665,7 @@ namespace Prolog
 
                     if (t1.IsVar)
                     {
-                        IO.ErrorRuntime("First argument of clause/2 is not sufficiently instantiated", CurrVarStack,
+                        IO.ThrowRuntimeException("First argument of clause/2 is not sufficiently instantiated", CurrVarStack,
                             term);
 
                         return false;
@@ -3792,7 +3792,7 @@ namespace Prolog
                     }
                     else
                     {
-                        IO.ErrorRuntime($":- stacktrace: illegal argument '{mode}'; use 'on' or 'off' instead",
+                        IO.ThrowRuntimeException($":- stacktrace: illegal argument '{mode}'; use 'on' or 'off' instead",
                             CurrVarStack, term);
                     }
 
@@ -3830,7 +3830,7 @@ namespace Prolog
 
                     if (!(t0.IsAtom || t0.IsNatural))
                     {
-                        IO.ErrorRuntime(
+                        IO.ThrowRuntimeException(
                             $"set_counter: first argument ({t0}) must be an atom or a non-negative integer",
                             CurrVarStack,
                             term);
@@ -3904,7 +3904,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    throw new RuntimeException("*** Unable to convert \"" + word + "\" to a number");
+                    IO.ThrowRuntimeException("*** Unable to convert \"" + word + "\" to a number", null, null);
                 }
             }
 

@@ -137,7 +137,7 @@ namespace Prolog
                             sourceEditor.ClearIndicators();
                             tbAnswer.Clear();
 
-                            Symbol symbol = ex.Symbol;
+                            Symbol symbol = ex.GetBestEffortSymbol;
                             if (symbol != null)
                             {
                                 sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,
@@ -229,7 +229,7 @@ namespace Prolog
                 sourceEditor.ClearIndicators();
                 tbAnswer.Clear();
 
-                Symbol symbol = (e.Error as PrologException)?.Symbol;
+                Symbol symbol = (e.Error as PrologException)?.GetBestEffortSymbol;
                 if (symbol != null)
                 {
                     sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,

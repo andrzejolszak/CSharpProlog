@@ -69,7 +69,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.ErrorConsult(string.Format("Bootstrap.cs: unknown BI enum value '{0}'", tag), Term?.Symbol);
+                    IO.ThrowConsultException(string.Format("Bootstrap.cs: unknown BI enum value '{0}'", tag), Term?.Symbol);
                 }
             }
 

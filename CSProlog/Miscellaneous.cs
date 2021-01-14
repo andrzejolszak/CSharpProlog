@@ -60,34 +60,23 @@ namespace Prolog
 
             public static string ExtendedFileName(string s, string defExt)
             {
-                string fileName = null;
+                string fileName = s.Dequoted();
 
-                try
+                if (!Path.HasExtension(fileName))
                 {
-                    fileName = s.Dequoted();
-
-                    if (!Path.HasExtension(fileName))
-                    {
-                        fileName = Path.ChangeExtension(fileName, defExt);
-                    }
-
-                    fileName = WDF(fileName);
-
-                    return Path.GetFullPath(fileName);
+                    fileName = Path.ChangeExtension(fileName, defExt);
                 }
-                catch (Exception e)
-                {
-                    IO.ErrorRuntime($"Error in file name '{fileName}'\r\n{e.Message}", null, null);
 
-                    return null;
-                }
+                fileName = WDF(fileName);
+
+                return Path.GetFullPath(fileName);
             }
 
             public static string Format(BaseTerm t, BaseTerm args)
             {
                 if (!(t is StringTerm))
                 {
-                    IO.ErrorRuntime("Improper format string", null, t);
+                    IO.ThrowRuntimeException("Improper format string", null, t);
 
                     return null;
                 }
@@ -108,25 +97,11 @@ namespace Prolog
                         return null;
                     }
 
-                    try
-                    {
-                        return string.Format(result, lt.ToStringArray());
-                    }
-                    catch
-                    {
-                        IO.ErrorRuntime($"Error while applying arguments to format string '{result}'", null, lt);
-                    }
+                    return string.Format(result, lt.ToStringArray());
                 }
                 else
                 {
-                    try
-                    {
-                        return string.Format(result, args.ToString().Dequoted("'").Dequoted("\""));
-                    }
-                    catch
-                    {
-                        IO.ErrorRuntime($"Error while applying arguments to format string '{result}'", null, args);
-                    }
+                    return string.Format(result, args.ToString().Dequoted("'").Dequoted("\""));
                 }
 
                 return null;
@@ -142,7 +117,7 @@ namespace Prolog
 
                 if (lenMax < 2)
                 {
-                    IO.ErrorRuntime("Second argument of wrap must be > 1", null, null);
+                    IO.ThrowRuntimeException("Second argument of wrap must be > 1", null, null);
                 }
 
                 return ForceSpaces(s, lenMax - 1, separators, 0); // 0 is current pos in separators
@@ -587,7 +562,7 @@ namespace Prolog
                     match => $"{match.Groups[1].Value.ResolveEscape()}");
             }
 
-            PrologEngine.IO.ErrorRuntime(
+            PrologEngine.IO.ThrowRuntimeException(
                 $"Unrecognized escape sequence in string \"{s}\"" + "\r\n(cf. CSProlog.exe.config in .exe-directory)",
                 null, null);
 

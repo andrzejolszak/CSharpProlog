@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using Serilog;
 using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
@@ -134,9 +135,10 @@ namespace Prolog
                 _sourceArea.sourceEditor.Editor.GotoPosition(_sourceArea.sourceEditor.Editor.Lines[line].Position);
                 _sourceArea.Focus();
             }
-            catch
+            catch (Exception ex)
             {
                 // Silent catch - don't handle UI edge cases
+                Log.Error(ex, "GUI edge case: " + ex.Message);
             }
         }
 
@@ -167,9 +169,10 @@ namespace Prolog
 
                     m.Show(dataGridView1, new Point(e.X, e.Y));
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Silent catch - don't handle UI edge cases
+                    Log.Error(ex, "GUI edge case: " + ex.Message);
                 }
             }
         }

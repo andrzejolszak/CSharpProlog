@@ -42,22 +42,22 @@ namespace Prolog
                 {
                     if (e is NamedVariable)
                     {
-                        IO.ErrorRuntime(
+                        IO.ThrowRuntimeException(
                             $"Unable to convert unbound variable {((NamedVariable)e).Name} to type {typeof(T).Name}",
                             null, e);
                     }
                     else if (e is Variable)
                     {
-                        IO.ErrorRuntime(
+                        IO.ThrowRuntimeException(
                             $"Unable to convert an unbound variable to type {typeof(T).Name}", null, e);
                     }
                     else if (e is ListTerm)
                     {
-                        IO.ErrorRuntime($"Unable to convert list {e} to type {typeof(T).Name}", null, e);
+                        IO.ThrowRuntimeException($"Unable to convert list {e} to type {typeof(T).Name}", null, e);
                     }
                     else
                     {
-                        IO.ErrorRuntime(
+                        IO.ThrowRuntimeException(
                             $"Unable to convert '{e.FunctorToString}' to type {typeof(T).Name}", null, e);
                     }
 
@@ -87,7 +87,7 @@ namespace Prolog
 
                 if (!t.IsEvaluatable)
                 {
-                    IO.ErrorRuntime($"{t} cannot be evaluated by is/2", null, t);
+                    IO.ThrowRuntimeException($"{t} cannot be evaluated by is/2", null, t);
                 }
 
                 if (t is ValueTerm)
@@ -119,7 +119,7 @@ namespace Prolog
 
                 if (IsVar)
                 {
-                    IO.ErrorRuntime($"Unable to evaluate '{((Variable)this).Name}'", null, this);
+                    IO.ThrowRuntimeException($"Unable to evaluate '{((Variable)this).Name}'", null, this);
                 }
 
                 if (arity == 0)
@@ -257,7 +257,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"Cannot take the imaginary part of '{a0}'", null, a0);
+                                IO.ThrowRuntimeException($"Cannot take the imaginary part of '{a0}'", null, a0);
                                 break;
                             }
                         case "conj":
@@ -267,7 +267,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"Cannot take the complex conjugate of '{a0}'", null, a0);
+                                IO.ThrowRuntimeException($"Cannot take the complex conjugate of '{a0}'", null, a0);
                                 break;
                             }
                         case "arg":
@@ -279,7 +279,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"Cannot take the arg/phase/phi of '{a0}'", null, a0);
+                                IO.ThrowRuntimeException($"Cannot take the arg/phase/phi of '{a0}'", null, a0);
                                 break;
                             }
                         case "magnitude":
@@ -289,7 +289,7 @@ namespace Prolog
                             }
                             else
                             {
-                                IO.ErrorRuntime($"Cannot take the complex magnitude of '{a0}'", null, a0);
+                                IO.ThrowRuntimeException($"Cannot take the complex magnitude of '{a0}'", null, a0);
                                 break;
                             }
                         // string handling
@@ -370,7 +370,7 @@ namespace Prolog
                             return new StringTerm(Symbol, a0.To<DateTime>().DayOfWeek.ToString("G"));
 
                         default:
-                            IO.ErrorRuntime($"Not a built-in function: {FunctorToString}/1", null, this);
+                            IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/1", null, this);
                             break;
                     }
                 }
@@ -578,7 +578,7 @@ namespace Prolog
                         case "chain":
                             if (!a0.IsProperList)
                             {
-                                IO.ErrorRuntime($"chain/2:first argument '{a0}' is not a proper list", null, a0);
+                                IO.ThrowRuntimeException($"chain/2:first argument '{a0}' is not a proper list", null, a0);
                             }
 
                             StringBuilder chain = new StringBuilder();
@@ -620,7 +620,7 @@ namespace Prolog
                             return new DateTimeTerm(Symbol, a0.To<DateTime>().AddSeconds(a1.To<int>()));
 
                         default:
-                            IO.ErrorRuntime($"Not a built-in function: {FunctorToString}/2", null, this);
+                            IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/2", null, this);
                             break;
                     }
                 }
@@ -664,7 +664,7 @@ namespace Prolog
                             return new StringTerm(Symbol, a0.To<bool>() ? a1.FunctorToString : a2.FunctorToString);
 
                         default:
-                            IO.ErrorRuntime($"Not a built-in function: {FunctorToString}/3", null, this);
+                            IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/3", null, this);
                             break;
                     }
                 }
@@ -681,11 +681,11 @@ namespace Prolog
                             new TimeSpan(a0.To<int>(), a1.To<int>(), a2.To<int>(), a3.To<int>()));
                     }
 
-                    IO.ErrorRuntime($"Not a built-in function: {FunctorToString}/4", null, this);
+                    IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/4", null, this);
                 }
                 else
                 {
-                    IO.ErrorRuntime($"Not a built-in function: {FunctorToString}/{Arity}", null, this);
+                    IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/{Arity}", null, this);
                 }
 
                 return null;

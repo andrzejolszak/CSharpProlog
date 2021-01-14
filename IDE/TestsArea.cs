@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Serilog;
 using WeifenLuo.WinFormsUI.Docking;
 using static Prolog.PrologEngine;
 
@@ -89,21 +90,25 @@ namespace Prolog
 
             BasicIo oldIo = IO.BasicIO;
             IO.BasicIO = new SilentIO();
-            Task.Factory.StartNew(() =>
+            ParallelLoopResult res =
                 Parallel.ForEach(targetTestNodes.OrderBy(x => x.Name).ToArray(),
                     new ParallelOptions { MaxDegreeOfParallelism = 8 }, x =>
                       {
+                          bool suceeded = false;
+                          string callStackText = "N/A";
                           string testName = null;
-                          string source = null;
-                          Invoke(new Action(() =>
-                          {
-                              x.ImageIndex = x.SelectedImageIndex = RunningIcon;
-                              testName = x.Text;
-                              source = sourceArea.sourceEditor.Editor.Text;
-                          }));
 
                           try
                           {
+                              string source = null;
+
+                              Invoke(new Action(() =>
+                              {
+                                  x.ImageIndex = x.SelectedImageIndex = RunningIcon;
+                                  testName = x.Text;
+                                  source = sourceArea.sourceEditor.Editor.Text;
+                              }));
+
                               PrologEngine e = new PrologEngine(false);
                               e.ConsultFromString(source);
 
@@ -119,38 +124,42 @@ namespace Prolog
 
                               SolutionSet ss = e.GetAllSolutions(null, testName, 0);
 
-                              bool suceeded = !ss.HasError && ss.Success;
-                              string callStackText = callStack.Aggregate((z, y) => z + "\n" + y);
+                              suceeded = !ss.HasError && ss.Success;
+                              callStackText = callStack.Aggregate((z, y) => z + "\n" + y);
+                          }
+                          catch(Exception ex)
+                          {
+                              suceeded = false;
+                              callStackText = "Exception during test run: \n" + ex.Message;
+                              Log.Error(ex, testName + ": " + callStackText);
+                          }
 
-                              BeginInvoke(new Action(() =>
+                          BeginInvoke(new Action(() =>
+                            {
+                                x.ImageIndex = x.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
+                                x.ToolTipText = suceeded ? string.Empty : callStackText;
+                                x.ToolTipText = x.ToolTipText.Trim(' ', '\n', '\t', '\r');
+
+                                lock (x.Parent)
                                 {
-                                    x.ImageIndex = x.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
-                                    x.ToolTipText = suceeded ? string.Empty : callStackText;
-                                    x.ToolTipText = x.ToolTipText.Trim(' ', '\n', '\t', '\r');
-
-                                    lock (x.Parent)
+                                    if (suceeded)
                                     {
-                                        if (suceeded)
+                                        if (x.Parent.ImageIndex == RunningIcon)
                                         {
-                                            if (x.Parent.ImageIndex == RunningIcon)
-                                            {
-                                                x.Parent.ImageIndex = x.Parent.SelectedImageIndex = PassedIcon;
-                                                x.Parent.Collapse();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            x.Parent.ImageIndex = x.Parent.SelectedImageIndex = FailedIcon;
-                                            x.Parent.Expand();
+                                            x.Parent.ImageIndex = x.Parent.SelectedImageIndex = PassedIcon;
+                                            x.Parent.Collapse();
                                         }
                                     }
-                                }));
-                          }
-                          catch (Exception ex)
-                          {
-                              throw new Exception(ex.StackTrace);
-                          }
-                      })).ContinueWith(x => IO.BasicIO = oldIo);
+                                    else
+                                    {
+                                        x.Parent.ImageIndex = x.Parent.SelectedImageIndex = FailedIcon;
+                                        x.Parent.Expand();
+                                    }
+                                }
+                            }));
+                      });
+
+            IO.BasicIO = oldIo;
         }
 
         private void runFailedTests(object sender, EventArgs e)

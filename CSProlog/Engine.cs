@@ -20,6 +20,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Serilog;
 using static Prolog.PrologEngine;
 
 namespace Prolog
@@ -186,11 +187,11 @@ namespace Prolog
         {
             if (!OpTable.IsBinaryOperator(PrologParser.EQ, out _))
             {
-                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.EQ}'", CurrVarStack, null);
+                IO.ThrowRuntimeException($"No definition found for binary operator '{PrologParser.EQ}'", CurrVarStack, null);
             }
             else if (!OpTable.IsBinaryOperator(PrologParser.COLON, out _))
             {
-                IO.ErrorRuntime($"No definition found for binary operator '{PrologParser.COLON}'", CurrVarStack, null);
+                IO.ThrowRuntimeException($"No definition found for binary operator '{PrologParser.COLON}'", CurrVarStack, null);
             }
         }
 
@@ -348,7 +349,7 @@ namespace Prolog
             {
                 Solution1.Solved = false;
 
-                return IO.ErrorRuntime($"Query execution timed out after {queryTimeout} milliseconds", CurrVarStack,
+                return IO.ThrowRuntimeException($"Query execution timed out after {queryTimeout} milliseconds", CurrVarStack,
                     null);
             }
 
@@ -409,7 +410,7 @@ namespace Prolog
             {
                 if (UserInterrupted)
                 {
-                    throw new AbortQueryException();
+                    throw new AbortQueryException(goalListHead.Term);
                 }
 
                 if (goalListHead.Term is TryCatchTerm)
@@ -484,14 +485,14 @@ namespace Prolog
                                 break;
 
                             case UndefAction.Error:
-                                return IO.ErrorRuntime($"Undefined predicate: {goal.Name}", CurrVarStack, goal);
+                                return IO.ThrowRuntimeException($"Undefined predicate: {goal.Name}", CurrVarStack, goal);
 
                             default:
                                 PredicateDescr pd = PredTable.FindClosestMatch(goal.Name);
                                 string suggestion = pd == null
                                     ? null
                                     : $". Maybe '{pd.Name}' is what you mean?";
-                                IO.ErrorRuntime($"Undefined predicate: {goal.Name}{suggestion}", CurrVarStack, goal);
+                                IO.ThrowRuntimeException($"Undefined predicate: {goal.Name}{suggestion}", CurrVarStack, goal);
                                 break;
                         }
                     }
@@ -551,7 +552,7 @@ namespace Prolog
 
                             if (t.IsVar)
                             {
-                                return IO.ErrorRuntime(
+                                return IO.ThrowRuntimeException(
                                     $"Unbound variable '{((Variable)t).Name}' in goal list", CurrVarStack, t);
                             }
 
@@ -745,18 +746,9 @@ namespace Prolog
             {
                 string comma = exceptionClass == null || exceptionMessage == null ? null : ", ";
                 string msg = $"No CATCH found for throw( {exceptionClass}{comma}\"{exceptionMessage}\")";
-                IO.ErrorRuntime(msg, CurrVarStack, null);
+                IO.ThrowRuntimeException(msg, CurrVarStack, null);
             }
         }
-
-        /// <summary>
-        ///     Prolog throw.
-        /// </summary>
-        private void Throw(string exceptionClass, string exceptionFmtMessage, params object[] args)
-        {
-            Throw(exceptionClass, string.Format(exceptionFmtMessage, args));
-        }
-
         private void AddCallArgs(TermNode GoalListHead)
         {
             BaseTerm callPred = GoalListHead.Head.Arg(0);
@@ -1023,7 +1015,7 @@ namespace Prolog
 
             if (!(arg == "csharp" || arg == "iso"))
             {
-                IO.ErrorRuntime($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'",
+                IO.ThrowRuntimeException($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'",
                     CurrVarStack,
                     t);
             }
@@ -1037,11 +1029,11 @@ namespace Prolog
 
             if (current == (switchVar = mode))
             {
-                IO.Message("{0} already {1}", switchName, mode ? "on" : "off");
+                IO.Message($"{switchName} already {(mode ? "on" : "off")}");
             }
             else
             {
-                IO.Message("{0} switched {1}", switchName, mode ? "on" : "off");
+                IO.Message($"{switchName} switched {(mode ? "on" : "off")}");
             }
         }
 
@@ -1264,10 +1256,7 @@ namespace Prolog
                     firstReport = false;
                 }
 
-                IO.Write("    Warning: '{0}' at line {1} has {2}singleton variable{3} [",
-                    c.Head.Name, lineNo,
-                    singletons.Count == 1 ? "a " : null,
-                    singletons.Count == 1 ? null : "s");
+                IO.Write($"    Warning: '{c.Head.Name}' at line {lineNo} has {(singletons.Count == 1 ? "a " : null)}singleton variable{(singletons.Count == 1 ? null : "s")} [");
 
                 bool first = true;
 
@@ -1374,7 +1363,7 @@ namespace Prolog
             {
                 if (!counterTable.TryGetValue(a, out value))
                 {
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                    IO.ThrowRuntimeException($"Value of counter '{a}' is not set", null, null);
                 }
             }
 
@@ -1393,7 +1382,7 @@ namespace Prolog
                 }
                 else
                 {
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                    IO.ThrowRuntimeException($"Value of counter '{a}' is not set", null, null);
                 }
             }
 
@@ -1407,7 +1396,7 @@ namespace Prolog
                 }
                 else
                 {
-                    IO.ErrorRuntime($"Value of counter '{a}' is not set", null, null);
+                    IO.ThrowRuntimeException($"Value of counter '{a}' is not set", null, null);
                 }
             }
 
@@ -1415,7 +1404,7 @@ namespace Prolog
             {
                 if (!globvarTable.TryGetValue(name, out value))
                 {
-                    IO.ErrorRuntime($"Value of '{name}' is not set", null, null);
+                    IO.ThrowRuntimeException($"Value of '{name}' is not set", null, null);
                 }
             }
 

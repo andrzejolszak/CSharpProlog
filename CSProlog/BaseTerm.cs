@@ -458,7 +458,7 @@ namespace Prolog
                 {
                     if (Arg(i).IsVar)
                     {
-                        IO.ErrorRuntime($"Argument {i} of {FunctorToString}/{arity} is not sufficiently instantiated",
+                        IO.ThrowRuntimeException($"Argument {i} of {FunctorToString}/{arity} is not sufficiently instantiated",
                             null, null);
 
                         return true;
@@ -494,7 +494,7 @@ namespace Prolog
                         t0 = Arg(0);
                         if (!t0.IsCallable)
                         {
-                            IO.ErrorConsult("Illegal predicate head: {0}", t0);
+                            IO.ThrowConsultException("Illegal predicate head: {0}", t0);
                         }
 
                         t1 = Arg(1);
@@ -505,7 +505,7 @@ namespace Prolog
                         t0 = Arg(0);
                         if (!t0.IsCallable)
                         {
-                            IO.ErrorConsult("Illegal DCG head: {0}", t0);
+                            IO.ThrowConsultException("Illegal DCG head: {0}", t0);
                         }
 
                         t1 = Arg(1);
@@ -542,7 +542,7 @@ namespace Prolog
                         }
                         else
                         {
-                            IO.ErrorConsult("Illegal term {0} in goal list", this);
+                            IO.ThrowConsultException("Illegal term {0} in goal list", this);
                         }
 
                         break;
@@ -692,15 +692,15 @@ namespace Prolog
                 }
                 else if (t.IsNamedVar)
                 {
-                    IO.ErrorRuntime($"Variable not allowed in DCG-clause: {((NamedVariable)t).Name}", null, t);
+                    IO.ThrowRuntimeException($"Variable not allowed in DCG-clause: {((NamedVariable)t).Name}", null, t);
                 }
                 else if (t.IsUnboundTerm)
                 {
-                    IO.ErrorRuntime("Unbound variable not allowed in DCG-clause", null, t);
+                    IO.ThrowRuntimeException("Unbound variable not allowed in DCG-clause", null, t);
                 }
                 else
                 {
-                    IO.ErrorRuntime("Illegal term in DCG-clause: {0}", null, t);
+                    IO.ThrowRuntimeException("Illegal term in DCG-clause: {0}", null, t);
                 }
             }
 
@@ -936,7 +936,7 @@ namespace Prolog
                 }
                 else
                 {
-                    IO.ErrorRuntime($"CopyEx(): type '{GetType()}' not handled explicitly", null, this);
+                    IO.ThrowRuntimeException($"CopyEx(): type '{GetType()}' not handled explicitly", null, this);
                 }
 
                 CopyDecoratedTermState(t, this);

@@ -977,17 +977,16 @@ namespace Prolog
                         fs = new FileStream(FileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                         tr = new StreamReader(fs);
                     }
-
-                    p = new PrologParser(Engine);
-                    p.SetInputStream(tr);
-                    p.InitParse();
                 }
                 catch (Exception e)
                 {
-                    Engine.Throw(IOException,
-                        "Error while opening file '{0}' for input.\r\nMessage was:\r\n{1}",
-                        FileName, e.Message);
+                    IO.ThrowRuntimeException($"Error while opening file '{FileName}' for input.\r\nMessage was:\r\n{e.Message}", null, null);
                 }
+
+
+                p = new PrologParser(Engine);
+                p.SetInputStream(tr);
+                p.InitParse();
             }
 
             public int ReadChar() // returns -1 at end of file
@@ -1042,9 +1041,7 @@ namespace Prolog
                 }
                 catch (Exception e)
                 {
-                    Engine.Throw(IOException,
-                        "Error while opening file '{0}' for output.\r\nMessage was:\r\n{1}",
-                        FileName, e.Message);
+                    IO.ThrowRuntimeException($"Error while opening file '{FileName}' for input.\r\nMessage was:\r\n{e.Message}", null, null);
                 }
             }
 

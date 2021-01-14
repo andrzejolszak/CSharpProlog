@@ -97,8 +97,8 @@ namespace Prolog
                         return msg == null;
                 }
 
-                throw new RuntimeException(
-                    $"HasValidArg (...) not legal for operator {this}");
+                IO.ThrowRuntimeException($"HasValidArg (...) not legal for operator {this}", null, null);
+                return false;
             }
 
             public bool HasValidLeftArg(OperatorDescr that, out string msg)
@@ -130,8 +130,8 @@ namespace Prolog
                         return msg == null;
                 }
 
-                throw new RuntimeException(
-                    $"HasValidLeftArg (...) not legal for operator {this}");
+                IO.ThrowRuntimeException($"HasValidLeftArg (...) not legal for operator {this}", null, null);
+                return false;
             }
 
             public bool HasValidRightArg(OperatorDescr that, out string msg)
@@ -163,8 +163,8 @@ namespace Prolog
                         return msg == null;
                 }
 
-                throw new RuntimeException(
-                    $"HasValidRightArg (...) not legal for operator {this}");
+                IO.ThrowRuntimeException($"HasValidRightArg (...) not legal for operator {this}", null, null);
+                return false;
             }
 
             private string GT_error(OperatorDescr od0, OperatorDescr od1)
@@ -266,7 +266,7 @@ namespace Prolog
 
                 if (od == null || od.Assoc == AssocType.None)
                 {
-                    IO.ErrorConsult($"Operator '{name}' does not have an association type '{assoc}'",
+                    IO.ThrowConsultException($"Operator '{name}' does not have an association type '{assoc}'",
                         (BaseParser.Symbol)null);
                 }
 
@@ -302,7 +302,8 @@ namespace Prolog
                         return AssocGroup.Postfix;
                 }
 
-                throw new RuntimeException("Illegal call to GetFixType");
+                IO.ThrowRuntimeException($"Illegal call to GetFixType with AssocType=" + assoc, null, null);
+                return 0;
             }
 
             public override string ToString()
@@ -379,12 +380,12 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.ErrorConsult($"Illegal operator associativity '{sassoc}'", (BaseParser.Symbol)null);
+                    IO.ThrowConsultException($"Illegal operator associativity '{sassoc}'", (BaseParser.Symbol)null);
                 }
 
                 if (prec < 0 || prec > 1200)
                 {
-                    IO.ErrorConsult($"Illegal precedence value {prec} for operator '{name}'", (BaseParser.Symbol)null);
+                    IO.ThrowConsultException($"Illegal precedence value {prec} for operator '{name}'", (BaseParser.Symbol)null);
                 }
 
                 if (TryGetValue(name, out triplet)) // operator exists -- modify its properties

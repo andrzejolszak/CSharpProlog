@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using Serilog;
 
 namespace Prolog
 {
@@ -37,7 +38,13 @@ namespace Prolog
             }
 
             public BaseParser.Symbol Symbol { get; }
+
             public BaseTerm Term { get; }
+
+            public BaseParser.Symbol GetBestEffortSymbol => 
+                this.Symbol ??
+                this.Term?.Symbol ??
+                ((this as RuntimeException)?.VarStack?.Peek() as BaseTerm)?.Symbol;
         }
 
         public class ConsultException : PrologException
@@ -243,7 +250,7 @@ namespace Prolog
                     errorMessage = symbol.Context + value + Environment.NewLine;
                     syntaxErrorStat = true;
 
-                    throw new ConsultException(errorMessage, symbol: symbol);
+                    IO.ThrowConsultException(errorMessage, symbol: symbol);
                 }
                 get => errorMessage;
             }
@@ -257,7 +264,7 @@ namespace Prolog
                         return;
                     }
 
-                    throw new ConsultException($"{symbol.Context}{value}{Environment.NewLine}", symbol: symbol);
+                    IO.ThrowConsultException($"{symbol.Context}{value}{Environment.NewLine}", symbol: symbol);
                 }
                 get => errorMessage;
             }
@@ -285,7 +292,7 @@ namespace Prolog
                 catch
                 {
                     Prefix = "";
-                    throw new RuntimeException("*** Unable to read file \"" + streamName + "\"");
+                    IO.ThrowRuntimeException("*** Unable to read file \"" + streamName + "\"", null, null);
                 }
 
                 Parse();
@@ -696,7 +703,8 @@ namespace Prolog
 
             protected virtual bool GetSymbol(TerminalSet followers, bool done, bool genXCPN)
             {
-                throw new RuntimeException("GetSymbol must be overridden");
+                Log.Fatal("GetSymbol must be overriden");
+                throw new InvalidOperationException("GetSymbol must be overridden");
             }
 
             protected void InputStreamMark(out positionMarker m)
@@ -779,19 +787,8 @@ namespace Prolog
 
                     if (symbol.TerminalId != EndOfInput)
                     {
-                        throw new ConsultException($"Unexpected symbol {symbol} after end of input", symbol: symbol);
+                        IO.ThrowConsultException($"Unexpected symbol {symbol} after end of input", symbol: symbol);
                     }
-                }
-                catch (ConsultException e)
-                {
-                    throw e;
-                }
-                catch (Exception e) // other errors
-                {
-                    errorMessage =
-                        $"*** Line {LineNo}: {e.Message}{(ShowErrTrace ? Environment.NewLine + e.StackTrace : null)}";
-
-                    throw new ConsultException(errorMessage, symbol: symbol);
                 }
                 finally
                 {
@@ -1016,7 +1013,7 @@ namespace Prolog
                 {
                     if (symbol.TerminalId == Undefined)
                     {
-                        IO.ErrorConsult("Unknown conditional definition symbol: {0}", symbol);
+                        IO.ThrowConsultException("Unknown conditional definition symbol: {0}", symbol);
                     }
 
                     if (IsExpectingId)
@@ -1080,7 +1077,7 @@ namespace Prolog
                         }
                         else
                         {
-                            IO.ErrorConsult(
+                            IO.ThrowConsultException(
                                 $"Identifier missing after {ppChar}if, {ppChar}ifdef {ppChar}ifndef, {ppChar}elseif, {ppChar}define or {ppChar}undefine",
                                 symbol);
                         }
@@ -1089,7 +1086,7 @@ namespace Prolog
                     }
                     else if (symbol.TerminalId == EndOfInput && nestedBlockStatus.Count > 1)
                     {
-                        IO.ErrorConsult($"Unexpected end of input -- {ppChar}else or {ppChar}endif expected", symbol);
+                        IO.ThrowConsultException($"Unexpected end of input -- {ppChar}else or {ppChar}endif expected", symbol);
                     }
                     else
                     {
@@ -1109,7 +1106,7 @@ namespace Prolog
                                 }
                                 else
                                 {
-                                    IO.ErrorConsult($"Unexpected {ppChar}elseif-directive", symbol);
+                                    IO.ThrowConsultException($"Unexpected {ppChar}elseif-directive", symbol);
                                 }
 
                                 break;
@@ -1130,7 +1127,7 @@ namespace Prolog
                                 }
                                 else
                                 {
-                                    IO.ErrorConsult($"Unexpected {ppChar}else-directive", symbol);
+                                    IO.ThrowConsultException($"Unexpected {ppChar}else-directive", symbol);
                                 }
 
                                 break;
@@ -1175,7 +1172,7 @@ namespace Prolog
                 {
                     if (nestedBlockStatus.Count == 1)
                     {
-                        IO.ErrorConsult("Unexpected {0}-symbol", symbol);
+                        IO.ThrowConsultException("Unexpected {0}-symbol", symbol);
                     }
 
                     nestedBlockStatus.Pop();
@@ -1391,7 +1388,8 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ConsultException($"*** Unable to convert '{this}' to an integer value", symbol: this);
+                        IO.ThrowConsultException($"*** Unable to convert '{this}' to an integer value", symbol: this);
+                        return -1;
                     }
                 }
 
@@ -1403,7 +1401,8 @@ namespace Prolog
                     }
                     catch
                     {
-                        throw new ConsultException($"*** Unable to convert '{this}' to a decimal value", symbol: this);
+                        IO.ThrowConsultException($"*** Unable to convert '{this}' to a decimal value", symbol: this);
+                        return -1;
                     }
                 }
 
@@ -1626,7 +1625,7 @@ namespace Prolog
                         }
                         else
                         {
-                            throw new RuntimeException("*** Trie indexer: key [" + key + "] not found");
+                            throw new InvalidOperationException("*** Trie indexer: key [" + key + "] not found");
                         }
                     }
                 }
@@ -1661,7 +1660,7 @@ namespace Prolog
                 {
                     if (key == null || key == "")
                     {
-                        throw new RuntimeException("*** Trie.Add: Attempt to insert a null- or empty key");
+                        throw new InvalidOperationException("*** Trie.Add: Attempt to insert a null- or empty key");
                     }
 
                     if (!caseSensitive)
@@ -1704,7 +1703,7 @@ namespace Prolog
                                 }
                                 else if (dupMode == DupMode.dupError)
                                 {
-                                    throw new RuntimeException($"*** Attempt to insert duplicate key '{key}'");
+                                    throw new InvalidOperationException($"*** Attempt to insert duplicate key '{key}'");
                                 }
 
                                 return;
@@ -1749,7 +1748,7 @@ namespace Prolog
                 {
                     if (key == null || key == "")
                     {
-                        throw new RuntimeException("*** Trie.Add: Attempt to search for a null- or empty key");
+                        throw new InvalidOperationException("*** Trie.Add: Attempt to search for a null- or empty key");
                     }
 
                     int imax = key.Length - 1;
@@ -2033,14 +2032,7 @@ namespace Prolog
 
             public override string Substring(int n, int len)
             {
-                try
-                {
-                    return buffer.Substring(n, len);
-                }
-                catch
-                {
-                    return null;
-                }
+                return buffer.Substring(n, len);
             }
         }
 
@@ -2076,7 +2068,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    throw new ConsultException($"*** Could not open file '{streamName}' for reading");
+                    IO.ThrowRuntimeException($"*** Could not open file '{streamName}' for reading", null, null);
                 }
 
                 if (fs.Length >= 2) // try to work out type of file (primitive approach)
@@ -2127,7 +2119,7 @@ namespace Prolog
 
                 if (cacheOfs > fs.Length)
                 {
-                    throw new RuntimeException($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
+                    throw new InvalidOperationException($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
                 }
 
                 fs.Position = cacheOfs;

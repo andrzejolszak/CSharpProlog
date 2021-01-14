@@ -392,12 +392,12 @@ namespace Prolog
                     PrologTerm(new TerminalSet(terminalCount, Dot, ImpliesSym, DCGArrowSym), out head);
                     if (!head.IsCallable)
                     {
-                        IO.ErrorConsult("\r\nIllegal predicate head: {0}", head);
+                        IO.ThrowConsultException("\r\nIllegal predicate head: {0}", head);
                     }
 
                     if (engine.PredTable.Predefined.Contains(head.Key))
                     {
-                        IO.ErrorConsult("\r\nPredefined predicate or operator '{0}' cannot be redefined.", head);
+                        IO.ThrowConsultException("\r\nPredefined predicate or operator '{0}' cannot be redefined.", head);
                     }
 
                     GetSymbol(new TerminalSet(terminalCount, Dot, ImpliesSym, DCGArrowSym), false, true);
@@ -434,7 +434,7 @@ namespace Prolog
                         InQueryMode = true;
                         SetReservedOperators(true);
                         Query(new TerminalSet(terminalCount, Dot), out queryNode);
-                        IO.ErrorConsult("'?-' querymode in file not yet supported", queryNode.Term);
+                        IO.ThrowConsultException("'?-' querymode in file not yet supported", queryNode.Term);
                     }
                     finally
                     {
@@ -526,8 +526,7 @@ namespace Prolog
                                 }
 
                                 predTable.SetModuleName(symbol.ToString(), symbol);
-                                IO.Warning("line {0} -- :- 'module' directive not implemented -- ignored",
-                                    symbol.LineNo);
+                                IO.Message($"line {symbol.LineNo} -- :- 'module' directive not implemented -- ignored");
                                 GetSymbol(new TerminalSet(terminalCount, Comma), true, true);
                             }
                             finally
@@ -612,7 +611,7 @@ namespace Prolog
 
                                 if (files > 1)
                                 {
-                                    IO.Message("Grand total is {0} lines", lines);
+                                    IO.Message($"Grand total is {lines} lines");
                                 }
                             }
                             finally
@@ -683,7 +682,7 @@ namespace Prolog
                     GetSymbol(new TerminalSet(terminalCount, Slash), true, true);
                     GetSymbol(new TerminalSet(terminalCount, IntLiteral), true, true);
                     arity = symbol.ToInt();
-                    IO.Warning("line {0} -- :- 'dynamic' directive not implemented -- ignored", symbol.LineNo);
+                    IO.Message($"line {symbol.LineNo} -- :- 'dynamic' directive not implemented -- ignored");
                 }
                 finally
                 {
@@ -713,7 +712,7 @@ namespace Prolog
                         {
                             if (spaceAfter)
                             {
-                                IO.ErrorConsult($"Illegal space between directive '{directive}' and left parenthesis",
+                                IO.ThrowConsultException($"Illegal space between directive '{directive}' and left parenthesis",
                                     symbol);
                             }
 
@@ -1309,7 +1308,7 @@ namespace Prolog
                                 GetSymbol(new TerminalSet(terminalCount, WrapClose), true, true);
                                 if (symbol.ToString() != wrapClose)
                                 {
-                                    IO.ErrorConsult(
+                                    IO.ThrowConsultException(
                                         $"Illegal wrapper close token: got '{symbol}' expected '{wrapClose}'", symbol);
                                 }
 
@@ -1465,7 +1464,7 @@ namespace Prolog
                             {
                                 if (!isSingleVar)
                                 {
-                                    IO.ErrorConsult("Range specifier may be preceded by a variable only", symbol);
+                                    IO.ThrowConsultException("Range specifier may be preceded by a variable only", symbol);
                                 }
 
                                 if (lastWasRange)
@@ -1550,7 +1549,7 @@ namespace Prolog
                     {
                         if (isNegSearch)
                         {
-                            IO.ErrorConsult("Only one '~' allowed (which will apply to the entire alternatives list)",
+                            IO.ThrowConsultException("Only one '~' allowed (which will apply to the entire alternatives list)",
                                 symbol);
                         }
 
@@ -1593,7 +1592,7 @@ namespace Prolog
                                 {
                                     if (isNegSearch)
                                     {
-                                        IO.ErrorConsult("'~' not allowed before alternatives list name", t);
+                                        IO.ThrowConsultException("'~' not allowed before alternatives list name", t);
                                     }
                                     else
                                     {
@@ -1602,14 +1601,14 @@ namespace Prolog
                                 }
                                 else
                                 {
-                                    IO.ErrorConsult("Variable expected before !", t);
+                                    IO.ThrowConsultException("Variable expected before !", t);
                                 }
 
                                 first = false;
                             }
                             else
                             {
-                                IO.ErrorConsult("Only one ! allowed for alternatives list", t);
+                                IO.ThrowConsultException("Only one ! allowed for alternatives list", t);
                             }
                         }
                     }
@@ -1683,7 +1682,7 @@ namespace Prolog
                                         symbol.SetProcessed();
                                         if (minLen > (maxLen = symbol.ToInt()))
                                         {
-                                            IO.ErrorConsult(
+                                            IO.ThrowConsultException(
                                                 $"Range lower bound {minLen} not allowed to be greater than range upper bound {maxLen}",
                                                 symbol);
                                         }
@@ -1752,7 +1751,7 @@ namespace Prolog
                     GetSymbol(new TerminalSet(terminalCount, CatchSym), true, true);
                     if (nullClass)
                     {
-                        IO.ErrorConsult("No CATCH-clause allowed after CATCH-clause without exception class", symbol);
+                        IO.ThrowConsultException("No CATCH-clause allowed after CATCH-clause without exception class", symbol);
                     }
 
                     string exceptionClass = null;
@@ -1776,7 +1775,7 @@ namespace Prolog
 
                             if (ecNames.Contains(exceptionClass = symbol.ToString()))
                             {
-                                IO.ErrorConsult($"Duplicate exception class name '{exceptionClass}'", symbol);
+                                IO.ThrowConsultException($"Duplicate exception class name '{exceptionClass}'", symbol);
                             }
                             else
                             {
@@ -1930,7 +1929,7 @@ namespace Prolog
                 GetSymbol(new TerminalSet(terminalCount, AltListClose), true, true);
                 if (symbol.ToString() != altListClose)
                 {
-                    IO.ErrorConsult($"Illegal alternative list close token: got '{symbol}' expected '{altListClose}'",
+                    IO.ThrowConsultException($"Illegal alternative list close token: got '{symbol}' expected '{altListClose}'",
                         symbol);
                 }
 

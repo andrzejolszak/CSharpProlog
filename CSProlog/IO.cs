@@ -229,68 +229,34 @@ namespace Prolog
                 BasicIO?.Reset();
             }
 
-            public static bool ErrorConsult(string msg, BaseTerm o)
+            public static void ThrowConsultException(string msg, BaseTerm term)
             {
                 Log.Error(msg);
-                throw new ConsultException(msg, o);
-
-                return false;
+                throw new ConsultException(msg, term);
             }
 
-            public static bool ErrorConsult(string msg, TokenSeqToTerm.BaseToken o)
+            public static void ThrowConsultException(string msg, TokenSeqToTerm.BaseToken o)
             {
                 Log.Error(msg);
                 throw new ConsultException(msg, symbol: o.Symbol);
-
-                return false;
             }
 
-            public static bool ErrorConsult(string msg, BaseParser.Symbol o)
+            public static void ThrowConsultException(string msg, BaseParser.Symbol symbol)
             {
                 Log.Error(msg);
-                throw new ConsultException(msg, symbol: o);
+                throw new ConsultException(msg, symbol: symbol);
             }
 
-            public static bool ErrorRuntime(string msg, VarStack varStack, BaseTerm term)
+            public static bool ThrowRuntimeException(string msg, VarStack varStack, BaseTerm term)
             {
                 Log.Error(msg);
                 throw new RuntimeException(msg, term, term.Symbol, varStack: varStack);
-            }
-
-            public static void Warning(string msg, params object[] o)
-            {
-                Log.Warning(string.Format(msg, o));
-                BasicIO?.WriteLine(string.Format("*** warning: " + msg, o));
-            }
-
-            public static void Warning(string msg)
-            {
-                Log.Warning(msg);
-                BasicIO?.WriteLine("*** warning: " + msg);
-            }
-
-            public static void Message(string msg, params object[] o)
-            {
-                Log.Warning(string.Format(msg, o));
-                BasicIO?.WriteLine(string.Format("--- " + msg, o));
             }
 
             public static void Message(string msg)
             {
                 Log.Warning(msg);
                 BasicIO?.WriteLine("--- " + msg);
-            }
-
-            public static void Fatal(MessageKind messageKind, string msg, params object[] o)
-            {
-                Log.Error(string.Format(msg, o));
-                throw new RuntimeException("*** fatal: " + String.Format(msg, o));
-            }
-
-            public static void Fatal(MessageKind messageKind, string msg)
-            {
-                Log.Error(msg);
-                throw new RuntimeException("*** fatal: " + msg);
             }
 
             public static string ReadLine()
@@ -303,19 +269,9 @@ namespace Prolog
                 return BasicIO?.ReadChar() ?? -1;
             }
 
-            public static void Write(string s, params object[] o)
-            {
-                BasicIO?.Write(string.Format(s, o));
-            }
-
             public static void Write(string s)
             {
                 BasicIO?.Write(s);
-            }
-
-            public static void WriteLine(string s, params object[] o)
-            {
-                BasicIO?.WriteLine(string.Format(s, o));
             }
 
             public static void WriteLine(string s)

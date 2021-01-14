@@ -213,21 +213,9 @@ namespace Prolog
     {
         private static readonly string CRLF = Environment.NewLine;
 
-        public static void Write(this TextBox tb, object s)
+        public static void Write(this TextBox tb, string s)
         {
-            tb.AppendText(s.ToString());
-        }
-
-        public static void Write(this TextBox tb, string s, params object[] args)
-        {
-            try
-            {
-                tb.AppendText(string.Format(s, args));
-            }
-            catch
-            {
-                tb.AppendText(s);
-            }
+            tb.AppendText(s);
         }
 
         public static void WriteLine(this TextBox tb)
@@ -235,22 +223,9 @@ namespace Prolog
             tb.AppendText(CRLF);
         }
 
-        public static void WriteLine(this TextBox tb, object s)
+        public static void WriteLine(this TextBox tb, string s)
         {
-            tb.AppendText(s + CRLF);
-        }
-
-        public static void WriteLine(this TextBox tb, string s, params object[] args)
-        {
-            if (args.Length == 0)
-            {
-                tb.AppendText(s);
-            }
-            else
-            {
-                tb.AppendText(string.Format(s, args));
-            }
-
+            tb.AppendText(s);
             tb.AppendText(CRLF);
         }
 

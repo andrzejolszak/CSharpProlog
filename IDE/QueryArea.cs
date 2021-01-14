@@ -143,10 +143,9 @@ namespace Prolog
                     winIO.GuiIO.WriteLine("no\r\n" + solutions);
                 }
                 
-                foreach (PrologEngine.RuntimeException error in solutions.Errors)
+                foreach (PrologException error in solutions.Errors)
                 {
-                    PrologEngine.BaseParser.Symbol symbol = error.Term?.Symbol ??
-                                    (error.VarStack?.Peek() as PrologEngine.BaseTerm)?.Symbol;
+                    BaseParser.Symbol symbol = error.GetBestEffortSymbol;
                     winIO.GuiIO.Write($"* Line {symbol?.LineNo}: {error.Message}");
                     this.Invoke(new Action(() => this.sourceArea.sourceEditor.Editor.GotoPosition(symbol?.StartAdjusted ?? this.sourceArea.sourceEditor.Editor.CurrentPosition)));
                 }

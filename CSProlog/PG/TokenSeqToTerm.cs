@@ -80,7 +80,7 @@ namespace Prolog
                     // space between atom (non-operator) and left parenthesis not allowed
                     if (spaceAfter)
                     {
-                        IO.ErrorConsult($"No space allowed between '{functor}' and '('", symbol);
+                        IO.ThrowConsultException($"No space allowed between '{functor}' and '('", symbol);
                     }
 
                     if (functor == PrologParser.DOT && args.Length == 2)
@@ -169,7 +169,7 @@ namespace Prolog
                     case TC.Pr_InPo:
                     case TC.Po_Term:
                     case TC.Po_Pr:
-                        IO.ErrorConsult($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
+                        IO.ThrowConsultException($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
                             newToken);
                         break;
 
@@ -177,7 +177,7 @@ namespace Prolog
                     case TC.Pr_EoS:
                         if (!ProcessIfStandAloneOperator())
                         {
-                            IO.ErrorConsult(" \n \nSyntax error:\n Unexpected end of term after {0}", topToken);
+                            IO.ThrowConsultException(" \n \nSyntax error:\n Unexpected end of term after {0}", topToken);
                         }
 
                         break;
@@ -195,7 +195,7 @@ namespace Prolog
                     case TC.In_Term:
                         if (inOpAtBoS)
                         {
-                            IO.ErrorConsult($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
+                            IO.ThrowConsultException($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
                                 newToken);
                             inOpAtBoS = false;
                         }
@@ -223,7 +223,7 @@ namespace Prolog
                     case TC.In_Pr:
                         if (!topOperator.od.HasValidRightArg(newOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -231,7 +231,7 @@ namespace Prolog
                     case TC.Po_In:
                         if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -239,7 +239,7 @@ namespace Prolog
                     case TC.Pr_Pr:
                         if (!topOperator.od.HasValidArg(newOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -247,7 +247,7 @@ namespace Prolog
                     case TC.Po_Po:
                         if (!newOperator.od.HasValidArg(topOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -256,7 +256,7 @@ namespace Prolog
                         newOperator.SetRole(TT.Pre);
                         if (!topOperator.od.HasValidRightArg(newOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -265,7 +265,7 @@ namespace Prolog
                         newOperator.SetRole(TT.Pre);
                         if (!topOperator.od.HasValidArg(newOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -274,7 +274,7 @@ namespace Prolog
                         newOperator.SetRole(TT.In);
                         if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -283,7 +283,7 @@ namespace Prolog
                         topOperator.SetRole(TT.In);
                         if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -292,12 +292,12 @@ namespace Prolog
                         topOperator.SetRole(TT.In);
                         if (!topOperator.od.HasValidLeftArg(topOperator.prevOd, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         if (!topOperator.od.HasValidRightArg(newOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -306,12 +306,12 @@ namespace Prolog
                         topOperator.SetRole(TT.Post);
                         if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         if (!newOperator.od.HasValidLeftArg(topOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -320,12 +320,12 @@ namespace Prolog
                         topOperator.SetRole(TT.Post);
                         if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         if (!newOperator.od.HasValidArg(topOperator.od, out msg))
                         {
-                            IO.ErrorConsult(msg, newOperator);
+                            IO.ThrowConsultException(msg, newOperator);
                         }
 
                         break;
@@ -339,7 +339,7 @@ namespace Prolog
                         {
                             if (newInOpValid)
                             {
-                                IO.ErrorConsult(
+                                IO.ThrowConsultException(
                                     $"Ambiguous operator combination: '{topOperator.triplet}' followed by '{newOperator.triplet}'",
                                     newOperator);
                             }
@@ -364,14 +364,14 @@ namespace Prolog
                         {
                             if (!topOperator.od.HasValidArg(topOperator.prevOd, out msg))
                             {
-                                IO.ErrorConsult(msg, topOperator);
+                                IO.ThrowConsultException(msg, topOperator);
                             }
                         }
 
                         break;
 
                     default:
-                        IO.Fatal(MessageKind.Consult, "TokenCombi case '{0}' not covered", combi);
+                        IO.ThrowConsultException($"TokenCombi case '{combi}' not covered", newOperator);
                         break;
                 }
             }
@@ -452,7 +452,7 @@ namespace Prolog
                                 {
                                     if (topOperator.RightRelOp == RelOp.LT) // IS top ?fx
                                     {
-                                        IO.ErrorConsult($"Operator clash: '{topOperator.od}' with '{OSOperator.od}'",
+                                        IO.ThrowConsultException($"Operator clash: '{topOperator.od}' with '{OSOperator.od}'",
                                             topToken);
                                     }
                                     else
@@ -464,7 +464,7 @@ namespace Prolog
                                 {
                                     if (topOperator.RightRelOp == RelOp.LE) // (IS, OS) = (?fy, yf?)
                                     {
-                                        IO.ErrorConsult(
+                                        IO.ThrowConsultException(
                                             $"Ambiguous operator combination: '{topOperator.od}' with '{OSOperator.od}'",
                                             topToken);
                                     }
@@ -501,14 +501,7 @@ namespace Prolog
                 BaseTerm t0, t1;
                 BaseToken token = null;
 
-                try
-                {
-                    token = PS.Pop();
-                }
-                catch // should not occur -- please report if it does
-                {
-                    IO.ErrorConsult("PrefixToTerm (): Unanticipated error in expression -- please report", symbol);
-                }
+                token = PS.Pop();
 
                 if (token is OperandToken)
                 {
