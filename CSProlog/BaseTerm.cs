@@ -642,6 +642,11 @@ namespace Prolog
 
                 foreach (BaseTerm arg in t.Args)
                 {
+                    if (arg is null)
+                    {
+                        continue;
+                    }
+
                     a.AddRange(arg.GetArgumentsRecursive(arg));
                 }
 
