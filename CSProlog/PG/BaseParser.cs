@@ -213,7 +213,6 @@ namespace Prolog
             protected ConditionalDefinitionHandler Cdh { get; }
             protected Buffer InStream { get; set; }
             protected bool ParseAnyText { get; set; }
-            protected bool ShowErrTrace { get; } = true;
 
             protected BaseTrie TerminalTable { get; set; }
 
