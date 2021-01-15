@@ -928,7 +928,7 @@ namespace Prolog
                     {
                         if (bodyNode == null) // a fact
                         {
-                            ClauseBody = new BoolTerm(clause.Term.Symbol, true);
+                            ClauseBody = new AtomTerm(clause.Term.Symbol, "true", clause.Term.CommentBody, clause.Term.CommentBody, clause.Term.TestGroup);
                         }
                         else if (bodyNode.BuiltinId == BI.none)
                         {

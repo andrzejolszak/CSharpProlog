@@ -285,9 +285,24 @@ namespace CSPrologTest
         [InlineData(@"R: clause(4,B)")]
         [InlineData(@"R: clause(f(_),5)")]
         [InlineData(@"R: clause(atom(_),Body)")]
+        [InlineData(@"F: clause(natnum, X)")]
+        [InlineData(@"T: clause(natnum(0), true)")]
+        [InlineData(@"T: clause(natnum(1), true)")]
+        [InlineData(@"T: clause(natnum(s(X)), natnum(X))")]
+        [InlineData(@"T: clause(natnum(s(Y)), natnum(Y))")]
+        [InlineData(@"T: clause(natnum(s(1)), natnum(1))")]
+        [InlineData(@"T: clause(natnum(s(X, 1)), (natnum(X),natnum(1)))")]
+        [InlineData(@"T: clause(natnum(s(X, Y)), (natnum(X),natnum(1))), Y = 1")]
         public void Clause(string test)
         {
-            test.Evaluate();
+            string consult =
+@"
+natnum(0) :- true.
+natnum(1).
+natnum(s(X)) :- natnum(X).
+natnum(s(X, 1)) :- natnum(X), natnum(1).
+";
+            test.Evaluate(consult);
         }
 
         [Theory]

@@ -38,7 +38,7 @@ namespace CSPrologTest
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 0);
+            SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(!ss.HasError && ss.Success,
                 $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
@@ -47,7 +47,7 @@ namespace CSPrologTest
             {
                 e.Reset();
                 e.ConsultFromString(Dynamics + "test :- " + query + ".");
-                ss = e.GetAllSolutions(null, "test", 0);
+                ss = e.GetAllSolutions(null, "test", 5);
 
                 Assert.True(!ss.HasError && ss.Success,
                     $"test NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
@@ -60,7 +60,7 @@ namespace CSPrologTest
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 0);
+            SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(!ss.HasError && !ss.Success,
                 $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
@@ -70,7 +70,7 @@ namespace CSPrologTest
                 e.Reset();
                 e.ConsultFromString(Dynamics + "test :- " + query + ".");
 
-                ss = e.GetAllSolutions(null, "test", 0);
+                ss = e.GetAllSolutions(null, "test", 5);
 
                 Assert.True(!ss.HasError && !ss.Success,
                     $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
@@ -84,13 +84,13 @@ namespace CSPrologTest
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 0);
+            SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(ss.HasError && !ss.Success,
                 $"{query} NOT ERROR @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
         }
 
-        public static void Evaluate(this string test)
+        public static void Evaluate(this string test, string consult = null)
         {
             string expectation = test.Substring(0, 3);
             string query = test.Substring(3);
@@ -98,19 +98,19 @@ namespace CSPrologTest
             switch (expectation)
             {
                 case "T: ":
-                    query.True();
+                    query.True(consult);
                     break;
 
                 case "F: ":
-                    query.False();
+                    query.False(consult);
                     break;
 
                 case "P: ":
-                    query.Error();
+                    query.Error(consult);
                     break;
 
                 case "R: ":
-                    query.Error();
+                    query.Error(consult);
                     break;
 
                 default:
