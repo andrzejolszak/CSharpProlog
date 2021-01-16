@@ -21,6 +21,14 @@ natnum(s(X)) :- natnum(X).";
         public void Vanilla()
         {
             string consult = @"
+single(1).
+singleRule(X) :- X = 1.
+singleRuleCall(X) :- single(X).
+multiRule(0).
+multiRule(X) :- X = 1.
+multiRuleRec(X, (0 + 1)) :- true.
+multiRuleRec(X, N) :- multiRuleRec(X, (N + 1)).
+
 natnum(0).
 natnum(s(X)) :- natnum(X), true, Y = Z.
 
@@ -34,8 +42,16 @@ mi1(Goal) :-
         clause(Goal, Body),
         mi1(Body).";
 
+            "mi1(single(X)), X = 1".True(consult);
+            "mi1(singleRule(X)), X = 1".True(consult);
+            "mi1(singleRuleCall(X)), X = 1".True(consult);
+            "mi1(multiRule(X)), X = 1".True(consult);
+            "mi1(multiRuleRec(5, 0)), X = 5".True(consult);
+            "mi1(multiRuleRec(X, 0)), X = 5".True(consult);
             "mi1(natnum(0))".True(consult);
             "mi1(natnum(s(0)))".True(consult);
+            "mi1(natnum(s(s(0))))".True(consult);
+            "mi1(natnum(s(s(s(0)))))".True(consult);
             //"mi1(natnum(X)), X = 0".True(consult);
             //"mi1(natnum(X)), X = s(0)".True(consult);
         }
