@@ -286,6 +286,9 @@ namespace CSPrologTest
         [InlineData(@"R: clause(f(_),5)")]
         [InlineData(@"R: clause(atom(_),Body)")]
         [InlineData(@"F: clause(natnum, X)")]
+        [InlineData(@"F: clause(single(0), _)")]
+        [InlineData(@"T: clause(single(1), true)")]
+        [InlineData(@"T: clause(single(X), true), X = 1")]
         [InlineData(@"T: clause(natnum(0), true)")]
         [InlineData(@"T: clause(natnum(1), true)")]
         [InlineData(@"T: clause(natnum(X), true), X = 0")]
@@ -301,6 +304,7 @@ namespace CSPrologTest
         {
             string consult =
 @"
+single(1).
 natnum(0) :- true.
 natnum(1).
 natnum(s(X)) :- natnum(X).

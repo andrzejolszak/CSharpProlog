@@ -744,7 +744,7 @@ namespace Prolog
 % Gives alternative clauses on backtracking. For facts, Body is unified with the atom true.
 %
        clause(H, B) :-              % returns body B for clause head H
-         clause$(State, H, B),
+         clause$(State, H, B),      % executes the ':==' clause which succeeds on the first try and assigns State
          !,
          clause$(State, H, B).
 
@@ -3685,6 +3685,7 @@ namespace Prolog
 
                     if (!iterator.MoveNext()) // sets iterator.ClauseBody
                     {
+                        // Reset state upon final failure
                         term.SetArg(0, BaseTerm.VAR);
 
                         return false;

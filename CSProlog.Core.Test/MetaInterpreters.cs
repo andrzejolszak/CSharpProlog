@@ -22,7 +22,7 @@ natnum(s(X)) :- natnum(X).";
         {
             string consult = @"
 natnum(0).
-natnum(s(X)) :- natnum(X).
+natnum(s(X)) :- natnum(X), true, Y = Z.
 
 mi1(true).
 mi1((A,B)) :-
