@@ -299,8 +299,8 @@ namespace CSPrologTest
         [InlineData(@"T: clause(natnum(s(X)), natnum(X))")]
         [InlineData(@"T: clause(natnum(s(Y)), natnum(Y))")]
         [InlineData(@"T: clause(natnum(s(1)), natnum(1))")]
-        [InlineData(@"T: clause(natnum(s(X, 1)), (natnum(X), true, natnum(1)))")]
-        [InlineData(@"T: clause(natnum(s(X, Y)), (natnum(X), true, natnum(1))), Y = 1")]
+        [InlineData(@"T: clause(natnum(s(X, 1)), (natnum(X), true, Z = C, natnum(1)))")]
+        [InlineData(@"T: clause(natnum(s(X, Y)), (natnum(X), true, Z = C, natnum(1))), Y = 1")]
         public void Clause(string test)
         {
             string consult =
@@ -309,7 +309,7 @@ single(1).
 natnum(0) :- true.
 natnum(1).
 natnum(s(X)) :- natnum(X).
-natnum(s(X, 1)) :- natnum(X), true, natnum(1).
+natnum(s(X, 1)) :- natnum(X), true, Z = C, natnum(1).
 ";
             test.Evaluate(consult);
         }

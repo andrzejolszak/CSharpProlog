@@ -114,7 +114,7 @@ namespace Prolog
                 ResetBackgroundWorker();
                 winIO.GuiIO.bgw = bgwLoadSource;
                 IO.BasicIO = winIO.GuiIO;
-                stoppedTypingEngine = new PrologEngine(false);
+                stoppedTypingEngine = new PrologEngine();
                 string text = sourceEditor.Editor.Text;
 
                 stoppedTypingParseTask = new Task(() =>

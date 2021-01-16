@@ -104,11 +104,11 @@ namespace Prolog
             _findAllSolutions = findAllSolutions;
 
             queryCallStack.Clear();
-            pe.OnCurrentTermChanged -= CollectCallStack;
+            pe.ExecutionDetails.OnCurrentTermChanged -= CollectCallStack;
 
             if (checkBox1.Checked)
             {
-                pe.OnCurrentTermChanged += CollectCallStack;
+                pe.ExecutionDetails.OnCurrentTermChanged += CollectCallStack;
             }
 
             winIO.GuiIO.bgw = bgwExecuteQuery;

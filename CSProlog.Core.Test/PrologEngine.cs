@@ -9,8 +9,7 @@ namespace CSPrologTest
         [Fact]
         public void ConsultFromString_GetOneSolution()
         {
-            PrologEngine prolog = new PrologEngine(false);
-
+            PrologEngine prolog = new PrologEngine();
             // 'socrates' is human.
             prolog.ConsultFromString("human(socrates).");
             // 'R2-D2' is droid.
@@ -30,7 +29,7 @@ namespace CSPrologTest
         [Fact]
         public void ConsultFromString_GetAllSolutions_Adhoc()
         {
-            PrologEngine prolog = new PrologEngine(false);
+            PrologEngine prolog = new PrologEngine();
 
             // 'socrates' is human.
             prolog.ConsultFromString("human(socrates).");

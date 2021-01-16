@@ -39,16 +39,14 @@ namespace Prolog
 
         private static readonly string IOException = "ioException";
 
-        public static readonly int
-            maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
+        public static readonly int maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
 
         private static readonly string YES = "\r\n" + "Yes";
         private static readonly string NO = "\r\n" + "No";
         private ChoicePoint currentCp;
         private bool debug;
 
-        private bool
-            findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
+        private bool findFirstClause; // find the first clause of predicate that matches the current goal goal (-last head)
 
         private int gensymInt;
         private GlobalTermsTable globalTermsTable;
@@ -74,11 +72,14 @@ namespace Prolog
          */
         private BaseParser.BaseTrie terminalTable;
 
-        public PrologEngine(bool persistentCommandHistory)
+        public PrologEngine(ExecutionDetails executionDetails = null)
         {
+            this.ExecutionDetails = executionDetails;
             Reset();
             PostBootstrap();
         }
+
+        public ExecutionDetails? ExecutionDetails { get; private set; }
 
         public Stack<int> CatchIdStack { get; set; }
 
@@ -125,7 +126,6 @@ namespace Prolog
 
         public bool Halted { get; set; }
 
-        public event CurrentTerm OnCurrentTermChanged;
 
         public event Action FoundAllSolutions;
 
@@ -181,6 +181,8 @@ namespace Prolog
             CurrVarStack.CommaOpDescr = parser.AddPrologOperator(1050, "xfy", PrologParser.COMMA, false);
             OpTable.Find(PrologParser.COMMA, out CurrVarStack.CommaOpTriplet);
             CurrVarStack.SemiOpDescr = parser.AddPrologOperator(1100, "xfy", PrologParser.SEMI, false);
+
+            this.ExecutionDetails?.Reset();
         }
 
         private void PostBootstrap()
@@ -507,7 +509,7 @@ namespace Prolog
 
                 currClause = goalListHead.NextClause; // the first or next clause of the predicate definition
 
-                OnCurrentTermChanged?.Invoke(currClause);
+                this.ExecutionDetails?.CurrentTermChanged(currClause);
 
                 saveGoal = goalListHead; // remember the original saveGoal (which may be NextGoal-ed, see below)
 

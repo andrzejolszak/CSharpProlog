@@ -109,11 +109,11 @@ namespace Prolog
                                   source = sourceArea.sourceEditor.Editor.Text;
                               }));
 
-                              PrologEngine e = new PrologEngine(false);
+                              PrologEngine e = new PrologEngine(new ExecutionDetails());
                               e.ConsultFromString(source);
 
                               List<string> callStack = new List<string>();
-                              e.OnCurrentTermChanged += y =>
+                              e.ExecutionDetails.OnCurrentTermChanged += y =>
                               {
                                   callStack.Add(y.ToString());
                                   if (callStack.Count > 3)

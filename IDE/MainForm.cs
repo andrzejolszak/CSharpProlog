@@ -35,7 +35,7 @@ namespace Prolog
             outputArea = new OutputArea();
 
             IO.BasicIO = outputArea.GuiIO;
-            pe = new PrologEngine(false);
+            pe = new PrologEngine(new ExecutionDetails());
 
             sourceArea = new SourceArea(pe, outputArea, outputArea.tbAnswer, outputArea.HandleProgressChanged);
             debuggerArea = new DebuggerArea(pe, sourceArea);
