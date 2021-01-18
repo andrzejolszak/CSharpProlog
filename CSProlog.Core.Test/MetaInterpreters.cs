@@ -50,7 +50,7 @@ mi1(Goal) :-
             //"mi1(multiRuleRec(X, 0)), X = 5".True(consult);
             //"mi1(natnum(0))".True(consult);
             //"mi1(natnum(s(0)))".True(consult);
-            "mi1(natnum(s(s(0))))".True(consult, new Prolog.ExecutionDetails());
+            "mi1(natnum(s(s(0))))".True(consult);
             //"mi1(natnum(s(s(s(0)))))".True(consult);
             //"mi1(natnum(X)), X = 0".True(consult);
             //"mi1(natnum(X)), X = s(0)".True(consult);

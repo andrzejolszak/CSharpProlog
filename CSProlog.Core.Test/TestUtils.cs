@@ -32,15 +32,15 @@ namespace CSPrologTest
             return e.PredTable.Predicates.Where(x => !x.Value.IsPredefined).FirstOrDefault().Value;
         }
 
-        public static void True(this string query, string consult = null, ExecutionDetails execDetails = null, [CallerLineNumber] int sourceLineNumber = 0)
+        public static void True(this string query, string consult = null, bool executionDetails = true, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(execDetails);
+            PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(!ss.HasError && ss.Success,
-                $"{query} NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}, \n\nERR:{ss.ErrMsg}");
+                $"{query} NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}, \nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
 
             if (consult == null)
             {
@@ -49,20 +49,20 @@ namespace CSPrologTest
                 ss = e.GetAllSolutions(null, "test", 5);
 
                 Assert.True(!ss.HasError && ss.Success,
-                    $"test NOT TRUE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                    $"test NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
             }
         }
 
-        public static void False(this string query, string consult = null, ExecutionDetails execDetails = null, [CallerLineNumber] int sourceLineNumber = 0)
+        public static void False(this string query, string consult = null, bool executionDetails = true, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(execDetails);
+            PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(!ss.HasError && !ss.Success,
-                $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
 
             if (consult == null)
             {
@@ -72,23 +72,23 @@ namespace CSPrologTest
                 ss = e.GetAllSolutions(null, "test", 5);
 
                 Assert.True(!ss.HasError && !ss.Success,
-                    $"{query} NOT FALSE @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                    $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
             }
         }
 
-        public static void Error(this string query, string consult = null, ExecutionDetails execDetails = null, [CallerLineNumber] int sourceLineNumber = 0)
+        public static void Error(this string query, string consult = null, bool executionDetails = true, [CallerLineNumber] int sourceLineNumber = 0)
         {
-            PrologEngine e = new PrologEngine(execDetails);
+            PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
 
             e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
             Assert.True(ss.HasError && !ss.Success,
-                $"{query} NOT ERROR @ ln {sourceLineNumber}\n\nOUT: {ss}\n\nERR:{ss.ErrMsg}");
+                $"{query} NOT ERROR @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
         }
 
-        public static void Evaluate(this string test, string consult = null, ExecutionDetails execDetails = null)
+        public static void Evaluate(this string test, string consult = null, bool executionDetails = true)
         {
             string expectation = test.Substring(0, 3);
             string query = test.Substring(3);
@@ -96,19 +96,19 @@ namespace CSPrologTest
             switch (expectation)
             {
                 case "T: ":
-                    query.True(consult, execDetails: execDetails);
+                    query.True(consult, executionDetails: executionDetails);
                     break;
 
                 case "F: ":
-                    query.False(consult, execDetails: execDetails);
+                    query.False(consult, executionDetails: executionDetails);
                     break;
 
                 case "P: ":
-                    query.Error(consult, execDetails: execDetails);
+                    query.Error(consult, executionDetails: executionDetails);
                     break;
 
                 case "R: ":
-                    query.Error(consult, execDetails: execDetails);
+                    query.Error(consult, executionDetails: executionDetails);
                     break;
 
                 default:
