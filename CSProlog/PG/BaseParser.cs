@@ -281,11 +281,11 @@ namespace Prolog
 
             public int LineNo => symbol.LineNo;
 
-            public void LoadFromStream(Stream stream, string streamName)
+            public void LoadFromStream(string stream, string streamName)
             {
                 try
                 {
-                    InStream = new FileReadBuffer(stream, streamName);
+                    InStream = new StringReadBuffer(stream);
                     streamInLen = InStream.Length;
                 }
                 catch
@@ -1959,7 +1959,6 @@ namespace Prolog
             protected char indentChar = '\u0020';
             protected int indentDelta = 2;
             public int indentLength = 0;
-            private Stack<object> indentStack = new Stack<object>();
             protected string name;
             protected int positionOnLine = 0;
             protected bool quietMode = false;
@@ -2032,119 +2031,6 @@ namespace Prolog
             public override string Substring(int n, int len)
             {
                 return buffer.Substring(n, len);
-            }
-        }
-
-        public class FileBuffer : Buffer
-        {
-            protected Stream fs;
-        }
-
-        public class FileReadBuffer : FileBuffer
-        {
-            private const int CACHESIZE = 256 * 1024;
-            private readonly byte[] cache = new byte[CACHESIZE];
-            private readonly bool little_endian;
-            private readonly StringBuilder sb;
-            private int cacheLen; // cache length (normally CACHESIZE, less at eof)
-            private int cacheOfs; // number of chars in fs before first char of cache
-
-            public FileReadBuffer(Stream stream, string streamName)
-            {
-                name = streamName;
-
-                try
-                {
-                    if (stream == null)
-                    {
-                        stream = new FileStream(streamName, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    }
-
-                    fs = stream;
-                    sb = new StringBuilder();
-                    cacheOfs = 0;
-                    cacheLen = 0;
-                }
-                catch
-                {
-                    IO.ThrowRuntimeException($"*** Could not open file '{streamName}' for reading", null, null);
-                }
-
-                if (fs.Length >= 2) // try to work out type of file (primitive approach)
-                {
-                    fs.Read(cache, 0, 2);
-                    little_endian = cache[0] == '\xFF' && cache[1] == '\xFE';
-                    fs.Position = 0; // rewind
-                }
-            }
-
-            public override char this[int i]
-            {
-                get
-                {
-                    if (little_endian)
-                    {
-                        i = (2 * i) + 2;
-                    }
-
-                    if (i < cacheOfs || i >= cacheOfs + cacheLen)
-                    {
-                        UpdateCache(i);
-                    }
-
-                    return (char)cache[i % CACHESIZE]; // no test on cacheLen
-                }
-            }
-
-            public override int Length => Convert.ToInt32(little_endian ? (fs.Length / 2) - 1 : fs.Length);
-
-            ~FileReadBuffer()
-            {
-                if (fs != null)
-                {
-                    Close();
-                }
-            }
-
-            public override void Close()
-            {
-                fs.Dispose();
-            }
-
-            public override void UpdateCache(int p)
-            {
-                int i;
-                cacheOfs = CACHESIZE * (p / CACHESIZE);
-
-                if (cacheOfs > fs.Length)
-                {
-                    throw new InvalidOperationException($"*** Attempt to read beyond end of FileReadBuffer '{name}'");
-                }
-
-                fs.Position = cacheOfs;
-
-                cacheLen = fs.Read(cache, 0, CACHESIZE); // cacheLen is actual number of bytes read
-
-                if (cacheLen < CACHESIZE)
-                {
-                    for (i = cacheLen; i < CACHESIZE; cache[i++] = 32)
-                    {
-                        ;
-                    }
-
-                    //cacheLen += 2;
-                }
-            }
-
-            public override string Substring(int n, int len)
-            {
-                sb.Length = 0;
-                for (int i = n; i < n + len; i++)
-                {
-                    sb.Append(this[i]);
-                }
-
-                return sb.ToString();
             }
         }
     }

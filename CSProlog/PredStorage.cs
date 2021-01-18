@@ -154,7 +154,7 @@ namespace Prolog
                 return Consult(null, fileName);
             }
 
-            public int Consult(Stream stream, string streamName = null)
+            public int Consult(string stream, string streamName = null)
             {
                 // string as ISO-style charcode lists or as C# strings
                 string fileName = streamName ?? Guid.NewGuid().ToString("N");

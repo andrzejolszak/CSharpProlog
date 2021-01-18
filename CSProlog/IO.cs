@@ -81,64 +81,56 @@ namespace Prolog
             Consult, Runtime
         }
 
-        private FileReaderTerm currentFileReader;
-        private FileWriterTerm currentFileWriter;
-
         // BaseReadCurrentInput. Input is read from StandardInput.
         // StandardInput is the file set by the see command, or Console if no such file exists.
         private string BaseReadLineCurrentInput() // returns null at end of file
         {
-            return currentFileReader == null ? IO.ReadLine() : currentFileReader.ReadLine();
+            return IO.ReadLine();
         }
 
         private BaseTerm BaseReadTermCurrentInput()
         {
-            if (currentFileReader == null)
+            StringBuilder query = new StringBuilder();
+            string line;
+            PrologParser p = new PrologParser(this);
+
+            bool first = true;
+
+            while (true)
             {
-                StringBuilder query = new StringBuilder();
-                string line;
-                PrologParser p = new PrologParser(this);
+                IO.Write("|: ");
 
-                bool first = true;
-
-                while (true)
+                if (first)
                 {
-                    IO.Write("|: ");
-
-                    if (first)
-                    {
-                        first = false;
-                    }
-                    else
-                    {
-                        query.AppendLine();
-                    }
-
-                    if ((line = IO.ReadLine()) == null)
-                    {
-                        return FileTerm.END_OF_FILE;
-                    }
-
-                    query.Append(line = line.Trim());
-
-                    if (line.EndsWith("."))
-                    {
-                        break;
-                    }
+                    first = false;
+                }
+                else
+                {
+                    query.AppendLine();
                 }
 
-                p.StreamIn = "&reading\r\n" + query; // equal to parser ReadingSym
-                BaseTerm result = p.ReadTerm;
+                if ((line = IO.ReadLine()) == null)
+                {
+                    return null;
+                }
 
-                return result == null ? FileTerm.END_OF_FILE : result;
+                query.Append(line = line.Trim());
+
+                if (line.EndsWith("."))
+                {
+                    break;
+                }
             }
 
-            return currentFileReader.ReadTerm();
+            p.StreamIn = "&reading\r\n" + query; // equal to parser ReadingSym
+            BaseTerm result = p.ReadTerm;
+
+            return result;
         }
 
         private int BaseReadCharCurrentInput() // returns -1 at end of file
         {
-            return currentFileReader == null ? IO.ReadChar() : currentFileReader.ReadChar();
+            return IO.ReadChar();
         }
 
         // BaseWriteCurrentOutput
@@ -147,14 +139,7 @@ namespace Prolog
         // no such file exists.
         private void BaseWriteCurrentOutput(string s)
         {
-            if (currentFileWriter == null)
-            {
-                IO.Write(s);
-            }
-            else
-            {
-                currentFileWriter.Write(s);
-            }
+            IO.Write(s);
         }
 
         private void BaseWriteCurrentOutput(string s, object[] args)

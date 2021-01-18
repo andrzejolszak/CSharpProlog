@@ -128,7 +128,7 @@ namespace Prolog
         {
             if (_findAllSolutions)
             {
-                SolutionSet solutions = pe.GetAllSolutions(null, e.Argument as string, 0);
+                SolutionSet solutions = pe.GetAllSolutions(e.Argument as string, 0);
 
                 if (solutions.HasError)
                 {

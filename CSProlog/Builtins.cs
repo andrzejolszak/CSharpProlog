@@ -38,10 +38,10 @@ namespace Prolog
         noverbose, now, number, numbervars, or, permutation, pp_defines,
         predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
         readatom, readeof, readln, retract, retractall,
-        reverse, see, seeing, seen, set_counter, setvar,
+        reverse, set_counter, setvar,
         showfile, showprofile, silent, sort, spy, spypoints, stacktrace, callstack, statistics,
-        string_, string_datetime, string_term, string_words, stringstyle, succ, tab, tell,
-        telling, term_pattern, throw_, time_part, timespan, today, told, trace, treeprint,
+        string_, string_datetime, string_term, string_words, stringstyle, succ, tab,
+        term_pattern, throw_, time_part, timespan, today, trace, treeprint,
         unifiable, univ, validdate, validtime, var,
         verbose, version, weekno, write, writef, writeln, writelnf
     }
@@ -580,20 +580,6 @@ namespace Prolog
 %
        fileexists(F)    :== fileexists.
 
-%% see(+SrcDest)
-%
-% Open SrcDest for reading and make it the current input (see set_input/1).
-% If SrcDest is a stream handle, just make this stream the current input.
-%
-       see(F)           :== see.
-
-%% seeing(?SrcDest)
-%
-% Same as current_input/1, except that user is returned if the current input
-% is the stream user_input to improve compatibility with traditional Edinburgh I/O.
-%
-       seeing(F)        :== seeing.
-
 %% read(-Term)
 %
 % Read the next Prolog term from the current input stream and unify it with Term.
@@ -633,25 +619,6 @@ namespace Prolog
 %
        get(C)           :== get.
 
-%% seen
-%
-% Close the current input stream. The new input stream becomes user_input.
-%
-       seen              :== seen.
-
-%% tell(+SrcDest)
-%
-% Open SrcDest for writing and make it the current output (see set_output/1).
-% If SrcDest is a stream handle, just make this stream the current output.
-%
-       tell(F)          :== tell.
-
-%% telling(?SrcDest)
-%
-% Same as current_output/1, except that user is returned if the current output is the stream
-% user_output to improve compatibility with traditional Edinburgh I/O.
-%
-       telling(F)       :== telling.
        showfile(F)      :== showfile.
 
 %% write(+Term)
@@ -718,11 +685,6 @@ namespace Prolog
 %
        display(X)       :== display.
 
-%% told
-%
-% Close the current output stream. The new output stream becomes user_output.
-%
-       told              :== told.
        cls               :== cls. % clear screen
        errorlevel(N)    :== errorlevel. % set DOS ERRORLEVEL (for batch processing)
 
@@ -2022,56 +1984,6 @@ namespace Prolog
 
                     break;
 
-                case BI.see: // see( F)
-                    t0 = term.Arg(0);
-
-                    if (!t0.IsAtomOrString)
-                    {
-                        IO.ThrowRuntimeException("see/1 argument must be an atom or a string", CurrVarStack, term);
-                    }
-
-                    if (t0.HasFunctor("user"))
-                    {
-                        currentFileReader = null;
-
-                        break;
-                    }
-
-                    if (t0 is FileReaderTerm) // functor previously saved with seeing/1
-                    {
-                        currentFileReader = (FileReaderTerm)t0;
-
-                        break;
-                    }
-
-                    if (t0.HasFunctor("user"))
-                    {
-                        currentFileReader = null;
-
-                        break;
-                    }
-
-                    currentInputName = Utils.FileNameFromTerm(t0, ".pl");
-                    currentFileReader = (FileReaderTerm)openFiles.GetFileReader(currentInputName);
-
-                    if (currentFileReader == null)
-                    {
-                        currentFileReader = new FileReaderTerm(term.Symbol, this, currentInputName);
-                        openFiles.Add(currentInputName, currentFileReader);
-                        currentFileReader.Open();
-                    }
-
-                    break;
-
-                case BI.seeing:
-                    if (currentFileReader == null ||
-                        !term.Arg(0).Unify(currentFileReader, CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
                 case BI.read: // read( ?Term)
                     t0 = ReadTerm();
 
@@ -2182,53 +2094,6 @@ namespace Prolog
 
                     break;
 
-                case BI.seen:
-                    if (currentFileReader != null)
-                    {
-                        currentFileReader.Close();
-                        openFiles.Remove(currentInputName);
-                    }
-
-                    currentFileReader = null;
-
-                    break;
-
-                case BI.tell: // tell( F)
-                    t0 = term.Arg(0);
-
-                    if (!t0.IsAtomOrString)
-                    {
-                        IO.ThrowRuntimeException("tell/1 argument must be an atom or a string", CurrVarStack, term);
-                    }
-
-                    if (t0.HasFunctor("user"))
-                    {
-                        currentFileWriter = null;
-
-                        break;
-                    }
-
-                    currentOutputName = Utils.FileNameFromTerm(t0, ".pl");
-                    currentFileWriter = (FileWriterTerm)openFiles.GetFileWriter(currentOutputName);
-
-                    if (currentFileWriter == null)
-                    {
-                        currentFileWriter = new FileWriterTerm(term.Symbol, this, currentOutputName);
-                        openFiles.Add(currentOutputName, currentFileWriter);
-                        currentFileWriter.Open();
-                    }
-
-                    break;
-
-                case BI.telling:
-                    if (currentFileWriter == null ||
-                        !term.Arg(0).Unify(currentFileWriter, CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
                 case BI.write:
                     Write(term.Arg(0), true);
                     break;
@@ -2304,16 +2169,6 @@ namespace Prolog
                 case BI.display:
                     Write(term.Arg(0).ToDisplayString(), false);
                     NewLine();
-                    break;
-
-                case BI.told:
-                    if (currentFileWriter != null)
-                    {
-                        currentFileWriter.Close();
-                        openFiles.Remove(currentOutputName);
-                    }
-
-                    currentFileWriter = null;
                     break;
 
                 case BI.console:

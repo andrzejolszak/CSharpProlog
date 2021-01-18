@@ -37,7 +37,7 @@ namespace CSPrologTest
             PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
             e.ConsultFromString((consult ?? "") + Dynamics);
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 5);
+            SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(!ss.HasError && ss.Success,
                 $"{query} NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}, \nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
@@ -46,7 +46,7 @@ namespace CSPrologTest
             {
                 e.Reset();
                 e.ConsultFromString("test :- " + query + "." + Dynamics);
-                ss = e.GetAllSolutions(null, "test", 5);
+                ss = e.GetAllSolutions("test", 5);
 
                 Assert.True(!ss.HasError && ss.Success,
                     $"test NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
@@ -59,7 +59,7 @@ namespace CSPrologTest
 
             e.ConsultFromString((consult ?? "") + Dynamics);
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 5);
+            SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(!ss.HasError && !ss.Success,
                 $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
@@ -69,7 +69,7 @@ namespace CSPrologTest
                 e.Reset();
                 e.ConsultFromString("test :- " + query + "." + Dynamics);
 
-                ss = e.GetAllSolutions(null, "test", 5);
+                ss = e.GetAllSolutions("test", 5);
 
                 Assert.True(!ss.HasError && !ss.Success,
                     $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");
@@ -82,7 +82,7 @@ namespace CSPrologTest
 
             e.ConsultFromString((consult ?? "") + Dynamics);
 
-            SolutionSet ss = e.GetAllSolutions(null, query, 5);
+            SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(ss.HasError && !ss.Success,
                 $"{query} NOT ERROR @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CurrentTermHistoryString}");

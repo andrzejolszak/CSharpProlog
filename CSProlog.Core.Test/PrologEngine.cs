@@ -41,7 +41,7 @@ namespace CSPrologTest
 
             prolog.GetFirstSolution("listing.");
 
-            SolutionSet solutionset1 = prolog.GetAllSolutions(null, "human(H)");
+            SolutionSet solutionset1 = prolog.GetAllSolutions("human(H)");
 
             Assert.True(solutionset1.Success);
             if (solutionset1.Success)
@@ -79,7 +79,7 @@ f(3).
 ");
 
             SolutionSet ss = null;
-            ss = prolog.GetAllSolutions(null, "person(X)", 5);
+            ss = prolog.GetAllSolutions("person(X)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: person({X}) = person(alice)
@@ -87,7 +87,7 @@ f(3).
 ?: person({X}) = person(bob)
    -> Yes: {X=bob}");
 
-            ss = prolog.GetAllSolutions(null, "person(bob)", 5);
+            ss = prolog.GetAllSolutions("person(bob)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: person(bob) = person(alice)
@@ -95,7 +95,7 @@ f(3).
 ?: person(bob) = person(bob)
    -> Yes");
 
-            ss = prolog.GetAllSolutions(null, "person(nope)", 5);
+            ss = prolog.GetAllSolutions("person(nope)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: person(nope) = person(alice)
@@ -103,7 +103,7 @@ f(3).
 ?: person(nope) = person(bob)
    -> No");
 
-            ss = prolog.GetAllSolutions(null, "ppp(1)", 5);
+            ss = prolog.GetAllSolutions("ppp(1)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: ppp(1) = ppp({X})
@@ -111,7 +111,7 @@ f(3).
 ?: {X=1}=1 = {X}={X}
    -> Yes: {X=1}");
 
-            ss = prolog.GetAllSolutions(null, "ppp(5, 6)", 5);
+            ss = prolog.GetAllSolutions("ppp(5, 6)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: ppp(5, 6) = ppp({Z}, {Y})
@@ -119,7 +119,7 @@ f(3).
 ?: {Z=5}={Y=6} = {X}={X}
    -> No");
 
-            ss = prolog.GetAllSolutions(null, "a(3)", 5);
+            ss = prolog.GetAllSolutions("a(3)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: a(3) = a({X})
@@ -139,7 +139,7 @@ f(3).
 ?: f({X=3}) = f(3)
    -> Yes");
 
-            ss = prolog.GetAllSolutions(null, "a(X), X=3", 5);
+            ss = prolog.GetAllSolutions("a(X), X=3", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: a({X}), {X}=3 = a({X})
@@ -165,7 +165,7 @@ f(3).
 ?: {X=3}=3 = {X}={X}
    -> Yes: {X=3}");
 
-            ss = prolog.GetAllSolutions(null, "a(X)", 5);
+            ss = prolog.GetAllSolutions("a(X)", 5);
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: a({X}) = a({X})

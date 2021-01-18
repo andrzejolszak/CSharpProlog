@@ -122,7 +122,7 @@ namespace Prolog
                                   }
                               };
 
-                              SolutionSet ss = e.GetAllSolutions(null, testName, 0);
+                              SolutionSet ss = e.GetAllSolutions(testName, 0);
 
                               suceeded = !ss.HasError && ss.Success;
                               callStackText = callStack.Aggregate((z, y) => z + "\n" + y);

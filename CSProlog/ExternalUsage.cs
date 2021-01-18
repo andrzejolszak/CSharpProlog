@@ -140,12 +140,12 @@ namespace Prolog
     public partial class PrologEngine
     {
         // Store solutions in an GetAllSolutions class
-        public SolutionSet GetAllSolutions(string sourceFileName, string query)
+        public SolutionSet GetAllSolutions(string query)
         {
-            return GetAllSolutions(sourceFileName, query, 0);
+            return GetAllSolutions(query, 0);
         }
 
-        public SolutionSet GetAllSolutions(string sourceFileName, string query, int maxSolutionCount)
+        public SolutionSet GetAllSolutions(string query, int maxSolutionCount)
         {
             Error = false;
             Halted = false;
@@ -155,11 +155,6 @@ namespace Prolog
 
             try
             {
-                if (sourceFileName != null)
-                {
-                    Consult(sourceFileName);
-                }
-
                 Query = query + (query.EndsWith(".") ? null : "."); // append a dot if necessary
                 int i = 0;
                 bool found = false;

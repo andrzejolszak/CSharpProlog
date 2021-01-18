@@ -55,8 +55,6 @@ namespace Prolog
         private bool goalListProcessed;
         private bool goalListResult;
 
-        private OpenFiles openFiles;
-
         private PrologParser parser;
         private string query;
         private int queryTimeout; // maximum Number of milliseconds that a command may run -- 0 means unlimited
@@ -158,7 +156,6 @@ namespace Prolog
             PredTable = new PredicateTable(this);
             UserAtoms = new List<AtomTerm>();
             CatchIdStack = new Stack<int>();
-            openFiles = new OpenFiles();
             TryCatchId = 0;
 
             Error = false;
@@ -167,8 +164,6 @@ namespace Prolog
             EventDebug = false;
             StartTime = -1;
             ProcTime = 0;
-            currentFileReader = null;
-            currentFileWriter = null;
             terminalTable = new BaseParser.BaseTrie(PrologParser.terminalCount, true);
             PrologParser.FillTerminalTable(terminalTable);
             parser = new PrologParser(this); // now this.terminalTable is passed on as well
@@ -239,8 +234,6 @@ namespace Prolog
                 }
                 finally
                 {
-                    PostQueryTidyUp(); // close all potentially open files and SQL connections
-
                     if (query != null)
                     {
                         FoundAllSolutions?.Invoke();
@@ -291,13 +284,6 @@ namespace Prolog
             }
 
             return true;
-        }
-
-        public void PostQueryTidyUp()
-        {
-            openFiles.CloseAllOpenFiles();
-            currentFileReader = null;
-            currentFileWriter = null;
         }
 
         private PrologException Execute()
@@ -977,23 +963,7 @@ namespace Prolog
             return DateTime.Now.Ticks / 10000;
         }
 
-        public void Consult(string fileName)
-        {
-            bool csharpStringsSave = CsharpStrings;
-            // string as ISO-style charcode lists or as C# strings
-
-            try
-            {
-                ConsultedFiles.Clear();
-                PredTable.Consult(fileName);
-            }
-            finally
-            {
-                CsharpStrings = csharpStringsSave;
-            }
-        }
-
-        public void Consult(Stream stream, string streamName = null)
+        public void Consult(string stream, string streamName = null)
         {
             bool csharpStringsSave = CsharpStrings;
             // string as ISO-style charcode lists or as C# strings
@@ -1012,10 +982,7 @@ namespace Prolog
 
         public void ConsultFromString(string prologCode, string codeTitle = null)
         {
-            using (MemoryStream ms = new MemoryStream(Encoding.UTF8.GetBytes(prologCode)))
-            {
-                Consult(ms, codeTitle);
-            }
+            Consult(prologCode, codeTitle);
         }
 
         public void SetStringStyle(BaseTerm t)
@@ -1323,37 +1290,6 @@ namespace Prolog
                 }
 
                 return (sb.Length == 0 ? YES : sb.ToString()) + time;
-            }
-        }
-
-        public class OpenFiles : Dictionary<string, FileTerm>
-        {
-            public FileTerm GetFileReader(string fileName)
-            {
-                FileTerm ft;
-
-                TryGetValue(fileName.ToLower(), out ft);
-
-                return ft;
-            }
-
-            public FileTerm GetFileWriter(string fileName)
-            {
-                FileTerm ft;
-
-                TryGetValue(fileName.ToLower(), out ft);
-
-                return ft;
-            }
-
-            public void CloseAllOpenFiles()
-            {
-                foreach (FileTerm ft in Values)
-                {
-                    ft.Close();
-                }
-
-                Clear();
             }
         }
 
