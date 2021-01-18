@@ -166,8 +166,8 @@ namespace Prolog
 
             const uint mask = 1 << PrologEditor.BREAKPOINT_MARKER;
 
-            Line line1 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.Start + 1)];
-            Line line2 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.Final - 1)];
+            Line line1 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.StartAdjusted + 1)];
+            Line line2 = sourceEditor.Editor.Lines[sourceEditor.Editor.LineFromPosition(term.Symbol.FinalAdjusted - 1)];
             return (line1.MarkerGet() & mask) > 0 || (line2.MarkerGet() & mask) > 0;
         }
 

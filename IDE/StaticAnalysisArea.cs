@@ -115,8 +115,8 @@ namespace Prolog
                 return warningCount;
             }
 
-            int startPos = nextNode.Term.Symbol.Start;
-            int endPos = nextNode.Term.Symbol.Final;
+            int startPos = nextNode.Term.Symbol.StartAdjusted;
+            int endPos = nextNode.Term.Symbol.FinalAdjusted;
             int line = _sourceArea.sourceEditor.Editor.LineFromPosition(startPos);
 
             dataGridView1.Rows.Add(line, "Warning", msg, type);

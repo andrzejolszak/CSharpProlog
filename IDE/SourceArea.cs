@@ -141,10 +141,10 @@ namespace Prolog
                             if (symbol != null)
                             {
                                 sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,
-                                    symbol.Start, symbol.Final - symbol.Start, ex.Message);
+                                    symbol.StartAdjusted, symbol.FinalAdjusted - symbol.StartAdjusted, ex.Message);
                             }
 
-                            tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {ex.Message}");
+                            tbAnswer.Write($"^ Error at line {symbol?.LineNoAdjusted}: {ex.Message}");
                         }));
                     }
 
@@ -233,11 +233,11 @@ namespace Prolog
                 if (symbol != null)
                 {
                     sourceEditor.IndicatorFillRange(PrologEditor.SquiggleIndicator,
-                        symbol.Start, symbol.Final - symbol.Start, e.Error.Message);
-                    sourceEditor.Editor.GotoPosition(symbol.Start);
+                        symbol.StartAdjusted, symbol.FinalAdjusted - symbol.StartAdjusted, e.Error.Message);
+                    sourceEditor.Editor.GotoPosition(symbol.StartAdjusted);
                 }
 
-                tbAnswer.Write($"^ Error at line {symbol?.LineNo}: {e.Error.Message}");
+                tbAnswer.Write($"^ Error at line {symbol?.LineNoAdjusted}: {e.Error.Message}");
                 
                 SourceConsultedError?.Invoke();
             }

@@ -1218,20 +1218,19 @@ namespace Prolog
             public class Symbol
             {
                 private readonly BaseParser parser;
-                public int AbsSeqNo; // sequence number of symbol // -- absolute value, invariant under MARK/REDO
+                internal int AbsSeqNo; // sequence number of symbol // -- absolute value, invariant under MARK/REDO
                 public SymbolClass Class;
-                public int Final; // first position after symbol
-                public int FinalPlus; // first position of next symbol
+                internal int Final; // first position after symbol
+                internal int FinalPlus; // first position of next symbol
                 public bool IsFollowedByLayoutChar; // true iff the symbol is followed by a layout character
-                public int LineNo;
-                public int LineStart; // position of first char of line in input stream
+                internal int LineNo;
+                internal int LineStart; // position of first char of line in input stream
                 public OpDescrTriplet Payload;
-                public int PrevFinal; // final position of previous symbol
+                internal int PrevFinal; // final position of previous symbol
 
-                public int
-                    RelSeqNo; // sequence number of symbol in current line // -- relative value, invariant under MARK/REDO
+                internal int RelSeqNo; // sequence number of symbol in current line // -- relative value, invariant under MARK/REDO
 
-                public int Start; // position in input stream
+                internal int Start; // position in input stream
                 public int TerminalId;
 
                 public Symbol(BaseParser p)
@@ -1254,9 +1253,11 @@ namespace Prolog
                 public int StartAdjusted => Start - 10;
                 public int FinalAdjusted => Final - 10;
 
-                public int ColNo => Start >= LineStart ? Start - LineStart + 1 : UNDEF;
+                public int LineNoAdjusted => LineNo - 1;
 
-                public string Context
+                internal int ColNo => Start >= LineStart ? Start - LineStart + 1 : UNDEF;
+
+                internal string Context
                 {
                     get
                     {
@@ -1286,9 +1287,9 @@ namespace Prolog
                     }
                 }
 
-                public bool IsProcessed { get; private set; }
+                internal bool IsProcessed { get; private set; }
 
-                public string InputLine
+                internal string InputLine
                 {
                     get
                     {

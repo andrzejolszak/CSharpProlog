@@ -34,7 +34,7 @@ namespace Prolog
 
         public void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
         {
-            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head} [ln. " + targetClause.Head.Symbol.LineNo + "]");
+            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head} [ln " + targetClause.Head.Symbol.LineNoAdjusted + "]");
             this.OnCurrentTermChanged?.Invoke(targetClause);
         }
 

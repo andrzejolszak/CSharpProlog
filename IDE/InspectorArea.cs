@@ -33,8 +33,8 @@ namespace Prolog
                 x =>
                 {
                     this.sourceArea.sourceEditor.Editor.ClearSelections();
-                    this.sourceArea.sourceEditor.Editor.AddSelection(x.ClauseList.Term.Symbol.Start,
-                        x.ClauseListEnd.Term.Symbol.Final);
+                    this.sourceArea.sourceEditor.Editor.AddSelection(x.ClauseList.Term.Symbol.StartAdjusted,
+                        x.ClauseListEnd.Term.Symbol.FinalAdjusted);
                 });
         }
 
@@ -54,15 +54,15 @@ namespace Prolog
         {
             int pos = sourceArea.sourceEditor.Editor.CurrentPosition;
             List<PredicateDescr> clauses = pe.PredTable.Predicates.Values.Where(
-                x => x.ClauseList.Term.Symbol.Start <= pos && x.ClauseListEnd.Term.Symbol.Final >= pos &&
+                x => x.ClauseList.Term.Symbol.StartAdjusted <= pos && x.ClauseListEnd.Term.Symbol.FinalAdjusted >= pos &&
                      !x.IsPredefined).ToList();
 
             RefresthUIState(new Dictionary<string, object> { ["Clauses"] = clauses.ToDictionary(x => x.ToString()) },
                 "Current caret position");
             foreach (PredicateDescr t in clauses)
             {
-                sourceArea.sourceEditor.Editor.AddSelection(t.ClauseList.Term.Symbol.Start,
-                    t.ClauseListEnd.Term.Symbol.Final);
+                sourceArea.sourceEditor.Editor.AddSelection(t.ClauseList.Term.Symbol.StartAdjusted,
+                    t.ClauseListEnd.Term.Symbol.FinalAdjusted);
             }
         }
     }

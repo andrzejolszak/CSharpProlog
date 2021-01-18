@@ -146,7 +146,7 @@ namespace Prolog
                 foreach (PrologException error in solutions.Errors)
                 {
                     BaseParser.Symbol symbol = error.GetBestEffortSymbol;
-                    winIO.GuiIO.Write($"* Line {symbol?.LineNo}: {error.Message}");
+                    winIO.GuiIO.Write($"* Line {symbol?.LineNoAdjusted}: {error.Message}");
                     this.Invoke(new Action(() => this.sourceArea.sourceEditor.Editor.GotoPosition(symbol?.StartAdjusted ?? this.sourceArea.sourceEditor.Editor.CurrentPosition)));
                 }
 

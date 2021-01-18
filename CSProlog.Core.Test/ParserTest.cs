@@ -52,15 +52,17 @@ namespace CSPrologTest
         }
 
         [Theory]
-        [InlineData("foobar123_d.", 1, 1, 13)]
-        [InlineData("\r\n\r\nfoobar123_d.\r\n", 3, 1, 1)]
-        [InlineData("   foobar123_d.   ", 1, 4, 19)]
-        public void PopulatesSourceInfo(string test, int lineNo, int startCol, int endCol)
+        [InlineData("foobar123_d.", 1, 0, 12)]
+        [InlineData("\r\n\r\nfoobar123_d.\r\n", 3, 4, 16)]
+        [InlineData("   foobar123_d.   ", 1, 3, 15)]
+        public void PopulatesSourceInfo(string test, int lineNo, int start, int final)
         {
             PredicateDescr d = test.CanParse();
-            d.ClauseList.Term.Symbol.LineNo.Should().Be(lineNo);
-            d.ClauseList.Term.Symbol.Start.Should().Be(startCol);
-            d.ClauseList.Term.Symbol.Final.Should().Be(endCol);
+            d.ClauseList.Term.Symbol.LineNoAdjusted.Should().Be(lineNo);
+            d.ClauseList.Term.Symbol.StartAdjusted.Should().Be(start);
+            d.ClauseList.Term.Symbol.FinalAdjusted.Should().Be(final);
+            d.ClauseList.Term.Symbol.Class.Should().Be(BaseParser.SymbolClass.Id);
+            test.Substring(start, final - start).Should().Be("foobar123_d.");
         }
 
         [Theory]

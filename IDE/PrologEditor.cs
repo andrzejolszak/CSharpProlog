@@ -297,7 +297,7 @@ namespace Prolog
 
             if (predDescr != null)
             {
-                Editor.SetSelection(predDescr.Symbol.Final, predDescr.Symbol.Start);
+                Editor.SetSelection(predDescr.Symbol.FinalAdjusted, predDescr.Symbol.StartAdjusted);
                 _inspectTermContextMenuItem.Text = $"Inspect Term '{predDescr}'";
                 _inspectTermContextMenuItem.Visible = true;
             }
@@ -772,16 +772,16 @@ namespace Prolog
                 List<PredicateDescr> clauses = _referenceArrowsPredTable.Values
                     .Where(
                         x => !x.IsPredefined
-                             && x.ClauseList.Term.Symbol.Start <= pos
-                             && x.ClauseList.Term.Symbol.Final >= pos)
+                             && x.ClauseList.Term.Symbol.StartAdjusted <= pos
+                             && x.ClauseList.Term.Symbol.FinalAdjusted >= pos)
                     .ToList();
 
                 PredicateDescr clause = clauses.FirstOrDefault();
 
                 if (clause != null)
                 {
-                    int clauseHeadStart = clause.ClauseList.Term.Symbol.Start;
-                    int? clauseHeadEnd = clause.ClauseList.Term.Symbol.Final;
+                    int clauseHeadStart = clause.ClauseList.Term.Symbol.StartAdjusted;
+                    int? clauseHeadEnd = clause.ClauseList.Term.Symbol.FinalAdjusted;
 
                     List<PredicateDescr> res;
                     if (clauseHeadEnd.HasValue &&
@@ -796,8 +796,8 @@ namespace Prolog
                                 continue;
                             }
 
-                            int refClauseStart = pd.ClauseList.Term.Symbol.Start;
-                            int? refClauseEnd = pd.ClauseList.Term.Symbol.Final;
+                            int refClauseStart = pd.ClauseList.Term.Symbol.StartAdjusted;
+                            int? refClauseEnd = pd.ClauseList.Term.Symbol.FinalAdjusted;
                             if (refClauseEnd.HasValue)
                             {
                                 GraphicsPath path = new GraphicsPath();
