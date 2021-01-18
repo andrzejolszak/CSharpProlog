@@ -28,14 +28,14 @@ namespace CSPrologTest
         public static PredicateDescr CanParse(this string consult, [CallerLineNumber] int sourceLineNumber = 0)
         {
             PrologEngine e = new PrologEngine();
-            e.ConsultFromString(Dynamics + consult);
+            e.ConsultFromString(consult + Dynamics);
             return e.PredTable.Predicates.Where(x => !x.Value.IsPredefined).FirstOrDefault().Value;
         }
 
         public static void True(this string query, string consult = null, bool executionDetails = true, [CallerLineNumber] int sourceLineNumber = 0)
         {
             PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
-            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
+            e.ConsultFromString((consult ?? "") + Dynamics);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
@@ -45,7 +45,7 @@ namespace CSPrologTest
             if (consult == null)
             {
                 e.Reset();
-                e.ConsultFromString(Dynamics + "test :- " + query + ".");
+                e.ConsultFromString("test :- " + query + "." + Dynamics);
                 ss = e.GetAllSolutions(null, "test", 5);
 
                 Assert.True(!ss.HasError && ss.Success,
@@ -57,7 +57,7 @@ namespace CSPrologTest
         {
             PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
 
-            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
+            e.ConsultFromString((consult ?? "") + Dynamics);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 
@@ -67,7 +67,7 @@ namespace CSPrologTest
             if (consult == null)
             {
                 e.Reset();
-                e.ConsultFromString(Dynamics + "test :- " + query + ".");
+                e.ConsultFromString("test :- " + query + "." + Dynamics);
 
                 ss = e.GetAllSolutions(null, "test", 5);
 
@@ -80,7 +80,7 @@ namespace CSPrologTest
         {
             PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
 
-            e.ConsultFromString(Dynamics + "\n" + (consult ?? ""));
+            e.ConsultFromString((consult ?? "") + Dynamics);
 
             SolutionSet ss = e.GetAllSolutions(null, query, 5);
 

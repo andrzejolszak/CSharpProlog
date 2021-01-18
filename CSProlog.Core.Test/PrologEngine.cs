@@ -65,7 +65,8 @@ person(alice).
 person(bob).
 
 ppp(Z, Y) :- Z = Y.
-ppp(X) :- X = 1.
+ppp(X) :- 
+    X = 1.
 
 a(X):-b(X).
 b(X):-d(X).
