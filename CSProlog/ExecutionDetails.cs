@@ -21,8 +21,6 @@ namespace Prolog
 {
     public class ExecutionDetails
     {
-        public event CurrentTerm OnCurrentTermChanged;
-
         public List<string> CurrentTermHistory { get; private set; } = new List<string>(1000);
 
         public string CurrentTermHistoryString => "\r\n" + string.Join("\r\n", this.CurrentTermHistory);
@@ -34,11 +32,19 @@ namespace Prolog
 
         public void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
         {
-            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head} [ln " + targetClause.Head.Symbol.LineNoAdjusted + "]");
-            this.OnCurrentTermChanged?.Invoke(targetClause);
+            if ((goal.Head.Name == "true/0" && targetClause.Head.Name == "true/0")
+                || (goal.Head.Name == "fail/0" && targetClause.Head.Name == "fail/0"))
+            {
+                this.CurrentTermHistory.Add($"?: {targetClause.Head} [ln " + goal.Head.Symbol.LineNoAdjusted + "]");
+                return;
+            }
+
+            int line = targetClause.BuiltinId == BI.none ? targetClause.Head.Symbol.LineNoAdjusted : goal.Term.Symbol.LineNoAdjusted;
+            string postfix = targetClause.NextNode == null ? "." : (targetClause.NextNode.Head == null ? "" : " :- ...");
+            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head}{postfix} [ln {line}]");
         }
 
-        public void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified)
+        public void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified, bool isFailUnification)
         {
             if (!unified)
             {
@@ -46,7 +52,7 @@ namespace Prolog
             }
             else
             {
-                StringBuilder yes = new StringBuilder("   -> Yes");
+                StringBuilder yes = new StringBuilder(isFailUnification ? "   -> Fail" : "   -> Yes");
                 if (varStackCountPreUnify < varStack.Count)
                 {
                     yes.Append(": ");

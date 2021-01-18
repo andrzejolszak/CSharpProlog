@@ -238,7 +238,14 @@ namespace Prolog
                             sb.Append(", ");
                         }
 
-                        sb.AppendFormat("{0}", t);
+                        if (t == this.Term && this.NextNode != null)
+                        {
+                            sb.AppendFormat("*{0}*", t);
+                        }
+                        else
+                        {
+                            sb.AppendFormat("{0}", t);
+                        }
                     }
 
                     tn = tn.NextNode;
@@ -270,16 +277,14 @@ namespace Prolog
 
             public override string ToString()
             {
-                string NL = string.Empty;
-
-                StringBuilder sb = new StringBuilder(NL + Head);
+                StringBuilder sb = new StringBuilder(Head.ToString());
 
                 bool first = true;
                 TermNode tl = NextNode;
 
                 if (tl == null)
                 {
-                    return sb.ToString() + '.' + NL;
+                    return sb.ToString() + '.';
                 }
 
                 while (true)
@@ -289,11 +294,11 @@ namespace Prolog
                         sb.Append(" :-");
                     }
 
-                    sb.Append(NL + "  " + tl.Term);
+                    sb.Append("  " + tl.Term);
 
                     if ((tl = tl.NextNode) == null)
                     {
-                        return sb.ToString() + '.' + NL;
+                        return sb.ToString() + '.';
                     }
 
                     if (!first)

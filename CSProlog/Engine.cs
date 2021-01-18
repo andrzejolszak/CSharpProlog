@@ -517,7 +517,7 @@ namespace Prolog
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
                 if (cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, true);
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, true, goalListHead.Term.Name == "fail/0");
 
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
 
@@ -659,7 +659,7 @@ namespace Prolog
                 }
                 else
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, false);
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, false, false);
 
                     if (!(redo = CanBacktrack())) // unify failed - try backtracking
                     {

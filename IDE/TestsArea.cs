@@ -112,20 +112,10 @@ namespace Prolog
                               PrologEngine e = new PrologEngine(new ExecutionDetails());
                               e.ConsultFromString(source);
 
-                              List<string> callStack = new List<string>();
-                              e.ExecutionDetails.OnCurrentTermChanged += y =>
-                              {
-                                  callStack.Add(y.ToString());
-                                  if (callStack.Count > 3)
-                                  {
-                                      callStack.RemoveAt(0);
-                                  }
-                              };
-
                               SolutionSet ss = e.GetAllSolutions(testName, 0);
 
                               suceeded = !ss.HasError && ss.Success;
-                              callStackText = callStack.Aggregate((z, y) => z + "\n" + y);
+                              callStackText = e.ExecutionDetails.CurrentTermHistoryString;
                           }
                           catch(Exception ex)
                           {

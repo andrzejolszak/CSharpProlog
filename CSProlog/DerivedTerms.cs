@@ -103,7 +103,8 @@ namespace Prolog
                 set => TermId = value;
             }
 
-            public override string Name => "_" + varNo;
+            public override string Name => "_";
+
             public override int Arity => -1;
 
             public override bool IsUnified => ULink != null;
