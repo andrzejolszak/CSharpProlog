@@ -66,6 +66,15 @@ person(bob).
 
 ppp(Z, Y) :- Z = Y.
 ppp(X) :- X = 1.
+
+a(X):-b(X).
+b(X):-d(X).
+b(X):-e(X).
+d(1).
+e(2).
+a(X):-c(X).
+c(X):-f(X).
+f(3).
 ");
 
             SolutionSet ss = null;
@@ -108,6 +117,72 @@ ppp(X) :- X = 1.
    -> Yes: {Z=5}, {Y=6}
 ?: {Z=5}={Y=6} = {X}={X}
    -> No");
+
+            ss = prolog.GetAllSolutions(null, "a(3)", 5);
+            prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
+                @"
+?: a(3) = a({X})
+   -> Yes: {X=3}
+?: b({X=3}) = b({X})
+   -> Yes: {X=3}
+?: d({X=3}) = d(1)
+   -> No
+?: b({X=3}) = b({X})
+   -> Yes: {X=3}
+?: e({X=3}) = e(2)
+   -> No
+?: a(3) = a({X})
+   -> Yes: {X=3}
+?: c({X=3}) = c({X})
+   -> Yes: {X=3}
+?: f({X=3}) = f(3)
+   -> Yes");
+
+            ss = prolog.GetAllSolutions(null, "a(X), X=3", 5);
+            prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
+                @"
+?: a({X}), {X}=3 = a({X})
+   -> Yes: {X={X}}
+?: b({X={X}}), {X}=3 = b({X})
+   -> Yes: {X={X}}
+?: d({X={X}}), {X}=3 = d(1)
+   -> Yes: {X=1}
+?: {X=1}=3 = {X}={X}
+   -> No
+?: b({X={X}}), {X}=3 = b({X})
+   -> Yes: {X={X}}
+?: e({X={X}}), {X}=3 = e(2)
+   -> Yes: {X=2}
+?: {X=2}=3 = {X}={X}
+   -> No
+?: a({X}), {X}=3 = a({X})
+   -> Yes: {X={X}}
+?: c({X={X}}), {X}=3 = c({X})
+   -> Yes: {X={X}}
+?: f({X={X}}), {X}=3 = f(3)
+   -> Yes: {X=3}
+?: {X=3}=3 = {X}={X}
+   -> Yes: {X=3}");
+
+            ss = prolog.GetAllSolutions(null, "a(X)", 5);
+            prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
+                @"
+?: a({X}) = a({X})
+   -> Yes: {X={X}}
+?: b({X={X}}) = b({X})
+   -> Yes: {X={X}}
+?: d({X={X}}) = d(1)
+   -> Yes: {X=1}
+?: b({X={X}}) = b({X})
+   -> Yes: {X={X}}
+?: e({X={X}}) = e(2)
+   -> Yes: {X=2}
+?: a({X}) = a({X})
+   -> Yes: {X={X}}
+?: c({X={X}}) = c({X})
+   -> Yes: {X={X}}
+?: f({X={X}}) = f(3)
+   -> Yes: {X=3}");
 
         }
     }
