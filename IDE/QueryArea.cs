@@ -15,7 +15,6 @@ namespace Prolog
     {
         private readonly PrologEngine pe;
         private readonly Action<ProgressChangedEventArgs> progressChangedHandler;
-        private readonly List<string> queryCallStack = new List<string>();
         private readonly SourceArea sourceArea;
         private readonly TextBox tbAnswer;
         private readonly OutputArea winIO;
@@ -103,25 +102,8 @@ namespace Prolog
             btnMore.Enabled = btnStop.Enabled = false;
             _findAllSolutions = findAllSolutions;
 
-            queryCallStack.Clear();
-            pe.ExecutionDetails.OnCurrentTermChanged -= CollectCallStack;
-
-            if (checkBox1.Checked)
-            {
-                pe.ExecutionDetails.OnCurrentTermChanged += CollectCallStack;
-            }
-
             winIO.GuiIO.bgw = bgwExecuteQuery;
             bgwExecuteQuery.RunWorkerAsync(queryEditor.Editor.Text);
-        }
-
-        private void CollectCallStack(TermNode termNode)
-        {
-            queryCallStack.Add(termNode.ToString());
-            if (queryCallStack.Count > 3)
-            {
-                queryCallStack.RemoveAt(0);
-            }
         }
 
         private void bgwExecuteQuery_DoWork(object sender, DoWorkEventArgs e)
@@ -152,9 +134,9 @@ namespace Prolog
 
                 winIO.GuiIO.Write(solutions.ErrMsg);
 
-                if (!solutions.Success && queryCallStack.Count > 0)
+                if (!solutions.Success && checkBox1.Checked && this.pe.ExecutionDetails != null)
                 {
-                    winIO.GuiIO.Write(queryCallStack.Aggregate((x, y) => x + "---" + y));
+                    winIO.GuiIO.Write(this.pe.ExecutionDetails.CurrentTermHistoryString);
                 }
             }
             else
@@ -166,9 +148,9 @@ namespace Prolog
                 {
                     winIO.GuiIO.WriteLine("{0}{1}", s, s.IsLast ? null : ";");
 
-                    if (s.IsLast && !s.Solved && queryCallStack.Count > 0)
+                    if (s.IsLast && !s.Solved && this.pe.ExecutionDetails != null)
                     {
-                        winIO.GuiIO.Write(queryCallStack.Aggregate((x, y) => x + "---" + y));
+                        winIO.GuiIO.Write(this.pe.ExecutionDetails.CurrentTermHistoryString);
                     }
 
                     if (s.IsLast)

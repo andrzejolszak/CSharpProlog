@@ -76,6 +76,12 @@ e(2).
 a(X):-c(X).
 c(X):-f(X).
 f(3).
+
+foo1 :- bar1, car1, dar1.
+bar1 :- true.
+car1 :- ear1(1).
+ear1(X) :- true.
+dar1 :- fail.
 ");
 
             SolutionSet ss = null;
@@ -184,6 +190,26 @@ f(3).
    -> Yes: {X={X}}
 ?: f({X={X}}) = f(3) [ln 16]
    -> Yes: {X=3}");
+
+            ss = prolog.GetAllSolutions("foo1", 5);
+            prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
+                @"
+?: foo1 = foo1 [ln 18]
+   -> Yes
+?: bar1, car1, dar1 = bar1 [ln 19]
+   -> Yes
+?: true, car1, dar1 = true [ln 59]
+   -> Yes
+?: car1, dar1 = car1 [ln 20]
+   -> Yes
+?: ear1(1), dar1 = ear1({X}) [ln 21]
+   -> Yes: {X=1}
+?: true, dar1 = true [ln 21]
+   -> Yes
+?: dar1 = dar1 [ln 22]
+   -> Yes
+?: fail = fail [ln 22]
+   -> Yes");
         }
     }
 }

@@ -46,7 +46,7 @@
             this.checkBox1.Name = "checkBox1";
             this.checkBox1.Size = new System.Drawing.Size(103, 17);
             this.checkBox1.TabIndex = 37;
-            this.checkBox1.Text = "Callstack on Fail";
+            this.checkBox1.Text = "Execution Details on Fail";
             this.checkBox1.UseVisualStyleBackColor = true;
             // 
             // queryPanel
