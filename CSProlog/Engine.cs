@@ -509,8 +509,6 @@ namespace Prolog
 
                 currClause = goalListHead.NextClause; // the first or next clause of the predicate definition
 
-                this.ExecutionDetails?.CurrentTermChanged(currClause);
-
                 saveGoal = goalListHead; // remember the original saveGoal (which may be NextGoal-ed, see below)
 
                 if (currClause.NextClause != null) // no redo possible => fail, make explicit when tracing
@@ -518,9 +516,8 @@ namespace Prolog
                     CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
                 }
 
-                cleanClauseHead =
-                    currClause.Head
-                        .Copy(CurrVarStack); // instantiations must be retained for clause body -> create newVars
+                // instantiations must be retained for clause body -> create newVars
+                cleanClauseHead = currClause.Head.Copy(CurrVarStack); 
 
                 // CALL, REDO
                 if (Reporting)
@@ -528,9 +525,14 @@ namespace Prolog
                     Debugger(saveGoal, currClause, false);
                 }
 
+                this.ExecutionDetails?.CurrentGoalBeforeUnify(goalListHead, currClause);
+                int currVarStackCount = this.CurrVarStack.Count;
+
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
                 if (cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
                 {
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, true);
+
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
 
                     if (Reporting)
@@ -669,9 +671,14 @@ namespace Prolog
                         findFirstClause = true;
                     }
                 }
-                else if (!(redo = CanBacktrack())) // unify failed - try backtracking
+                else
                 {
-                    return false;
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, false);
+
+                    if (!(redo = CanBacktrack())) // unify failed - try backtracking
+                    {
+                        return false;
+                    }
                 }
             } // end of while
 

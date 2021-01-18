@@ -198,7 +198,6 @@ namespace Prolog
             {
                 StringBuilder sb = new StringBuilder();
                 bool first = true;
-                int indent = 2;
                 TermNode tn = this;
                 BaseTerm t;
 

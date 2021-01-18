@@ -172,10 +172,10 @@ namespace Prolog
             {
                 if (ULink == null)
                 {
-                    return Name;
+                    return "{" + Name + "}";
                 }
 
-                return ULink.ToWriteString(level);
+                return "{" + Name + "=" + ULink.ToWriteString(level) + "}";
             }
         }
 
@@ -323,7 +323,7 @@ namespace Prolog
                         sb.Append(CommaAtLevel(level));
                     }
 
-                    sb.AppendPacked(Arg(i).ToWriteString(level + 1), Arg(i).FunctorIsBinaryComma);
+                    sb.AppendPacked(Arg(i, false).ToWriteString(level + 1), Arg(i).FunctorIsBinaryComma);
                 }
 
                 sb.Append(SpaceAtLevel(level) + wrapClose);
@@ -530,7 +530,7 @@ namespace Prolog
                             sb.Append(CommaAtLevel(level));
                         }
 
-                        sb.AppendPacked(Arg(i).ToWriteString(level + 1), Arg(i).FunctorIsBinaryComma);
+                        sb.AppendPacked(Arg(i, false).ToWriteString(level + 1), CompoundArgs[i].FunctorIsBinaryComma);
                     }
 
                     sb.Append(")");
@@ -673,14 +673,14 @@ namespace Prolog
                     mustPack = CompoundPrecedence < Arg(0).Precedence ||
                                (CompoundPrecedence == Arg(0).Precedence &&
                                 (assoc == AssocType.xfx || assoc == AssocType.xfy));
-                    sb.AppendPacked(Arg(0).ToWriteString(level + 1), mustPack);
+                    sb.AppendPacked(Arg(0, false).ToWriteString(level + 1), mustPack);
 
                     sb.AppendPossiblySpaced(FunctorToString);
 
                     mustPack =
                         CompoundPrecedence < Arg(1).Precedence ||
                         (CompoundPrecedence == Arg(1).Precedence && (assoc == AssocType.xfx || assoc == AssocType.yfx));
-                    sb.AppendPacked(Arg(1).ToWriteString(level + 1), mustPack);
+                    sb.AppendPacked(Arg(1, false).ToWriteString(level + 1), mustPack);
 
                     return sb.ToString();
                 }
@@ -691,21 +691,21 @@ namespace Prolog
                     {
                         case AssocType.fx:
                             sb.Append(FunctorToString);
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
+                            sb.AppendPacked(Arg(0, false).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
                             break;
 
                         case AssocType.fy:
                             sb.Append(FunctorToString);
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
+                            sb.AppendPacked(Arg(0, false).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
                             break;
 
                         case AssocType.xf:
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
+                            sb.AppendPacked(Arg(0, false).ToWriteString(level + 1), CompoundPrecedence <= Arg(0).Precedence);
                             sb.AppendPossiblySpaced(FunctorToString);
                             break;
 
                         case AssocType.yf:
-                            sb.AppendPacked(Arg(0).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
+                            sb.AppendPacked(Arg(0, false).ToWriteString(level + 1), CompoundPrecedence < Arg(0).Precedence);
                             sb.AppendPossiblySpaced(FunctorToString);
                             break;
                     }
@@ -1406,7 +1406,7 @@ namespace Prolog
                         sb.Append(CommaAtLevel(level));
                     }
 
-                    sb.AppendPacked(t.Arg(0).ToWriteString(level + 1), t.Arg(0).FunctorIsBinaryComma);
+                    sb.AppendPacked(t.Arg(0, false).ToWriteString(level + 1), t.Arg(0).FunctorIsBinaryComma);
                     t = t.Arg(1);
                 }
 

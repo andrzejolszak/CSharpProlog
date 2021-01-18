@@ -151,6 +151,7 @@ namespace Prolog
             Halted = false;
 
             SolutionSet solutions = new SolutionSet();
+            this.ExecutionDetails?.Reset();
 
             try
             {

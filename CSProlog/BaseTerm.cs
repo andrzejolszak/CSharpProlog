@@ -413,9 +413,14 @@ namespace Prolog
                 return false;
             }
 
-            public BaseTerm Arg(int pos)
+            public BaseTerm Arg(int pos, bool chainEnd = true)
             {
-                return CompoundArgs[pos].ChainEnd();
+                if (chainEnd)
+                {
+                    return CompoundArgs[pos].ChainEnd();
+                }
+
+                return CompoundArgs[pos];
             }
 
             public void SetArg(int pos, BaseTerm t)

@@ -14,6 +14,7 @@
 -------------------------------------------------------------------------------------------*/
 
 using System.Collections.Generic;
+using System.Text;
 using static Prolog.PrologEngine;
 
 namespace Prolog
@@ -24,15 +25,43 @@ namespace Prolog
 
         public List<string> CurrentTermHistory { get; private set; } = new List<string>(1000);
 
+        public string CurrentTermHistoryString => "\r\n" + string.Join("\r\n", this.CurrentTermHistory);
+
         public void Reset()
         {
             this.CurrentTermHistory.Clear();
         }
 
-        public void CurrentTermChanged(TermNode termNode)
+        public void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
         {
-            this.CurrentTermHistory.Add(termNode.ToString());
-            this.OnCurrentTermChanged?.Invoke(termNode);
+            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head}");
+            this.OnCurrentTermChanged?.Invoke(targetClause);
+        }
+
+        public void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified)
+        {
+            if (!unified)
+            {
+                this.CurrentTermHistory.Add("   -> No");
+            }
+            else
+            {
+                StringBuilder yes = new StringBuilder("   -> Yes");
+                if (varStackCountPreUnify < varStack.Count)
+                {
+                    yes.Append(": ");
+
+                    object[] asArray = varStack.ToArray();
+                    for (int i = varStack.Count - varStackCountPreUnify - 1; i >= 0; i--)
+                    {
+                        yes.Append((asArray[i] as BaseTerm).ToWriteString(0) + ", ");
+                    }
+
+                    yes.Remove(yes.Length - 2, 2);
+                }
+
+                this.CurrentTermHistory.Add(yes.ToString());
+            }
         }
     }
 }
