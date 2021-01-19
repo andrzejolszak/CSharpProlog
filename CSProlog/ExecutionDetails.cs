@@ -21,16 +21,23 @@ namespace Prolog
 {
     public class ExecutionDetails
     {
+
+
+        public List<string> CallHistory { get; private set; } = new List<string>(1000);
+
+        public string CallHistoryString => "\r\n" + string.Join("\r\n", this.CallHistory);
+
         public List<string> CurrentTermHistory { get; private set; } = new List<string>(1000);
 
         public string CurrentTermHistoryString => "\r\n" + string.Join("\r\n", this.CurrentTermHistory);
 
         public void Reset()
         {
+            this.CallHistory.Clear();
             this.CurrentTermHistory.Clear();
         }
 
-        public void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
+        internal void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
         {
             if ((goal.Head.Name == "true/0" && targetClause.Head.Name == "true/0")
                 || (goal.Head.Name == "fail/0" && targetClause.Head.Name == "fail/0"))
@@ -44,7 +51,7 @@ namespace Prolog
             this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head}{postfix} [ln {line}]");
         }
 
-        public void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified, bool isFailUnification)
+        internal void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified, bool isFailUnification)
         {
             if (!unified)
             {
@@ -68,6 +75,41 @@ namespace Prolog
 
                 this.CurrentTermHistory.Add(yes.ToString());
             }
+        }
+
+        internal void FactCall(TermNode goalListHead)
+        {
+            this.CallHistory.Add(new string(' ', goalListHead.Level) + "Call: " + goalListHead.Head);
+        }
+
+        internal void Exit(CallReturn exit)
+        {
+            this.CallHistory.Add(new string(' ', exit.SavedGoal.Level) + "Exit: " + exit.SavedGoal.Head);
+        }
+
+        internal void CallCall(CallReturn callReturn)
+        {
+            this.CallHistory.Add(new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head);
+        }
+
+        internal void FailCall(TermNode goalListHead)
+        {
+            this.CallHistory.Add(new string(' ', goalListHead.Level) + "Call: " + goalListHead.Head);
+        }
+
+        internal void PredicateRuleCall(CallReturn callReturn)
+        {
+            this.CallHistory.Add(new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head);
+        }
+
+        internal void Failed(TermNode saveGoal)
+        {
+            this.CallHistory.Add(new string(' ', saveGoal.Level) + "Fail: " + saveGoal.Head);
+        }
+
+        internal void BuiltInCall(TermNode saveGoal)
+        {
+            this.CallHistory.Add(new string(' ', saveGoal.Level) + "Call: " + saveGoal.Head);
         }
     }
 }

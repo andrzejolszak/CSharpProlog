@@ -91,6 +91,7 @@ dar1 :- fail.
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("foo1", 5);
+            prolog.ExecutionDetails.CallHistoryString.Should().Be("abc");
             prolog.ExecutionDetails.CurrentTermHistoryString.Should().Be(
                 @"
 ?: foo1 = foo1 [ln 18]

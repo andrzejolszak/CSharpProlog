@@ -444,7 +444,8 @@ namespace Prolog
                         Debugger(sp, sp, true);
                     }
 
-                    CallStack.Pop();
+                    CallReturn exit = CallStack.Pop();
+                    this.ExecutionDetails?.Exit(exit);
 
                     goalListHead = sp.NextGoal;
 
@@ -511,13 +512,13 @@ namespace Prolog
                     Debugger(saveGoal, currClause, false);
                 }
 
-                this.ExecutionDetails?.CurrentGoalBeforeUnify(goalListHead, currClause);
-                int currVarStackCount = this.CurrVarStack.Count;
+                this.ExecutionDetails?.CurrentGoalBeforeUnify(saveGoal, currClause);
+                int varStackCountBeforeUnify = this.CurrVarStack.Count;
 
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
                 if (cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, true, goalListHead.Term.Name == "fail/0");
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Term.Name == "fail/0");
 
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
 
@@ -530,12 +531,14 @@ namespace Prolog
                     if (currClause == null) // body is null, so matching was against a fact
                     {
                         goalListHead = goalListHead.NextGoal;
+                        this.ExecutionDetails?.FactCall(goalListHead ?? saveGoal);
 
                         findFirstClause = true;
                     }
                     // BUILT-IN
                     else if ((builtinId = currClause.BuiltinId) != BI.none)
                     {
+                        bool backtrack = false;
                         if (builtinId == BI.call)
                         {
                             t = goalListHead.Head.Arg(0);
@@ -555,6 +558,7 @@ namespace Prolog
                             tn0 = t.ToGoalList(stackSize, goalListHead.Level + 1);
 
                             CallReturn callReturn = new CallReturn(saveGoal);
+                            this.ExecutionDetails?.CallCall(callReturn);
                             CallStack.Push(callReturn);
 
                             if (Reporting)
@@ -584,18 +588,59 @@ namespace Prolog
                         }
                         else if (builtinId == BI.fail)
                         {
+                            this.ExecutionDetails?.FailCall(saveGoal);
+                            this.ExecutionDetails?.Failed(saveGoal);
+
                             if (!(redo = CanBacktrack()))
                             {
                                 return false;
                             }
                         }
-                        else if (DoBuiltin(builtinId, out findFirstClause))
+                        else
                         {
+                            this.ExecutionDetails?.BuiltInCall(saveGoal);
+                            if (DoBuiltin(builtinId, out findFirstClause))
+                            {
+
+                            }
+                            else
+                            {
+                                backtrack = true;
+                            }
                         }
-                        else if (!(redo = CanBacktrack()))
+
+                        if (backtrack)
                         {
-                            return false;
+                            this.ExecutionDetails?.Failed(saveGoal);
+                            if (!(redo = CanBacktrack()))
+                            {
+                                return false;
+                            }
                         }
+
+                        /*
+                                                 else
+                        {
+                            this.ExecutionDetails?.BuiltInCall(saveGoal);
+                            if (DoBuiltin(builtinId, out findFirstClause))
+                            {
+
+                            }
+                            else
+                            {
+                                backtrack = true;
+                            }
+                        }
+
+                        if (backtrack)
+                        {
+                            this.ExecutionDetails?.Failed(saveGoal);
+                            if (!(redo = CanBacktrack()))
+                            {
+                                return false;
+                            }
+                        }
+                         */
                     }
                     // PREDICATE RULE
                     else // replace goal by body of matching clause of defining predicate
@@ -644,6 +689,7 @@ namespace Prolog
                         }
 
                         CallReturn callReturn = new CallReturn(saveGoal);
+                        this.ExecutionDetails?.PredicateRuleCall(callReturn);
                         CallStack.Push(callReturn);
 
                         if (Reporting)
@@ -659,7 +705,8 @@ namespace Prolog
                 }
                 else
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, currVarStackCount, false, false);
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, false, false);
+                    this.ExecutionDetails?.Failed(saveGoal);
 
                     if (!(redo = CanBacktrack())) // unify failed - try backtracking
                     {
