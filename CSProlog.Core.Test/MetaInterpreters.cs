@@ -56,7 +56,7 @@ mi1(Goal) :-
             "mi1(natnum(X)), X = s(0)".True(consult);
         }
 
-        [Fact(Skip = "hangs")]
+        [Fact]
         public void VanillaCleanRepresentation()
         {
             string consult = @"
@@ -76,6 +76,40 @@ defaulty_better(G, g(G)) :-
         G \= (_,_).";
 
             "mi_clause(natnum(0), true).".True(consult);
+            "mi_clause(natnum(s(X)), g(natnum(X))).".True(consult);
+        }
+
+        [Fact]
+        public void MetaCircular()
+        {
+            string consult = @"
+natnum(0).
+natnum(s(X)) :- natnum(X).
+
+mi_circ(true).
+mi_circ((A,B)) :-
+        mi_circ(A),
+        mi_circ(B).
+mi_circ(clause(A,B)) :-
+        clause(A,B).
+mi_circ(A \= B) :-
+        A \= B.
+mi_circ(G) :-
+        G \= true,
+        G \= (_,_),
+        G \= (_\=_),
+        G \= clause(_,_),
+        clause(G, Body),
+        mi_circ(Body).";
+
+            "mi_circ(natnum(X)), X = 0.".True(consult);
+            "mi_circ(natnum(X)), X = s(s(0)).".True(consult);
+            "mi_circ(mi_circ(natnum(0)))".True(consult);
+            "mi_circ(mi_circ(natnum(s(0))))".True(consult);
+            "mi_circ(mi_circ(natnum(s(s(0))))).".True(consult);
+            "mi_circ(mi_circ(natnum(X))), X = 0.".True(consult);
+            "mi_circ(mi_circ(natnum(X))), X = s(0).".True(consult);
+            "mi_circ(mi_circ(natnum(X))), X = s(s(0)).".True(consult);
         }
 
     }
