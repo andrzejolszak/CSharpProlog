@@ -923,9 +923,9 @@ namespace Prolog
                     TermNode bodyNode = clause.NextNode;
 
                     // Register the point to which we must undo unification. + 1 to avoid undoing the last choicepoint
-                    int marker = varStack.Count + 1; 
+                    int marker = varStack.Count + 1;
 
-                    if (clause.Head.Unify(clauseHead, varStack))
+                    if (clause.Head.IsUnifiableWith(clauseHead, varStack))
                     {
                         if (bodyNode == null) // a fact
                         {

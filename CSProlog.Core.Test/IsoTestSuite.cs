@@ -301,10 +301,23 @@ namespace CSPrologTest
         [InlineData(@"T: clause(natnum(s(1)), natnum(1))")]
         [InlineData(@"T: clause(natnum(s(X, 1)), (natnum(X), true, Z = C, natnum(1)))")]
         [InlineData(@"T: clause(natnum(s(X, Y)), (natnum(X), true, Z = C, natnum(1))), Y = 1")]
+        [InlineData(@"T: clause(natnum0(s(0)), X), X = (natnum(0), true, Y = Z)")]
+        [InlineData(@"T: clause(natnum0(s(s(0))), X), X = (natnum(s(0)), true, Y = Z)")]
+        [InlineData(@"T: A = s(0), clause(natnum0(A), X), X = (natnum(0), true, Y = Z)")]
+        [InlineData(@"T: A = s(s(0)), clause(natnum0(A), X), X = (natnum(s(0)), true, Y = Z)")]
+        [InlineData(@"T: A = s(s(0)), B = natnum0(A), clause(B, X), X = (natnum(s(0)), true, Y = Z)")]
+        [InlineData(@"T: clause(banan(P), R), R = (X = 3)")]
+        [InlineData(@"T: clause(banan(P), R), R = (clause(banan(Z), X))")]
         public void Clause(string test)
         {
             string consult =
 @"
+natnum0(0).
+natnum0(s(X)) :- natnum(X), true, Y = Z.
+
+banan(X) :- clause(banan(Z), X).
+banan(X) :- X = 3.
+
 single(1).
 natnum(0) :- true.
 natnum(1).

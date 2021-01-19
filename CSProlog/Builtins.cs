@@ -3520,8 +3520,7 @@ namespace Prolog
 
                     if (t1.IsVar)
                     {
-                        IO.ThrowRuntimeException("First argument of clause/2 is not sufficiently instantiated", CurrVarStack,
-                            term);
+                        IO.ThrowRuntimeException("First argument of clause/2 is not sufficiently instantiated", CurrVarStack, term);
 
                         return false;
                     }
