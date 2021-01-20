@@ -223,7 +223,7 @@ namespace Prolog
                             Solution1.IsLast = Halted || !FindChoicePoint();
 
                             yield return Solution1;
-                        } while (!Halted && CanBacktrack(false));
+                        } while (!Halted && CanBacktrack(false, null));
                     }
                     else // history command
                     {
@@ -391,7 +391,6 @@ namespace Prolog
             TermNode pHead;
             TermNode pTail;
             TermNode tn0;
-            TermNode tn1;
             redo = false; // set by CanBacktrack if a choice point was found
 
             while (goalListHead != null) // consume the last of goalNodes until it is exhausted
@@ -445,7 +444,7 @@ namespace Prolog
                     }
 
                     CallReturn exit = CallStack.Pop();
-                    this.ExecutionDetails?.Exit(exit);
+                    this.ExecutionDetails?.Exit(exit.SavedGoal);
 
                     goalListHead = sp.NextGoal;
 
@@ -500,7 +499,8 @@ namespace Prolog
 
                 if (currClause.NextClause != null) // no redo possible => fail, make explicit when tracing
                 {
-                    CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause));
+                    CallStack.TryPeek(out CallReturn caller);
+                    CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause, saveGoal, caller?.SavedGoal));
                 }
 
                 // instantiations must be retained for clause body -> create newVars
@@ -528,10 +528,17 @@ namespace Prolog
                     }
 
                     // FACT
-                    if (currClause == null) // body is null, so matching was against a fact
+                    // body is null or :- true., we are matching against a fact
+                    if (currClause == null || (currClause.Term != null && currClause.Term.CompoundTermType == TermType.Atom && currClause.NextGoal == null && "true".Equals(currClause.Term.CompoundFunctor)))
                     {
                         goalListHead = goalListHead.NextGoal;
-                        this.ExecutionDetails?.FactCall(goalListHead ?? saveGoal);
+                        this.ExecutionDetails?.FactCall(saveGoal);
+                        this.ExecutionDetails?.Exit(saveGoal);
+
+                        if(CallStack.TryPeek(out CallReturn caller) && caller.SavedGoal != null)
+                        {
+                            this.ExecutionDetails?.Exit(caller.SavedGoal);
+                        }
 
                         findFirstClause = true;
                     }
@@ -571,13 +578,17 @@ namespace Prolog
                         }
                         else if (builtinId == BI.or)
                         {
-                            tn1 = goalListHead.Head.Arg(1).ToGoalList(stackSize, goalListHead.Level);
-                            CurrVarStack.Push(new ChoicePoint(goalListHead == null
+                            TermNode tn1 = goalListHead.Head.Arg(1).ToGoalList(stackSize, goalListHead.Level);
+                            tn1 = goalListHead == null
                                 ? tn1
-                                : tn1.Append(goalListHead.NextGoal), null));
+                                : tn1.Append(goalListHead.NextGoal);
 
                             tn0 = goalListHead.Head.Arg(0).ToGoalList(stackSize, goalListHead.Level);
                             goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextGoal);
+
+                            CallStack.TryPeek(out CallReturn caller);
+                            CurrVarStack.Push(new ChoicePoint(tn1, null, goalListHead, caller?.SavedGoal));
+
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.cut)
@@ -589,9 +600,8 @@ namespace Prolog
                         else if (builtinId == BI.fail)
                         {
                             this.ExecutionDetails?.FailCall(saveGoal);
-                            this.ExecutionDetails?.Failed(saveGoal);
 
-                            if (!(redo = CanBacktrack()))
+                            if (!(redo = CanBacktrack(saveGoal)))
                             {
                                 return false;
                             }
@@ -611,36 +621,11 @@ namespace Prolog
 
                         if (backtrack)
                         {
-                            this.ExecutionDetails?.Failed(saveGoal);
-                            if (!(redo = CanBacktrack()))
+                            if (!(redo = CanBacktrack(saveGoal)))
                             {
                                 return false;
                             }
                         }
-
-                        /*
-                                                 else
-                        {
-                            this.ExecutionDetails?.BuiltInCall(saveGoal);
-                            if (DoBuiltin(builtinId, out findFirstClause))
-                            {
-
-                            }
-                            else
-                            {
-                                backtrack = true;
-                            }
-                        }
-
-                        if (backtrack)
-                        {
-                            this.ExecutionDetails?.Failed(saveGoal);
-                            if (!(redo = CanBacktrack()))
-                            {
-                                return false;
-                            }
-                        }
-                         */
                     }
                     // PREDICATE RULE
                     else // replace goal by body of matching clause of defining predicate
@@ -706,9 +691,8 @@ namespace Prolog
                 else
                 {
                     this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, false, false);
-                    this.ExecutionDetails?.Failed(saveGoal);
 
-                    if (!(redo = CanBacktrack())) // unify failed - try backtracking
+                    if (!(redo = CanBacktrack(saveGoal))) // unify failed - try backtracking
                     {
                         return false;
                     }
@@ -726,40 +710,53 @@ namespace Prolog
             goalListHead = cut;
         }
 
-        private bool CanBacktrack() // returns true if choice point was found
+        private bool CanBacktrack(TermNode saveGoal) // returns true if choice point was found
         {
-            return CanBacktrack(true);
+            return CanBacktrack(true, saveGoal);
         }
 
-        private bool CanBacktrack(bool local) // local = false if user wants more (so as not to trigger the debugger)
+        private bool CanBacktrack(bool local, TermNode saveGoal) // local = false if user wants more (so as not to trigger the debugger)
         {
-            Object o;
-            ChoicePoint cp;
+            if (saveGoal != null)
+            {
+                this.ExecutionDetails?.Failed(saveGoal);
+            }
 
             findFirstClause = false; // to prevent resetting to the first clause upon re-entering ExecuteGoalList
 
             while (CurrVarStack.Count != 0)
             {
-                o = CurrVarStack.Pop();
+                object o = CurrVarStack.Pop();
 
                 if (o is Variable)
                 {
                     ((Variable)o).Unbind();
                 }
-                else if (o is ChoicePoint && ((ChoicePoint)o).IsActive)
+                else if (o is ChoicePoint cp)
                 {
-                    goalListHead = (cp = (ChoicePoint)o).GoalListHead; // this was the goal we wanted to prove ...
-
-                    if (cp.NextClause == null) // no next predicate clause ...
+                    this.ExecutionDetails?.Failed(cp.PrevGoal);
+                    if (cp.IsActive)
                     {
-                        findFirstClause = true; // ... so find predicate belonging to the goal last head
-                    }
-                    else
-                    {
-                        goalListHead.NextClause = cp.NextClause; // ... and this is next predicate clause to be tried
-                    }
+                        // TODO: CallStack.Pop();
+                        if(cp.CallerGoal != null)
+                        {
+                            this.ExecutionDetails?.Redo(cp.CallerGoal);
+                        }
 
-                    return true;
+                        goalListHead = cp.GoalListHead; // this was the goal we wanted to prove ...
+
+
+                        if (cp.NextClause == null) // no next predicate clause ...
+                        {
+                            findFirstClause = true; // ... so find predicate belonging to the goal last head
+                        }
+                        else
+                        {
+                            goalListHead.NextClause = cp.NextClause; // ... and this is next predicate clause to be tried
+                        }
+
+                        return true;
+                    }
                 }
             }
 
@@ -1063,14 +1060,20 @@ namespace Prolog
         public class ChoicePoint
         {
             protected bool active;
+
+            public TermNode PrevGoal { get; }
+            public TermNode CallerGoal { get; }
+
             protected TermNode goalListHead;
             protected ClauseNode nextClause; // next clause to be tried for goalListHead
 
-            public ChoicePoint(TermNode goal, ClauseNode nextClause)
+            public ChoicePoint(TermNode goal, ClauseNode nextClause, TermNode prevGoal, TermNode callerGoal)
             {
                 goalListHead = goal;
                 this.nextClause = nextClause;
                 active = true;
+                this.PrevGoal = prevGoal;
+                this.CallerGoal = callerGoal;
             }
 
             public TermNode GoalListHead => goalListHead;

@@ -15,8 +15,8 @@ ppp(Z, Y) :- Z = Y.
 ppp(X) :- 
     X = 1.
 
-a(X):-b(X).
-b(X):-d(X).
+a(X):-true,b(X).
+b(X):-d(X),true.
 b(X):-e(X).
 d(1).
 e(2).

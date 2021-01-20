@@ -1121,7 +1121,7 @@ namespace Prolog
                     }
                     else
                     {
-                        CanBacktrack();
+                        CanBacktrack(null);
                         return false;
                     }
 

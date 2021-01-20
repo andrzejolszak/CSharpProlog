@@ -223,16 +223,16 @@ namespace Prolog
 
             protected BaseTerm[] CompoundArgs { get; set; }
             protected AssocType AssocType { get; set; }
-            protected object CompoundFunctor { get; set; }
+            public object CompoundFunctor { get; set; }
             protected short CompoundPrecedence { get; set; }
 
-            protected TermType CompoundTermType { get; set; }
+            public TermType CompoundTermType { get; set; }
 
             public string CommentHeader { get; set; }
             public string CommentBody { get; set; }
             public string TestGroup { get; set; }
 
-            protected int arity => CompoundArgs == null ? 0 : CompoundArgs.Length;
+            public int arity => CompoundArgs == null ? 0 : CompoundArgs.Length;
 
             // for variables: the varNo, for (some) other term types: unique int for functor+arity combination
             public int TermId { get; set; }

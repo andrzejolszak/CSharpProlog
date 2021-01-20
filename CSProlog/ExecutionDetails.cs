@@ -13,6 +13,7 @@
 
 -------------------------------------------------------------------------------------------*/
 
+using System;
 using System.Collections.Generic;
 using System.Text;
 using static Prolog.PrologEngine;
@@ -82,9 +83,9 @@ namespace Prolog
             this.CallHistory.Add(new string(' ', goalListHead.Level) + "Call: " + goalListHead.Head);
         }
 
-        internal void Exit(CallReturn exit)
+        internal void Exit(TermNode savedGoal)
         {
-            this.CallHistory.Add(new string(' ', exit.SavedGoal.Level) + "Exit: " + exit.SavedGoal.Head);
+            this.CallHistory.Add(new string(' ', savedGoal.Level) + "Exit: " + savedGoal.Head);
         }
 
         internal void CallCall(CallReturn callReturn)
@@ -110,6 +111,11 @@ namespace Prolog
         internal void BuiltInCall(TermNode saveGoal)
         {
             this.CallHistory.Add(new string(' ', saveGoal.Level) + "Call: " + saveGoal.Head);
+        }
+
+        internal void Redo(TermNode callerGoal)
+        {
+            this.CallHistory.Add(new string(' ', callerGoal.Level) + "Redo: " + callerGoal.Head);
         }
     }
 }
