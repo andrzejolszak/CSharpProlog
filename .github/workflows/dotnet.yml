@@ -13,6 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: zyborg/dotnet-tests-report@v1.3.0
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
