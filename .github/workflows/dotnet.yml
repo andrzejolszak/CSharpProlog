@@ -26,6 +26,6 @@ jobs:
         report_title: CSharpProlog Tests
         github_token: ${{ secrets.GITHUB_TOKEN }}
         gist_name: csharpprolog_tests.md
-        gist_badge_label: 'CSharpProlog: %Counters_passed%/%Counters_total%'
+        gist_badge_label: 'CSharpProlog Tests: %Counters_passed%/%Counters_total%'
         gist_token: ${{ secrets.GIST_TOKEN }}
         trx_xsl_path: trx2md.xsl
