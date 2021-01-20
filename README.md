@@ -12,7 +12,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        var prolog = new PrologEngine(persistentCommandHistory: false);
+        var prolog = new PrologEngine();
         
         prolog.ConsultFromString("human(socrates).");
         prolog.ConsultFromString("mortal(X) :- human(X).");
@@ -40,9 +40,6 @@ Prolog Engine
 
 ### CSProlog.Core.Test
 Unit Tests
-
-### PL.NETCore
-Dotnet Core Console Interactive Interpreter (tested in linux and windows)
 
 ### IDE
 Windows Forms IDE
