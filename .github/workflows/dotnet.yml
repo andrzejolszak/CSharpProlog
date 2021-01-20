@@ -20,10 +20,11 @@ jobs:
     - name: Unit tests CSharpProlog
       uses: zyborg/dotnet-tests-report@v1
       with:
-          project_path: CSProlog.Core.Test
-          report_name: csharpprolog_tests
-          report_title: CSharpProlog Tests
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          gist_name: csharpprolog_tests.md
-          gist_badge_label: 'CSharpProlog: %Counters_passed%/%Counters_total%'
-          gist_token: ${{ secrets.GIST_TOKEN }}
+        skip_check_run: true
+        project_path: CSProlog.Core.Test
+        report_name: csharpprolog_tests
+        report_title: CSharpProlog Tests
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        gist_name: csharpprolog_tests.md
+        gist_badge_label: 'CSharpProlog: %Counters_passed%/%Counters_total%'
+        gist_token: ${{ secrets.GIST_TOKEN }}
