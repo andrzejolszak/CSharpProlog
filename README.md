@@ -1,5 +1,7 @@
 A C# implementation of Prolog
 
+[![Build Status](https://github.com/andrzejolszak/CSharpProlog/workflows/.NET/badge.svg)](https://github.com/andrzejolszak/CSharpProlog/actions)
+
 ```csharp
 using System;
 using Prolog;
