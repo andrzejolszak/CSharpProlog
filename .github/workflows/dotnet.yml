@@ -17,16 +17,13 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.x
-    - name: use this action, test solution dir
+    - name: Unit tests CSharpProlog
       uses: zyborg/dotnet-tests-report@v1
       with:
           project_path: CSProlog.Core.Test
-          report_name: my_project_tests
-          report_title: My Project Tests
+          report_name: csharpprolog_tests
+          report_title: CSharpProlog Tests
           github_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+          gist_name: csharpprolog_tests.md
+          gist_badge_label: 'CSharpProlog: %Counters_passed%/%Counters_total%'
+          gist_token: ${{ secrets.GIST_TOKEN }}
