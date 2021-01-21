@@ -79,6 +79,8 @@ namespace Prolog
                 NextNode = nextNode;
             }
 
+            public bool IsTrueAtom => this.Term != null && this.Term.CompoundTermType == TermType.Atom && this.NextGoal == null && "true".Equals(this.Term.CompoundFunctor);
+
             public BaseTerm Head { get; set; }
 
             public ClauseNode NextClause { get; set; }

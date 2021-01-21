@@ -223,7 +223,7 @@ namespace Prolog
                             Solution1.IsLast = Halted || !FindChoicePoint();
 
                             yield return Solution1;
-                        } while (!Halted && CanBacktrack(false, null));
+                        } while (!Halted && CanBacktrack(null));
                     }
                     else // history command
                     {
@@ -461,8 +461,9 @@ namespace Prolog
                     //if (reporting)
                     //    Debugger(goalListHead, currClause, false);
 
-                    if (!goalListHead.FindPredicateDefinition(PredTable)) // undefined predicate
+                    if (!goalListHead.FindPredicateDefinition(PredTable))
                     {
+                        // Undefined
                         BaseTerm goal = goalListHead.Head;
 
                         switch (PredTable.ActionWhenUndefined(goal.FunctorToString, goal.Arity))
@@ -529,13 +530,13 @@ namespace Prolog
 
                     // FACT
                     // body is null or :- true., we are matching against a fact
-                    if (currClause == null || (currClause.Term != null && currClause.Term.CompoundTermType == TermType.Atom && currClause.NextGoal == null && "true".Equals(currClause.Term.CompoundFunctor)))
+                    if (currClause == null || currClause.IsTrueAtom)
                     {
                         goalListHead = goalListHead.NextGoal;
                         this.ExecutionDetails?.FactCall(saveGoal);
                         this.ExecutionDetails?.Exit(saveGoal);
 
-                        if(CallStack.TryPeek(out CallReturn caller) && caller.SavedGoal != null)
+                        if(goalListHead != null && CallStack.TryPop(out CallReturn caller) && caller.SavedGoal != null)
                         {
                             this.ExecutionDetails?.Exit(caller.SavedGoal);
                         }
@@ -608,6 +609,9 @@ namespace Prolog
                         }
                         else
                         {
+                            CallReturn callReturn = new CallReturn(saveGoal);
+                            CallStack.Push(callReturn);
+
                             this.ExecutionDetails?.BuiltInCall(saveGoal);
                             if (DoBuiltin(builtinId, out findFirstClause))
                             {
@@ -710,12 +714,7 @@ namespace Prolog
             goalListHead = cut;
         }
 
-        private bool CanBacktrack(TermNode saveGoal) // returns true if choice point was found
-        {
-            return CanBacktrack(true, saveGoal);
-        }
-
-        private bool CanBacktrack(bool local, TermNode saveGoal) // local = false if user wants more (so as not to trigger the debugger)
+        private bool CanBacktrack(TermNode saveGoal) // local = false if user wants more (so as not to trigger the debugger)
         {
             if (saveGoal != null)
             {
@@ -737,9 +736,9 @@ namespace Prolog
                     this.ExecutionDetails?.Failed(cp.PrevGoal);
                     if (cp.IsActive)
                     {
-                        // TODO: CallStack.Pop();
-                        if(cp.CallerGoal != null)
+                        if (cp.CallerGoal != null)
                         {
+                            // TODO: replace callerGoal with the callstack
                             this.ExecutionDetails?.Redo(cp.CallerGoal);
                         }
 
@@ -748,6 +747,12 @@ namespace Prolog
 
                         if (cp.NextClause == null) // no next predicate clause ...
                         {
+                            // TODO: this or test sensitive to .Count condition
+                            if (CallStack.Count > 0 && CallStack.Peek().SavedGoal == cp.PrevGoal)
+                            {
+                                CallStack.Pop();
+                            }
+
                             findFirstClause = true; // ... so find predicate belonging to the goal last head
                         }
                         else
@@ -758,6 +763,11 @@ namespace Prolog
                         return true;
                     }
                 }
+            }
+
+            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
+            {
+                this.ExecutionDetails?.Failed(remaining.SavedGoal);
             }
 
             return false;
@@ -1063,6 +1073,7 @@ namespace Prolog
 
             public TermNode PrevGoal { get; }
             public TermNode CallerGoal { get; }
+            public bool IsOr { get; }
 
             protected TermNode goalListHead;
             protected ClauseNode nextClause; // next clause to be tried for goalListHead
