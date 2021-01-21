@@ -74,6 +74,8 @@ namespace Prolog
 
        !             :== cut.
 
+       ';'(A, B) :- A ; B.
+
 %% call(:Goal)
 %
 % Invoke Goal as a goal. Note that clauses may have variables as subclauses, which is identical to call/1.
