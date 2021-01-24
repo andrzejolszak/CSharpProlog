@@ -78,9 +78,9 @@ namespace Prolog
             }
         }
 
-        internal void FactCall(TermNode goalListHead)
+        internal void FactCall(int level, string goalListHead)
         {
-            this.CallHistory.Add(new string(' ', goalListHead.Level) + "Call: " + goalListHead.Head);
+            this.CallHistory.Add(new string(' ', level) + "Call: " + goalListHead);
         }
 
         internal void Exit(TermNode savedGoal)
@@ -116,6 +116,11 @@ namespace Prolog
         internal void Redo(TermNode callerGoal)
         {
             this.CallHistory.Add(new string(' ', callerGoal.Level) + "Redo: " + callerGoal.Head);
+        }
+
+        internal void NextSolution(TermNode prevGoal)
+        {
+            this.CallHistory.Add(new string(' ', prevGoal.Level) + "Next: " + prevGoal.Head);
         }
     }
 }

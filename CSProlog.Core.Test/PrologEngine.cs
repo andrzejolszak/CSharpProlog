@@ -11,6 +11,7 @@ namespace CSPrologTest
 person(alice).
 person(bob).
 
+ppp(1, 2).
 ppp(Z, Y) :- Z = Y.
 ppp(X) :- 
     X = 1.
@@ -19,6 +20,7 @@ a(X):-true,b(X).
 b(X):-d(X),true.
 b(X):-e(X).
 d(1).
+d(2) :- 1 = X, 2 = Y, X = Y.
 e(2).
 a(X):-var(Z), c(X).
 c(X):-call(f(X)).
@@ -32,6 +34,14 @@ ear1(X) :- true.
 far1 :- 
     fail.
 dar1 :- fail.
+
+natnum(0).
+natnum(s(X)) :- 
+    natnum(X),
+    true,
+    Y = Z.
+
+sentence --> [a], [b] ; [c], [d] ; [e].
 ";
 
         [Fact]
@@ -91,6 +101,7 @@ dar1 :- fail.
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("foo1", 5);
+            // SWI-compliant
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
 Call: foo1
  Call: bar1
@@ -122,7 +133,13 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("person(X)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            // SWI-compliant
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: person({X})
+Exit: person({X=alice})
+Next: person({X})
+Call: person({X})
+Exit: person({X=bob})");
         }
 
         [Fact]
@@ -134,7 +151,10 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("person(bob)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            // SWI-compliant
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: person(bob)
+Exit: person(bob)");
         }
 
         [Fact]
@@ -146,7 +166,9 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("person(nope)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: person(nope)
+Fail: person(nope)");
         }
 
         [Fact]
@@ -158,7 +180,11 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("ppp(1)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: ppp(1)
+ Call: {X=1}=1
+ Exit: {X=1}=1
+Exit: ppp(1)");
         }
 
         [Fact]
@@ -170,7 +196,12 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("ppp(5, 6)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            ss.Success.Should().BeFalse();
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: ppp(5, 6)
+ Call: {5}={6}
+ Fail: {5}={6}
+Fail: ppp(5, 6)");
         }
 
         [Fact]
@@ -182,7 +213,25 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("a(3)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call:a(3)
+ Call:true
+ Exit:true
+ Call:b(3)
+  Call:d(3)
+  Fail:d(3)
+ Redo:b(3)
+  Call:e(3)
+  Fail:e(3)
+ Fail:b(3)
+Redo:a(3)
+ Call:var(_10402)
+ Exit:var(_10402)
+ Call:c(3)
+  Call:f(3)
+  Exit:f(3)
+ Exit:c(3)
+Exit:a(3)");
         }
 
         [Fact]
@@ -206,7 +255,98 @@ Fail: foo1");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("a(X)", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call:a(_7856)
+ Call:true
+ Exit:true
+ Call:b(_7856)
+  Call:d(_7856)
+  Exit:d(1)
+  Call:true
+  Exit:true
+ Exit:b(1)
+Exit:a(1)
+Call:1=3
+Fail:1=3
+Redo:d(_7856)
+  Call:_8184=1
+  Exit:1=1
+  Call:_8186=2
+  Exit:2=2
+  Call:1=2
+  Fail:1=2
+ Fail:d(_7856)
+Redo:b(_7856)
+  Call:e(_7856)
+  Exit:e(2)
+ Exit:b(2)
+Exit:a(2)
+Call:2=3
+Fail:2=3
+Redo:a(_7856)
+  Call:var(_8310)
+  Exit:var(_8310)
+  Call:c(_7856)
+   Call:f(_7856)
+   Exit:f(3)
+  Exit:c(3)
+ Exit:a(3)
+ Call:3=3
+ Exit:3=3");
+        }
+
+        [Fact]
+        public void ExecutionDetails10()
+        {
+            PrologEngine prolog = new PrologEngine(new ExecutionDetails());
+
+            prolog.ConsultFromString(_execDetailsConsult);
+
+            SolutionSet ss = null;
+            ss = prolog.GetAllSolutions("natnum(s(s(s(0))))", 5);
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+ Call:natnum(s(s(s(0))))
+  Call:natnum(s(s(0)))
+   Call:natnum(s(0))
+    Call:natnum(0)
+    Exit:natnum(0)
+    Call:true
+    Exit:true
+    Call:true
+    Exit:true
+   Exit:natnum(s(0))
+   Call:true
+   Exit:true
+   Call:true
+   Exit:true
+  Exit:natnum(s(s(0)))
+  Call:true
+  Exit:true
+  Call:true
+  Exit:true
+ Exit:natnum(s(s(s(0))))");
+        }
+
+        [Fact]
+        public void ExecutionDetails11()
+        {
+            PrologEngine prolog = new PrologEngine(new ExecutionDetails());
+
+            prolog.ConsultFromString(_execDetailsConsult);
+
+            SolutionSet ss = null;
+            ss = prolog.GetAllSolutions("sentence([e], _)", 5);
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call:sentence([e], _6500)
+ Call:[e]=[a|_6772]
+ Fail:[e]=[a|_6772]
+Redo:sentence([e], _6500)
+ Call:[e]=[c|_6772]
+ Fail:[e]=[c|_6772]
+Redo:sentence([e], _6500)
+ Call:[e]=[e|_6500]
+ Exit:[e]=[e]
+Exit:sentence([e], [])");
         }
     }
 }

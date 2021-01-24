@@ -223,7 +223,7 @@ namespace Prolog
                             Solution1.IsLast = Halted || !FindChoicePoint();
 
                             yield return Solution1;
-                        } while (!Halted && CanBacktrack(null));
+                        } while (!Halted && CanBacktrack(null, true));
                     }
                     else // history command
                     {
@@ -516,6 +516,8 @@ namespace Prolog
                 this.ExecutionDetails?.CurrentGoalBeforeUnify(saveGoal, currClause);
                 int varStackCountBeforeUnify = this.CurrVarStack.Count;
 
+                string saveGoalPreUnifyCopy = this.ExecutionDetails != null ? saveGoal.Head.ToString() : null;
+
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
                 if (cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
                 {
@@ -533,7 +535,7 @@ namespace Prolog
                     if (currClause == null || currClause.IsTrueAtom)
                     {
                         goalListHead = goalListHead.NextGoal;
-                        this.ExecutionDetails?.FactCall(saveGoal);
+                        this.ExecutionDetails?.FactCall(saveGoal.Level, saveGoalPreUnifyCopy);
                         this.ExecutionDetails?.Exit(saveGoal);
 
                         if(goalListHead != null && CallStack.TryPop(out CallReturn caller) && caller.SavedGoal != null)
@@ -604,6 +606,7 @@ namespace Prolog
 
                             if (!(redo = CanBacktrack(saveGoal)))
                             {
+                                PopCallStackFailed();
                                 return false;
                             }
                         }
@@ -627,6 +630,7 @@ namespace Prolog
                         {
                             if (!(redo = CanBacktrack(saveGoal)))
                             {
+                                PopCallStackFailed();
                                 return false;
                             }
                         }
@@ -696,14 +700,40 @@ namespace Prolog
                 {
                     this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, false, false);
 
-                    if (!(redo = CanBacktrack(saveGoal))) // unify failed - try backtracking
+                    if (!(redo = CanBacktrack(currClause, failedUnify: true))) // unify failed - try backtracking
                     {
+                        if (goalListHead == saveGoal)
+                        {
+                            this.ExecutionDetails.FailCall(saveGoal);
+                            this.ExecutionDetails.Failed(saveGoal);
+                        }
+
+                        PopCallStackFailed();
+
                         return false;
                     }
                 }
             } // end of while
 
+            PopCallStackExit();
+
             return true;
+        }
+
+        private void PopCallStackExit()
+        {
+            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
+            {
+                this.ExecutionDetails?.Exit(remaining.SavedGoal);
+            }
+        }
+
+        private void PopCallStackFailed()
+        {
+            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
+            {
+                this.ExecutionDetails?.Failed(remaining.SavedGoal);
+            }
         }
 
         private void InsertCutFail()
@@ -714,11 +744,14 @@ namespace Prolog
             goalListHead = cut;
         }
 
-        private bool CanBacktrack(TermNode saveGoal) // local = false if user wants more (so as not to trigger the debugger)
+        private bool CanBacktrack(TermNode saveGoal, bool nextSolution = false, bool failedUnify = false) // local = false if user wants more (so as not to trigger the debugger)
         {
             if (saveGoal != null)
             {
-                this.ExecutionDetails?.Failed(saveGoal);
+                if (!failedUnify)
+                {
+                    this.ExecutionDetails?.Failed(saveGoal);
+                }
             }
 
             findFirstClause = false; // to prevent resetting to the first clause upon re-entering ExecuteGoalList
@@ -733,7 +766,18 @@ namespace Prolog
                 }
                 else if (o is ChoicePoint cp)
                 {
-                    this.ExecutionDetails?.Failed(cp.PrevGoal);
+                    if (nextSolution)
+                    {
+                        this.ExecutionDetails?.NextSolution(cp.PrevGoal);
+                    }
+                    else
+                    {
+                        if (!failedUnify)
+                        {
+                            this.ExecutionDetails?.Failed(cp.PrevGoal);
+                        }
+                    }
+
                     if (cp.IsActive)
                     {
                         if (cp.CallerGoal != null)
@@ -765,7 +809,7 @@ namespace Prolog
                 }
             }
 
-            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
+            while (CallStack.Count > 1 && CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
             {
                 this.ExecutionDetails?.Failed(remaining.SavedGoal);
             }
