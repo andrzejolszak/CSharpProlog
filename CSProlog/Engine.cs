@@ -523,6 +523,7 @@ namespace Prolog
                 {
                     this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Term.Name == "fail/0");
 
+                    TermNode prevCurrClause = currClause;
                     currClause = currClause.NextNode; // body - if any - of the matching predicate definition clause
 
                     if (Reporting)
@@ -534,13 +535,14 @@ namespace Prolog
                     // body is null or :- true., we are matching against a fact
                     if (currClause == null || currClause.IsTrueAtom)
                     {
-                        goalListHead = goalListHead.NextGoal;
                         this.ExecutionDetails?.FactCall(saveGoal.Level, saveGoalPreUnifyCopy);
                         this.ExecutionDetails?.Exit(saveGoal);
 
-                        if(goalListHead != null && CallStack.TryPop(out CallReturn caller) && caller.SavedGoal != null)
+                        goalListHead = goalListHead.NextGoal;
+                        if (CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal.NextGoal == goalListHead)
                         {
-                            this.ExecutionDetails?.Exit(caller.SavedGoal);
+                            CallStack.Pop();
+                            this.ExecutionDetails?.Exit(cr.SavedGoal);
                         }
 
                         findFirstClause = true;
@@ -604,11 +606,15 @@ namespace Prolog
                         {
                             this.ExecutionDetails?.FailCall(saveGoal);
 
-                            if (!(redo = CanBacktrack(saveGoal)))
+                            redo = CanBacktrack(saveGoal);
+                            
+                            PopCallStackFailed();
+
+                            if (!redo)
                             {
-                                PopCallStackFailed();
                                 return false;
                             }
+
                         }
                         else
                         {
@@ -628,9 +634,12 @@ namespace Prolog
 
                         if (backtrack)
                         {
-                            if (!(redo = CanBacktrack(saveGoal)))
+                            redo = CanBacktrack(saveGoal);
+                            
+                            PopCallStackFailed();
+
+                            if (!redo)
                             {
-                                PopCallStackFailed();
                                 return false;
                             }
                         }
@@ -702,14 +711,19 @@ namespace Prolog
 
                     if (!(redo = CanBacktrack(currClause, failedUnify: true))) // unify failed - try backtracking
                     {
-                        if (goalListHead == saveGoal)
-                        {
-                            this.ExecutionDetails.FailCall(saveGoal);
-                            this.ExecutionDetails.Failed(saveGoal);
-                        }
 
-                        PopCallStackFailed();
+                    }
 
+                    if (!redo && goalListHead == saveGoal /*&& CallStack.TryPeek(out CallReturn cr) && cr.NextGoal != null*/)
+                    {
+                        this.ExecutionDetails?.FailCall(saveGoal);
+                        this.ExecutionDetails?.Failed(saveGoal);
+                    }
+
+                    PopCallStackFailed();
+
+                    if (!redo)
+                    {
                         return false;
                     }
                 }
@@ -718,6 +732,20 @@ namespace Prolog
             PopCallStackExit();
 
             return true;
+
+            void PopCallStackFailed()
+            {
+                if (redo && CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal != null && cr.SavedGoal.NextGoal != null)
+                {
+                    this.ExecutionDetails?.Redo(cr.SavedGoal);
+                    return;
+                }
+
+                while (CallStack.TryPop(out CallReturn crr) && crr.SavedGoal != null)
+                {
+                    this.ExecutionDetails?.Failed(crr.SavedGoal);
+                }
+            }
         }
 
         private void PopCallStackExit()
@@ -725,14 +753,6 @@ namespace Prolog
             while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
             {
                 this.ExecutionDetails?.Exit(remaining.SavedGoal);
-            }
-        }
-
-        private void PopCallStackFailed()
-        {
-            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
-            {
-                this.ExecutionDetails?.Failed(remaining.SavedGoal);
             }
         }
 
@@ -780,12 +800,6 @@ namespace Prolog
 
                     if (cp.IsActive)
                     {
-                        if (cp.CallerGoal != null)
-                        {
-                            // TODO: replace callerGoal with the callstack
-                            this.ExecutionDetails?.Redo(cp.CallerGoal);
-                        }
-
                         goalListHead = cp.GoalListHead; // this was the goal we wanted to prove ...
 
 
