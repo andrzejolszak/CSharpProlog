@@ -42,6 +42,10 @@ natnum(s(X)) :-
     Y = Z.
 
 sentence --> [a], [b] ; [c], [d] ; [e].
+
+banan(X) :- apple(3), pineapple(Y), X = Y.
+apple(X) :- 1=1.
+pineapple(1) :- 2=2.
 ";
 
         [Fact]
@@ -347,6 +351,30 @@ Redo:sentence([e], _6500)
  Call:[e]=[e|_6500]
  Exit:[e]=[e]
 Exit:sentence([e], [])");
+        }
+
+        [Fact]
+        public void ExecutionDetails12()
+        {
+            PrologEngine prolog = new PrologEngine(new ExecutionDetails());
+
+            prolog.ConsultFromString(_execDetailsConsult);
+
+            SolutionSet ss = null;
+            ss = prolog.GetAllSolutions("banan(1)", 5);
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: banan(1)
+ Call: apple(3)
+  Call: 1=1
+  Exit: 1=1
+ Exit: apple(3)
+ Call: pineapple({Y=1})
+  Call: 2=2
+  Exit: 2=2
+ Exit: pineapple({Y=1})
+ Call: {X=1}={Y=1}
+ Exit: {X=1}={Y=1}
+Exit: banan(1)");
         }
     }
 }
