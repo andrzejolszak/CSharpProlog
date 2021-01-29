@@ -42,18 +42,12 @@ namespace Prolog
 
     public partial class PrologEngine
     {
+
+        /// <summary>
+        /// Runtime abstraction for a term in a running engine´.
+        /// </summary>
         public class TermNode
         {
-            public TermNode()
-            {
-            }
-
-            public TermNode(BaseTerm term, PredicateDescr predDescr)
-            {
-                PredDescr = predDescr;
-                Head = term;
-            }
-
             public TermNode(BaseTerm term, PredicateDescr predDescr, int level)
             {
                 Head = term;
@@ -162,7 +156,7 @@ namespace Prolog
                     next = next.NextNode;
                 }
 
-                tail.NextNode = new TermNode(t, (PredicateDescr)null);
+                tail.NextNode = new TermNode(t, null, 0);
             }
 
             public TermNode Append(TermNode t)

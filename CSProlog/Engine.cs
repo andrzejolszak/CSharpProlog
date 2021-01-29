@@ -536,6 +536,8 @@ namespace Prolog
                     this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Term.Name == "fail/0");
 
                     // Matched the clause head, move on the evaluating the body
+                    // This is where we lose track of the top-level clause because replace the reference with body
+                    // However, we can still get hold of the whole clause through saveGoal.NextClause
                     currClause = currClauseBody;
 
                     if (Reporting)
@@ -660,6 +662,7 @@ namespace Prolog
                     else
                     {
                         // PREDICATE RULE: replace goal by body of matching clause of defining predicate
+                        // We start with the predicate body in currClause, and build a linked list of goals from the clauses
                         TermNode pHead = null;
                         TermNode pTail = null;
                         TermNode clausePointer = currClause;
@@ -1159,7 +1162,7 @@ namespace Prolog
 
         public class CallReturn : TermNode
         {
-            public CallReturn(TermNode goal)
+            public CallReturn(TermNode goal) : base(null, null, 0)
             {
                 SavedGoal = goal;
             }

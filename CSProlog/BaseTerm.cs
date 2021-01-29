@@ -560,7 +560,7 @@ namespace Prolog
 
             public TermNode ToDCG(ref BaseTerm lhs, VarStack varStack) // called from parser
             {
-                TermNode body = new TermNode();
+                TermNode body = new TermNode(null, null, 0);
                 BaseTerm result = null;
 
                 BaseTerm inVar = new Variable(null, varStack);
