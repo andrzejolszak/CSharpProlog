@@ -1032,7 +1032,7 @@ namespace Prolog
         private bool DoBuiltin(BI biId, out bool findFirstClause)
         {
             findFirstClause = false;
-            BaseTerm term = goalListHead.Term;
+            BaseTerm term = goalListHead.Head;
             BaseTerm t0, t1, t2, t3, t4, t5;
             int n, y, m, d, h, s;
             int arity;

@@ -40,11 +40,11 @@ namespace Prolog
             List<PredicateDescr> predDescrs = pe.PredTable.Predicates.Values
                 .Where(x => !x.IsPredefined)
                 .Where(x => x.Arity == 0)
-                .Where(x => x.ClauseList.Term.TestGroup != null)
+                .Where(x => x.ClauseList.Head.TestGroup != null)
                 .OrderBy(x => x.ToString())
                 .ToList();
 
-            foreach (IGrouping<string, PredicateDescr> testGroup in predDescrs.GroupBy(x => x.ClauseList.Term.TestGroup)
+            foreach (IGrouping<string, PredicateDescr> testGroup in predDescrs.GroupBy(x => x.ClauseList.Head.TestGroup)
                 .OrderBy(x => x.Key).ToArray())
             {
                 TreeNode[] tests = testGroup

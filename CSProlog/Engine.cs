@@ -383,38 +383,38 @@ namespace Prolog
             {
                 if (UserInterrupted)
                 {
-                    throw new AbortQueryException(goalListHead.Term);
+                    throw new AbortQueryException(goalListHead.Head);
                 }
 
-                if (goalListHead.Term is TryCatchTerm)
+                if (goalListHead.Head is TryCatchTerm)
                 {
-                    if (goalListHead.Term is TryOpenTerm)
+                    if (goalListHead.Head is TryOpenTerm)
                     {
-                        CatchIdStack.Push(((TryOpenTerm)goalListHead.Term)
+                        CatchIdStack.Push(((TryOpenTerm)goalListHead.Head)
                             .Id); // CATCH-id of corresponding CATCH-clause(s) now on top
-                        goalListHead = goalListHead.NextGoal;
+                        goalListHead = goalListHead.NextNode;
 
                         continue;
                     }
 
-                    if (goalListHead.Term is CatchOpenTerm)
+                    if (goalListHead.Head is CatchOpenTerm)
                     {
-                        if (((CatchOpenTerm)goalListHead.Term).SeqNo == 0) // only once:
+                        if (((CatchOpenTerm)goalListHead.Head).SeqNo == 0) // only once:
                         {
                             CatchIdStack.Pop(); // CATCH-id of CATCH-clause enclosing this TRY/CATCH now on top
                         }
 
-                        while (goalListHead.Term != TC_CLOSE)
+                        while (goalListHead.Head != TC_CLOSE)
                         {
-                            goalListHead = goalListHead.NextGoal;
+                            goalListHead = goalListHead.NextNode;
                         }
 
                         continue;
                     }
 
-                    if (goalListHead.Term == TC_CLOSE)
+                    if (goalListHead.Head == TC_CLOSE)
                     {
-                        goalListHead = goalListHead.NextGoal;
+                        goalListHead = goalListHead.NextNode;
 
                         continue;
                     }
@@ -432,7 +432,7 @@ namespace Prolog
                     CallReturn exit = CallStack.Pop();
                     this.ExecutionDetails?.Exit(exit.SavedGoal);
 
-                    goalListHead = sp.NextGoal;
+                    goalListHead = sp.NextNode;
 
                     continue;
                 }
@@ -511,7 +511,7 @@ namespace Prolog
                 string saveGoalPreUnifyCopy = this.ExecutionDetails != null ? saveGoal.Head.ToString() : null;
 
                 // UNIFICATION of the current goal and the (clause of the) predicate that matches it
-                if (!cleanClauseHead.Unify(goalListHead.Term, CurrVarStack))
+                if (!cleanClauseHead.Unify(goalListHead.Head, CurrVarStack))
                 {
                     // Unify failed - try backtracking
                     this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, false, false);
@@ -533,7 +533,7 @@ namespace Prolog
                 }
                 else
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Term.Name == "fail/0");
+                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Head.Name == "fail/0");
 
                     // Matched the clause head, move on the evaluating the body
                     // This is where we lose track of the top-level clause because replace the reference with body
@@ -552,8 +552,8 @@ namespace Prolog
                         this.ExecutionDetails?.FactCall(saveGoal.Level, saveGoalPreUnifyCopy);
                         this.ExecutionDetails?.Exit(saveGoal);
 
-                        goalListHead = goalListHead.NextGoal;
-                        if (CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal.NextGoal == goalListHead)
+                        goalListHead = goalListHead.NextNode;
+                        if (CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal.NextNode == goalListHead)
                         {
                             CallStack.Pop();
                             this.ExecutionDetails?.Exit(cr.SavedGoal);
@@ -593,7 +593,7 @@ namespace Prolog
                                 tn0.Append(callReturn);
                             }
 
-                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextGoal);
+                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextNode);
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.or)
@@ -601,10 +601,10 @@ namespace Prolog
                             TermNode tn1 = goalListHead.Head.Arg(1).ToGoalList(stackSize, goalListHead.Level);
                             tn1 = goalListHead == null
                                 ? tn1
-                                : tn1.Append(goalListHead.NextGoal);
+                                : tn1.Append(goalListHead.NextNode);
 
                             TermNode tn0 = goalListHead.Head.Arg(0).ToGoalList(stackSize, goalListHead.Level);
-                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextGoal);
+                            goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextNode);
 
                             CallStack.TryPeek(out CallReturn caller);
                             CurrVarStack.Push(new ChoicePoint(tn1, null, goalListHead, caller?.SavedGoal));
@@ -613,8 +613,8 @@ namespace Prolog
                         }
                         else if (builtinId == BI.cut)
                         {
-                            CurrVarStack.DisableChoices(goalListHead.Term.TermId);
-                            goalListHead = goalListHead.NextGoal;
+                            CurrVarStack.DisableChoices(goalListHead.Head.TermId);
+                            goalListHead = goalListHead.NextNode;
                             findFirstClause = true;
                         }
                         else if (builtinId == BI.fail)
@@ -666,30 +666,31 @@ namespace Prolog
                         TermNode pHead = null;
                         TermNode pTail = null;
                         TermNode clausePointer = currClause;
+                        TermNode parentClause = saveGoal.NextClause;
                         while (clausePointer != null)
                         {
-                            BaseTerm currTerm = clausePointer.Term;
+                            BaseTerm currTerm = clausePointer.Head;
                             TermNode p;
 
                             if (currTerm is TryOpenTerm)
                             {
                                 ((TryOpenTerm)currTerm).Id = ++TryCatchId;
-                                p = new TermNode(currTerm, null, 0);
+                                p = new TermNode(currTerm, parentClause, null, 0);
                             }
                             else if (currTerm is CatchOpenTerm)
                             {
                                 ((CatchOpenTerm)currTerm).Id = TryCatchId; // same id as for corresponding TRY
-                                p = new TermNode(currTerm.Copy(false, CurrVarStack), null, 0);
+                                p = new TermNode(currTerm.Copy(false, CurrVarStack), parentClause, null, 0);
                             }
                             else if (currTerm is Cut)
                             {
-                                p = new TermNode(new Cut(currTerm.Symbol, stackSize), null,
+                                p = new TermNode(new Cut(currTerm.Symbol, stackSize), parentClause, null,
                                     goalListHead.Level + 1); // save the pre-unification state
                             }
                             else // Copy (false): keep the varNo constant over all terms of the predicate head+body
                                  // (otherwise each term would get new variables, independent of their previous incarnations)
                             {
-                                p = new TermNode(currTerm.Copy(false, CurrVarStack), clausePointer.PredDescr,
+                                p = new TermNode(currTerm.Copy(false, CurrVarStack), parentClause, clausePointer.PredDescr,
                                     goalListHead.Level + 1); // gets the newVar version
                             }
 
@@ -699,7 +700,7 @@ namespace Prolog
                             }
                             else
                             {
-                                pTail.NextGoal = p;
+                                pTail.NextNode = p;
                             }
 
                             pTail = p;
@@ -712,11 +713,11 @@ namespace Prolog
 
                         if (Reporting)
                         {
-                            pTail.NextGoal = callReturn;
+                            pTail.NextNode = callReturn;
                             pTail = pTail.NextNode;
                         }
 
-                        pTail.NextGoal = goalListHead.NextGoal;
+                        pTail.NextNode = goalListHead.NextNode;
                         goalListHead = pHead; // will never be a spypoint
                         findFirstClause = true;
                     }
@@ -729,7 +730,7 @@ namespace Prolog
 
             void PopCallStackFailed(bool canRedo)
             {
-                if (canRedo && CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal != null && cr.SavedGoal.NextGoal != null)
+                if (canRedo && CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal != null && cr.SavedGoal.NextNode != null)
                 {
                     this.ExecutionDetails?.Redo(cr.SavedGoal);
                     return;
@@ -753,8 +754,8 @@ namespace Prolog
         private void InsertCutFail()
         {
             ClauseNode fail = new ClauseNode(BaseTerm.FAIL, null);
-            fail.NextGoal = goalListHead.NextGoal;
-            ClauseNode cut = new ClauseNode(BaseTerm.CUT, null) { NextGoal = fail };
+            fail.NextNode = goalListHead.NextNode;
+            ClauseNode cut = new ClauseNode(BaseTerm.CUT, null) { NextNode = fail };
             goalListHead = cut;
         }
 
@@ -929,9 +930,9 @@ namespace Prolog
                             return false;
                         }
 
-                        if (goalListHead.Term is CatchOpenTerm)
+                        if (goalListHead.Head is CatchOpenTerm)
                         {
-                            t = (CatchOpenTerm)goalListHead.Term;
+                            t = (CatchOpenTerm)goalListHead.Head;
                             status = Status.CompareIds;
                         }
                         else
@@ -942,7 +943,7 @@ namespace Prolog
                         break;
 
                     case Status.NextGoalNode:
-                        goalListHead = goalListHead.NextGoal;
+                        goalListHead = goalListHead.NextNode;
                         status = Status.TestGoalNode;
                         break;
 
@@ -1162,7 +1163,7 @@ namespace Prolog
 
         public class CallReturn : TermNode
         {
-            public CallReturn(TermNode goal) : base(null, null, 0)
+            public CallReturn(TermNode goal) : base(null, null, null, 0)
             {
                 SavedGoal = goal;
             }

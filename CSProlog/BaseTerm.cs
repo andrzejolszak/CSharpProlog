@@ -487,10 +487,10 @@ namespace Prolog
                 {
                     if (stackSize == 0)
                     {
-                        return new TermNode(this, null, level);
+                        return new TermNode(this, null, null, level);
                     }
 
-                    return new TermNode(new Cut(Symbol, stackSize), null, level);
+                    return new TermNode(new Cut(Symbol, stackSize), null, null, level);
                 }
 
                 switch (Functor as string)
@@ -539,11 +539,11 @@ namespace Prolog
                     default:
                         if (IsVar)
                         {
-                            result = new TermNode(new CompoundTerm(Symbol, "meta$call", this), null, level);
+                            result = new TermNode(new CompoundTerm(Symbol, "meta$call", this), null, null, level);
                         }
                         else if (IsCallable)
                         {
-                            result = new TermNode(this, null, level);
+                            result = new TermNode(this, null, null, level);
                         }
                         else
                         {
@@ -560,7 +560,7 @@ namespace Prolog
 
             public TermNode ToDCG(ref BaseTerm lhs, VarStack varStack) // called from parser
             {
-                TermNode body = new TermNode(null, null, 0);
+                TermNode body = new TermNode(null, null, null, 0);
                 BaseTerm result = null;
 
                 BaseTerm inVar = new Variable(null, varStack);

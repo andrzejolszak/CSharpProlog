@@ -58,10 +58,10 @@ namespace CSPrologTest
         public void PopulatesSourceInfo(string test, int lineNo, int start, int final)
         {
             PredicateDescr d = test.CanParse();
-            d.ClauseList.Term.Symbol.LineNoAdjusted.Should().Be(lineNo);
-            d.ClauseList.Term.Symbol.StartAdjusted.Should().Be(start);
-            d.ClauseList.Term.Symbol.FinalAdjusted.Should().Be(final);
-            d.ClauseList.Term.Symbol.Class.Should().Be(BaseParser.SymbolClass.Id);
+            d.ClauseList.Head.Symbol.LineNoAdjusted.Should().Be(lineNo);
+            d.ClauseList.Head.Symbol.StartAdjusted.Should().Be(start);
+            d.ClauseList.Head.Symbol.FinalAdjusted.Should().Be(final);
+            d.ClauseList.Head.Symbol.Class.Should().Be(BaseParser.SymbolClass.Id);
             test.Substring(start, final - start).Should().Be("foobar123_d.");
         }
 

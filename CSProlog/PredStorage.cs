@@ -185,9 +185,9 @@ namespace Prolog
                     TermNode node = pred.ClauseList;
                     while (node != null)
                     {
-                        if (node.Term != null)
+                        if (node.Head != null)
                         {
-                            AllConsultedTerms.AddRange(node.Term.GetArgumentsRecursive());
+                            AllConsultedTerms.AddRange(node.Head.GetArgumentsRecursive());
                         }
 
                         node = node.NextNode;
@@ -213,7 +213,7 @@ namespace Prolog
                 else if (prevIndex != null && key != prevIndex)
                 {
                     IO.ThrowRuntimeException($"Definition for predefined predicate '{head.Index}' must be contiguous", null,
-                        clause.Term);
+                        clause.Head);
                 }
                 else
                 {
@@ -308,7 +308,7 @@ namespace Prolog
 
                 if (Predefined.Contains(key))
                 {
-                    IO.ThrowConsultException($"Modification of predefined predicate {index} not allowed", clause?.Term?.Symbol);
+                    IO.ThrowConsultException($"Modification of predefined predicate {index} not allowed", clause?.Head?.Symbol);
                 }
 
                 if (prevIndex == key) // previous clause was for the same predicate
@@ -326,7 +326,7 @@ namespace Prolog
                         if (pd != null && pd.DefinitionFile != ConsultFileName)
                         {
                             IO.ThrowConsultException($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
-                                clause.Term);
+                                clause.Head);
                         }
 
                         definedInCurrFile[key] = "true";
@@ -355,7 +355,7 @@ namespace Prolog
                             {
                                 IO.ThrowConsultException(
                                     $"Discontiguous predicate {index} must be in one file (also found in {pd.DefinitionFile})",
-                                    clause.Term);
+                                    clause.Head);
                             }
                         }
                         else if (pd.DefinitionFile == ConsultFileName) // Warning or Error?
@@ -365,7 +365,7 @@ namespace Prolog
                         else
                         {
                             IO.ThrowConsultException($"Predicate '{index}' is already defined in {pd.DefinitionFile}",
-                                clause.Term);
+                                clause.Head);
                         }
                     }
                 }
@@ -530,7 +530,7 @@ namespace Prolog
 
                 while (c != null)
                 {
-                    BaseTerm cleanTerm = c.Term.Copy(varStack);
+                    BaseTerm cleanTerm = c.Head.Copy(varStack);
 
                     if (cleanTerm.IsUnifiableWith(t, varStack)) // match found -- remove this head from the chain
                     {
@@ -622,7 +622,7 @@ namespace Prolog
 
                     //          // prefix a clause that is pointed to by first-argument indexing with '.'
                     //          IO.Write (" {0}{1}", (pd.IsFirstArgMarked (clause))?".":" ", nextClause.Term);
-                    IO.Write($"  {clause.Term}");
+                    IO.Write($"  {clause.Head}");
 
                     if ((next = clause.NextNode) != null)
                     {
@@ -757,7 +757,7 @@ namespace Prolog
                     {
                         if (clauseTerm.BuiltinId == BI.none)
                         {
-                            clauseTerm.PredDescr = this[clauseTerm.Term.Key];
+                            clauseTerm.PredDescr = this[clauseTerm.Head.Key];
                         }
                         // builtins (>=0) are handled differently (in Execute ())
 
@@ -929,7 +929,7 @@ namespace Prolog
                     {
                         if (bodyNode == null) // a fact
                         {
-                            ClauseBody = new AtomTerm(clause.Term.Symbol, "true", clause.Term.CommentBody, clause.Term.CommentBody, clause.Term.TestGroup);
+                            ClauseBody = new AtomTerm(clause.Head.Symbol, "true", clause.Head.CommentBody, clause.Head.CommentBody, clause.Head.TestGroup);
                         }
                         else if (bodyNode.BuiltinId == BI.none)
                         {
@@ -937,7 +937,7 @@ namespace Prolog
                         }
                         else
                         {
-                            ClauseBody = new StringTerm(clause.Term.Symbol, "<builtin>");
+                            ClauseBody = new StringTerm(clause.Head.Symbol, "<builtin>");
                         }
 
                         yield return ClauseBody;

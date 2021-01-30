@@ -74,21 +74,21 @@ namespace Prolog
                 while (nextNode != null)
                 {
                     // Name defined - 1
-                    if (!_pe.PredTable.Predicates.Values.Any(x => x.Functor == nextNode.Term.FunctorToString))
+                    if (!_pe.PredTable.Predicates.Values.Any(x => x.Functor == nextNode.Head.FunctorToString))
                     {
                         warningCount = AddWarning(warningCount, nextNode,
-                            $"Predicate with name '{nextNode.Term.FunctorToString}' not defined in KB. Is it dynamically asserted?",
+                            $"Predicate with name '{nextNode.Head.FunctorToString}' not defined in KB. Is it dynamically asserted?",
                             1);
                     }
                     // Name & arity defined - 2
                     else if (!_pe.PredTable.Predicates.Values.Any(x =>
-                        x.Functor == nextNode.Term.FunctorToString && x.Arity == nextNode.Term.Arity))
+                        x.Functor == nextNode.Head.FunctorToString && x.Arity == nextNode.Head.Arity))
                     {
                         string closeMatches = _pe.PredTable.Predicates.Values
-                            .Where(x => x.Functor == nextNode.Term.FunctorToString).Select(x => x.Name)
+                            .Where(x => x.Functor == nextNode.Head.FunctorToString).Select(x => x.Name)
                             .Aggregate((x, y) => x + ", " + y);
                         warningCount = AddWarning(warningCount, nextNode,
-                            $"Predicate '{nextNode.Term.Name}' not defined in KB. Possible close matches are: {closeMatches}.",
+                            $"Predicate '{nextNode.Head.Name}' not defined in KB. Possible close matches are: {closeMatches}.",
                             2);
                     }
 
@@ -115,8 +115,8 @@ namespace Prolog
                 return warningCount;
             }
 
-            int startPos = nextNode.Term.Symbol.StartAdjusted;
-            int endPos = nextNode.Term.Symbol.FinalAdjusted;
+            int startPos = nextNode.Head.Symbol.StartAdjusted;
+            int endPos = nextNode.Head.Symbol.FinalAdjusted;
             int line = _sourceArea.sourceEditor.Editor.LineFromPosition(startPos);
 
             dataGridView1.Rows.Add(line, "Warning", msg, type);

@@ -71,7 +71,7 @@ namespace Prolog
 
             bool shouldBreak = false;
 
-            Invoke(new Action(() => shouldBreak = HasBreakpoint(currentClause?.Term)));
+            Invoke(new Action(() => shouldBreak = HasBreakpoint(currentClause?.Head)));
 
             if (!shouldBreak &&
                 (_lastDebuggerUserCommand == DebuggerUserCommand.Continue
@@ -92,40 +92,40 @@ namespace Prolog
                 bool movedToPosition = false;
 
                 // Mark the goal
-                if (goalNode?.Term?.Symbol != null && goalNode.Term.Symbol.FinalAdjusted > 0)
+                if (goalNode?.Head?.Symbol != null && goalNode.Head.Symbol.FinalAdjusted > 0)
                 {
                     sourceEditor.IndicatorFillRange(
                         PrologEditor.DebugLineIndicator,
-                        goalNode.Term.Symbol.StartAdjusted,
-                        goalNode.Term.Symbol.FinalAdjusted - goalNode.Term.Symbol.StartAdjusted,
-                        goalNode.Term.ToDisplayString() + procTimeString);
+                        goalNode.Head.Symbol.StartAdjusted,
+                        goalNode.Head.Symbol.FinalAdjusted - goalNode.Head.Symbol.StartAdjusted,
+                        goalNode.Head.ToDisplayString() + procTimeString);
 
-                    sourceEditor.Editor.GotoPosition(goalNode.Term.Symbol.StartAdjusted);
+                    sourceEditor.Editor.GotoPosition(goalNode.Head.Symbol.StartAdjusted);
                     movedToPosition = true;
                 }
 
                 // Open calltip
-                string clauseTip = (currentClause?.Term?.ToDisplayString() ?? goalNode.ToString() ?? string.Empty) +
+                string clauseTip = (currentClause?.Head?.ToDisplayString() ?? goalNode.ToString() ?? string.Empty) +
                                    procTimeString;
                 sourceEditor.Editor.CallTipSetPosition(true);
                 sourceEditor.Editor.CallTipShow(
-                    currentClause?.Term?.Symbol?.StartAdjusted ?? goalNode?.Term?.Symbol?.StartAdjusted ??
+                    currentClause?.Head?.Symbol?.StartAdjusted ?? goalNode?.Head?.Symbol?.StartAdjusted ??
                     sourceEditor.Editor.CurrentPosition, clauseTip);
                 sourceEditor.InitialCallTipDisplay = true;
 
                 // Mark the clause
-                if (currentClause?.Term?.Symbol != null && currentClause.Term.Symbol.FinalAdjusted > 0)
+                if (currentClause?.Head?.Symbol != null && currentClause.Head.Symbol.FinalAdjusted > 0)
                 {
                     sourceEditor.IndicatorFillRange(
                         PrologEditor.DebugLineIndicator,
-                        currentClause.Term.Symbol.StartAdjusted,
-                        (currentClause.GetLastNode().Term?.Symbol?.FinalAdjusted ??
-                         currentClause.Term.Symbol.FinalAdjusted) - currentClause.Term.Symbol.StartAdjusted,
+                        currentClause.Head.Symbol.StartAdjusted,
+                        (currentClause.GetLastNode().Head?.Symbol?.FinalAdjusted ??
+                         currentClause.Head.Symbol.FinalAdjusted) - currentClause.Head.Symbol.StartAdjusted,
                         clauseTip);
 
                     if (!movedToPosition)
                     {
-                        sourceEditor.Editor.GotoPosition(currentClause.Term.Symbol.StartAdjusted);
+                        sourceEditor.Editor.GotoPosition(currentClause.Head.Symbol.StartAdjusted);
                     }
                 }
 

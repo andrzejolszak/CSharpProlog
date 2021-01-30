@@ -47,7 +47,7 @@ namespace Prolog
                 return;
             }
 
-            int line = targetClause.BuiltinId == BI.none ? targetClause.Head.Symbol.LineNoAdjusted : goal.Term.Symbol.LineNoAdjusted;
+            int line = targetClause.BuiltinId == BI.none ? targetClause.Head.Symbol.LineNoAdjusted : goal.Head.Symbol.LineNoAdjusted;
             string postfix = targetClause.NextNode == null ? "." : (targetClause.NextNode.Head == null ? "" : " :- ...");
             this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head}{postfix} [ln {line}]");
         }

@@ -434,7 +434,7 @@ namespace Prolog
                         InQueryMode = true;
                         SetReservedOperators(true);
                         Query(new TerminalSet(terminalCount, Dot), out queryNode);
-                        IO.ThrowConsultException("'?-' querymode in file not yet supported", queryNode.Term);
+                        IO.ThrowConsultException("'?-' querymode in file not yet supported", queryNode.Head);
                     }
                     finally
                     {

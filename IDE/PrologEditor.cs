@@ -349,9 +349,9 @@ namespace Prolog
                 }
 
                 {
-                    if (pd.Term != null)
+                    if (pd.Head != null)
                     {
-                        BaseTerm argRes = FindDepthFirstArgs(pd.Term.Args, pos);
+                        BaseTerm argRes = FindDepthFirstArgs(pd.Head.Args, pos);
                         if (argRes != null)
                         {
                             return argRes;
@@ -368,13 +368,13 @@ namespace Prolog
                     }
                 }
 
-                if (pd.Term.Symbol.StartAdjusted < pos && pd.Term.Symbol.FinalAdjusted > pos)
+                if (pd.Head.Symbol.StartAdjusted < pos && pd.Head.Symbol.FinalAdjusted > pos)
                 {
-                    return pd.Term;
+                    return pd.Head;
                 }
             }
 
-            return predDescrs.FirstOrDefault().ClauseList.Term;
+            return predDescrs.FirstOrDefault().ClauseList.Head;
         }
 
         private BaseTerm FindDepthFirstArgs(IEnumerable<BaseTerm> args, int pos)
@@ -772,16 +772,16 @@ namespace Prolog
                 List<PredicateDescr> clauses = _referenceArrowsPredTable.Values
                     .Where(
                         x => !x.IsPredefined
-                             && x.ClauseList.Term.Symbol.StartAdjusted <= pos
-                             && x.ClauseList.Term.Symbol.FinalAdjusted >= pos)
+                             && x.ClauseList.Head.Symbol.StartAdjusted <= pos
+                             && x.ClauseList.Head.Symbol.FinalAdjusted >= pos)
                     .ToList();
 
                 PredicateDescr clause = clauses.FirstOrDefault();
 
                 if (clause != null)
                 {
-                    int clauseHeadStart = clause.ClauseList.Term.Symbol.StartAdjusted;
-                    int? clauseHeadEnd = clause.ClauseList.Term.Symbol.FinalAdjusted;
+                    int clauseHeadStart = clause.ClauseList.Head.Symbol.StartAdjusted;
+                    int? clauseHeadEnd = clause.ClauseList.Head.Symbol.FinalAdjusted;
 
                     List<PredicateDescr> res;
                     if (clauseHeadEnd.HasValue &&
@@ -796,8 +796,8 @@ namespace Prolog
                                 continue;
                             }
 
-                            int refClauseStart = pd.ClauseList.Term.Symbol.StartAdjusted;
-                            int? refClauseEnd = pd.ClauseList.Term.Symbol.FinalAdjusted;
+                            int refClauseStart = pd.ClauseList.Head.Symbol.StartAdjusted;
+                            int? refClauseEnd = pd.ClauseList.Head.Symbol.FinalAdjusted;
                             if (refClauseEnd.HasValue)
                             {
                                 GraphicsPath path = new GraphicsPath();
@@ -1111,7 +1111,7 @@ All predicates are imported regardless of any module declarations.
                 // All predicates
                 _items = _items.Concat(predicateDescriptors.Select(x =>
                     {
-                        BaseTerm t = x.TermListEnd?.Term;
+                        BaseTerm t = x.TermListEnd?.Head;
                         string file = x.DefinitionFile.Contains(Path.DirectorySeparatorChar) ?
                             x.DefinitionFile.Substring(x.DefinitionFile.LastIndexOf(Path.DirectorySeparatorChar) + 1)
                             : (x.IsPredefined ? "builtin" : "current");

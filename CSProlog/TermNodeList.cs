@@ -48,11 +48,12 @@ namespace Prolog
         /// </summary>
         public class TermNode
         {
-            public TermNode(BaseTerm term, PredicateDescr predDescr, int level)
+            public TermNode(BaseTerm term, TermNode parentClause, PredicateDescr predDescr, int level)
             {
                 Head = term;
                 PredDescr = predDescr;
                 Level = level;
+                Parent = parentClause;
             }
 
             public TermNode(string tag) // builtin predicates
@@ -63,7 +64,7 @@ namespace Prolog
                 }
                 catch
                 {
-                    IO.ThrowConsultException(string.Format("Bootstrap.cs: unknown BI enum value '{0}'", tag), Term?.Symbol);
+                    IO.ThrowConsultException(string.Format("Bootstrap.cs: unknown BI enum value '{0}'", tag), Head?.Symbol);
                 }
             }
 
@@ -73,23 +74,16 @@ namespace Prolog
                 NextNode = nextNode;
             }
 
-            public bool IsTrueAtom => this.Term != null && this.Term.CompoundTermType == TermType.Atom && this.NextGoal == null && "true".Equals(this.Term.CompoundFunctor);
+            public bool IsTrueAtom => this.Head != null && this.Head.CompoundTermType == TermType.Atom && this.NextNode == null && "true".Equals(this.Head.CompoundFunctor);
 
             public BaseTerm Head { get; set; }
 
             public ClauseNode NextClause { get; set; }
 
             public int Level { get; set; }
-
-            public BaseTerm Term => Head;
+            public TermNode Parent { get; }
 
             public TermNode NextNode { get; set; }
-
-            public TermNode NextGoal
-            {
-                get => NextNode;
-                set => NextNode = value;
-            }
 
             public BI BuiltinId { get; } = BI.none;
 
@@ -156,7 +150,7 @@ namespace Prolog
                     next = next.NextNode;
                 }
 
-                tail.NextNode = new TermNode(t, null, 0);
+                tail.NextNode = new TermNode(t, null, null, 0);
             }
 
             public TermNode Append(TermNode t)
@@ -186,8 +180,8 @@ namespace Prolog
             public BaseTerm TermSeq(VarStack varStack)
             {
                 return NextNode == null
-                    ? Term // last term of TermNode
-                    : new OperatorTerm(Term?.Symbol, varStack.CommaOpDescr, Term, NextNode.TermSeq(varStack));
+                    ? Head // last term of TermNode
+                    : new OperatorTerm(Head?.Symbol, varStack.CommaOpDescr, Head, NextNode.TermSeq(varStack));
             }
 
             public override string ToString()
@@ -234,7 +228,7 @@ namespace Prolog
                             sb.Append(", ");
                         }
 
-                        if (t == this.Term && this.NextNode != null)
+                        if (t == this.Head && this.NextNode != null)
                         {
                             sb.AppendFormat("*{0}*", t);
                         }
@@ -290,7 +284,7 @@ namespace Prolog
                         sb.Append(" :-");
                     }
 
-                    sb.Append("  " + tl.Term);
+                    sb.Append("  " + tl.Head);
 
                     if ((tl = tl.NextNode) == null)
                     {
