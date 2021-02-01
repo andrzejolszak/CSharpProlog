@@ -495,8 +495,7 @@ namespace Prolog
                 // Redo with another clause possible?
                 if (currClause.NextClause != null)
                 {
-                    CallStack.TryPeek(out CallReturn caller);
-                    CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause, goalListHead, caller?.SavedGoal));
+                    CurrVarStack.Push(currentCp = new ChoicePoint(goalListHead, currClause.NextClause, goalListHead));
                 }
 
                 // CALL, REDO
@@ -518,13 +517,13 @@ namespace Prolog
 
                     bool canRedo = CanBacktrack(currClause, failedUnify: true);
                    
-                    if (!canRedo && goalListHead == saveGoal /*&& CallStack.TryPeek(out CallReturn cr) && cr.NextGoal != null*/)
+                    if (!canRedo || (goalListHead.NextClause != null && goalListHead.NextClause.Head.Name != currClause.Head.Name))
                     {
                         this.ExecutionDetails?.FailCall(saveGoal);
                         this.ExecutionDetails?.Failed(saveGoal);
                     }
 
-                    PopCallStackFailed(canRedo);
+                    PopCallStackFailed(canRedo, saveGoal);
 
                     if (!canRedo)
                     {
@@ -606,8 +605,7 @@ namespace Prolog
                             TermNode tn0 = goalListHead.Head.Arg(0).ToGoalList(stackSize, goalListHead.Level);
                             goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextNode);
 
-                            CallStack.TryPeek(out CallReturn caller);
-                            CurrVarStack.Push(new ChoicePoint(tn1, null, goalListHead, caller?.SavedGoal));
+                            CurrVarStack.Push(new ChoicePoint(tn1, null, goalListHead));
 
                             findFirstClause = true;
                         }
@@ -623,7 +621,7 @@ namespace Prolog
 
                             bool canRedo = CanBacktrack(saveGoal);
                             
-                            PopCallStackFailed(canRedo);
+                            PopCallStackFailed(canRedo, saveGoal);
 
                             if (!canRedo)
                             {
@@ -651,7 +649,7 @@ namespace Prolog
                         {
                             bool canRedo = CanBacktrack(saveGoal);
                             
-                            PopCallStackFailed(canRedo);
+                            PopCallStackFailed(canRedo, saveGoal);
 
                             if (!canRedo)
                             {
@@ -707,13 +705,16 @@ namespace Prolog
                             clausePointer = clausePointer.NextNode;
                         }
 
-                        CallReturn callReturn = new CallReturn(saveGoal);
-                        this.ExecutionDetails?.PredicateRuleCall(callReturn);
-                        CallStack.Push(callReturn);
+                        if (!CallStack.TryPeek(out CallReturn currentContext) || currentContext.SavedGoal != saveGoal)
+                        {
+                            CallReturn callReturn = new CallReturn(saveGoal);
+                            this.ExecutionDetails?.PredicateRuleCall(callReturn);
+                            CallStack.Push(callReturn);
+                        }
 
                         if (Reporting)
                         {
-                            pTail.NextNode = callReturn;
+                            pTail.NextNode = new CallReturn(saveGoal);
                             pTail = pTail.NextNode;
                         }
 
@@ -724,30 +725,36 @@ namespace Prolog
                 }
             } // end of while
 
-            PopCallStackExit();
+            // Success, just mark any remaining call stack returns as exit
+            while (CallStack.TryPop(out CallReturn remaining))
+            {
+                this.ExecutionDetails?.Exit(remaining.SavedGoal);
+            }
 
             return true;
 
-            void PopCallStackFailed(bool canRedo)
+            void PopCallStackFailed(bool canRedo, TermNode saveGoal)
             {
-                if (canRedo && CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal != null && cr.SavedGoal.NextNode != null)
+                if (ShouldRedo(out CallReturn cr))
                 {
                     this.ExecutionDetails?.Redo(cr.SavedGoal);
                     return;
                 }
 
-                while (CallStack.TryPop(out CallReturn crr) && crr.SavedGoal != null)
+                while (CallStack.TryPeek(out cr) && cr.SavedGoal != null && 
+                    (!canRedo || saveGoal.NextNode == null))
                 {
-                    this.ExecutionDetails?.Failed(crr.SavedGoal);
-                }
-            }
-        }
+                    CallStack.Pop();
+                    this.ExecutionDetails?.Failed(cr.SavedGoal);
 
-        private void PopCallStackExit()
-        {
-            while (CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
-            {
-                this.ExecutionDetails?.Exit(remaining.SavedGoal);
+                    if (ShouldRedo(out cr))
+                    {
+                        this.ExecutionDetails?.Redo(cr.SavedGoal);
+                        return;
+                    }
+                }
+
+                bool ShouldRedo(out CallReturn crr) => CallStack.TryPeek(out crr) && canRedo && crr.SavedGoal != null && crr.SavedGoal.NextClause != null && crr.SavedGoal.NextClause != saveGoal.Parent;
             }
         }
 
@@ -800,8 +807,7 @@ namespace Prolog
 
                         if (cp.NextClause == null) // no next predicate clause ...
                         {
-                            // TODO: this or test sensitive to .Count condition
-                            if (CallStack.Count > 0 && CallStack.Peek().SavedGoal == cp.PrevGoal)
+                            if (CallStack.Count > 0)
                             {
                                 CallStack.Pop();
                             }
@@ -816,11 +822,6 @@ namespace Prolog
                         return true;
                     }
                 }
-            }
-
-            while (CallStack.Count > 1 && CallStack.TryPop(out CallReturn remaining) && remaining.SavedGoal != null)
-            {
-                this.ExecutionDetails?.Failed(remaining.SavedGoal);
             }
 
             return false;
@@ -1125,19 +1126,16 @@ namespace Prolog
             protected bool active;
 
             public TermNode PrevGoal { get; }
-            public TermNode CallerGoal { get; }
-            public bool IsOr { get; }
 
             protected TermNode goalListHead;
             protected ClauseNode nextClause; // next clause to be tried for goalListHead
 
-            public ChoicePoint(TermNode goal, ClauseNode nextClause, TermNode prevGoal, TermNode callerGoal)
+            public ChoicePoint(TermNode goal, ClauseNode nextClause, TermNode prevGoal)
             {
                 goalListHead = goal;
                 this.nextClause = nextClause;
                 active = true;
                 this.PrevGoal = prevGoal;
-                this.CallerGoal = callerGoal;
             }
 
             public TermNode GoalListHead => goalListHead;
