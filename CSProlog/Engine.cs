@@ -725,12 +725,6 @@ namespace Prolog
                 }
             } // end of while
 
-            // Success, just mark any remaining call stack returns as exit
-            while (CallStack.TryPop(out CallReturn remaining))
-            {
-                this.ExecutionDetails?.Exit(remaining.SavedGoal);
-            }
-
             return true;
 
             void PopCallStackFailed(bool canRedo, TermNode saveGoal)
