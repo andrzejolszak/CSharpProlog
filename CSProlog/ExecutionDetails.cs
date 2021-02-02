@@ -93,9 +93,9 @@ namespace Prolog
             this.CallHistory.Add(new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head);
         }
 
-        internal void FailCall(TermNode goalListHead)
+        internal void FailCall(int level, string goalListHead)
         {
-            this.CallHistory.Add(new string(' ', goalListHead.Level) + "Call: " + goalListHead.Head);
+            this.CallHistory.Add(new string(' ', level) + "Call: " + goalListHead);
         }
 
         internal void PredicateRuleCall(CallReturn callReturn)
@@ -106,6 +106,11 @@ namespace Prolog
         internal void Failed(TermNode saveGoal)
         {
             this.CallHistory.Add(new string(' ', saveGoal.Level) + "Fail: " + saveGoal.Head);
+        }
+
+        internal void Failed(int level, string saveGoal)
+        {
+            this.CallHistory.Add(new string(' ', level) + "Fail: " + saveGoal);
         }
 
         internal void BuiltInCall(TermNode saveGoal)

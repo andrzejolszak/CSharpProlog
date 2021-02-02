@@ -46,6 +46,11 @@ sentence --> [a], [b] ; [c], [d] ; [e].
 banan(X) :- apple(3), pineapple(Y), X = Y.
 apple(X) :- 1=1.
 pineapple(1) :- 2=2.
+
+oor(X) :- 2=3 ; 4=5 ; X=1.
+
+oor2(X) :- oor3(X) ; 4=5 ; X=1.
+oor3(5).
 ";
 
         [Fact]
@@ -203,8 +208,8 @@ Exit: ppp(1)");
             ss.Success.Should().BeFalse();
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
 Call: ppp(5, 6)
- Call: {5}={6}
- Fail: {5}={6}
+ Call: {Z=5}={Y=6}
+ Fail: {Z=5}={Y=6}
 Fail: ppp(5, 6)");
         }
 
@@ -218,24 +223,26 @@ Fail: ppp(5, 6)");
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("a(3)", 5);
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
-Call:a(3)
- Call:true
- Exit:true
- Call:b(3)
-  Call:d(3)
-  Fail:d(3)
- Redo:b(3)
-  Call:e(3)
-  Fail:e(3)
- Fail:b(3)
-Redo:a(3)
- Call:var(_10402)
- Exit:var(_10402)
- Call:c(3)
-  Call:f(3)
-  Exit:f(3)
- Exit:c(3)
-Exit:a(3)");
+Call: a(3)
+ Call: true
+ Exit: true
+ Call: b({X=3})
+  Call: d({X=3})
+  Fail: d({X=3})
+ Redo: b({X=3})
+  Call: e({X=3})
+  Fail: e({X=3})
+ Fail: b({X})
+Redo: a(3)
+ Call: var({Z})
+ Exit: var({Z})
+ Call: c({X=3})
+  Call: call(f({X=3}))
+   Call: f({X=3})
+   Exit: f({X=3})
+  Exit: call(f({X=3}))
+ Exit: c({X=3})
+Exit: a(3)");
         }
 
         [Fact]
@@ -247,7 +254,20 @@ Exit:a(3)");
 
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("a(X), X=3", 5);
-            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"");
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+Call: a({X})
+ Call: true
+ Exit: true
+ Call: b({X={X}})
+  Call: d({X={X}})
+  Exit: d({X={X=1}})
+  Call: true
+  Exit: true
+ Exit: b({X={X=1}})
+Exit: a({X=1})
+Call: {X=1}=3
+Fail: {X=1}=3
+");
         }
 
         [Fact]
@@ -309,26 +329,26 @@ Redo:a(_7856)
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("natnum(s(s(s(0))))", 5);
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
- Call:natnum(s(s(s(0))))
-  Call:natnum(s(s(0)))
-   Call:natnum(s(0))
-    Call:natnum(0)
-    Exit:natnum(0)
-    Call:true
-    Exit:true
-    Call:true
-    Exit:true
-   Exit:natnum(s(0))
-   Call:true
-   Exit:true
-   Call:true
-   Exit:true
-  Exit:natnum(s(s(0)))
-  Call:true
-  Exit:true
-  Call:true
-  Exit:true
- Exit:natnum(s(s(s(0))))");
+Call: natnum(s(s(s(0))))
+ Call: natnum({X=s(s(0))})
+  Call: natnum({X=s(0)})
+   Call: natnum({X=0})
+   Exit: natnum({X=0})
+   Call: true
+   Exit: true
+   Call: {Y}={Z}
+   Exit: {Y={Z}}={Z}
+  Exit: natnum({X=s(0)})
+  Call: true
+  Exit: true
+  Call: {Y}={Z}
+  Exit: {Y={Z}}={Z}
+ Exit: natnum({X=s(s(0))})
+ Call: true
+ Exit: true
+ Call: {Y}={Z}
+ Exit: {Y={Z}}={Z}
+Exit: natnum(s(s(s(0))))");
         }
 
         [Fact]
@@ -376,5 +396,48 @@ Call: banan(1)
  Exit: {X=1}={Y=1}
 Exit: banan(1)");
         }
+
+        [Fact]
+        public void ExecutionDetails13()
+        {
+            PrologEngine prolog = new PrologEngine(new ExecutionDetails());
+
+            prolog.ConsultFromString(_execDetailsConsult);
+
+            SolutionSet ss = null;
+            ss = prolog.GetAllSolutions("oor(1)", 5);
+            prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+ Call:oor(1)
+ Call:2=3
+ Fail:2=3
+ Redo:oor(1)
+ Call:4=5
+ Fail:4=5
+ Redo:oor(1)
+ Call:1=1
+ Exit:1=1
+ Exit:oor(1)");
+        }
+
+            [Fact]
+            public void ExecutionDetails14()
+            {
+                PrologEngine prolog = new PrologEngine(new ExecutionDetails());
+
+                prolog.ConsultFromString(_execDetailsConsult);
+
+                SolutionSet ss = null;
+                ss = prolog.GetAllSolutions("oor2(1)", 5);
+                prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
+ Call:oor2(1)
+ Call:oor3(1)
+ Fail:oor3(1)
+ Redo:oor2(1)
+ Call:4=5
+ Fail:4=5
+ Redo:oor2(1)
+ Call:1=1
+ Exit:1=1");
+            }
     }
 }

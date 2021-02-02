@@ -420,23 +420,6 @@ namespace Prolog
                     }
                 }
 
-                if (goalListHead is CallReturn)
-                {
-                    TermNode sp = ((CallReturn)goalListHead).SavedGoal;
-
-                    if (Reporting)
-                    {
-                        Debugger(sp, sp, true);
-                    }
-
-                    CallReturn exit = CallStack.Pop();
-                    this.ExecutionDetails?.Exit(exit.SavedGoal);
-
-                    goalListHead = sp.NextNode;
-
-                    continue;
-                }
-
                 int stackSize = CurrVarStack.Count; // varStack reflects the current program state
 
                 // FindPredicateDefinition tries to find in the program the predicate definition for the
@@ -519,8 +502,8 @@ namespace Prolog
                    
                     if (!canRedo || (goalListHead.NextClause != null && goalListHead.NextClause.Head.Name != currClause.Head.Name))
                     {
-                        this.ExecutionDetails?.FailCall(saveGoal);
-                        this.ExecutionDetails?.Failed(saveGoal);
+                        this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoalPreUnifyCopy);
+                        this.ExecutionDetails?.Failed(saveGoal.Level, saveGoalPreUnifyCopy);
                     }
 
                     PopCallStackFailed(canRedo, saveGoal);
@@ -552,7 +535,7 @@ namespace Prolog
                         this.ExecutionDetails?.Exit(saveGoal);
 
                         goalListHead = goalListHead.NextNode;
-                        if (CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal.NextNode == goalListHead)
+                        while (CallStack.TryPeek(out CallReturn cr) && cr.SavedGoal.NextNode == goalListHead)
                         {
                             CallStack.Pop();
                             this.ExecutionDetails?.Exit(cr.SavedGoal);
@@ -605,6 +588,9 @@ namespace Prolog
                             TermNode tn0 = goalListHead.Head.Arg(0).ToGoalList(stackSize, goalListHead.Level);
                             goalListHead = goalListHead == null ? tn0 : tn0.Append(goalListHead.NextNode);
 
+                            CallReturn callReturn = new CallReturn(tn0);
+                            this.ExecutionDetails?.BuiltInCall(tn0);
+                            CallStack.Push(callReturn);
                             CurrVarStack.Push(new ChoicePoint(tn1, null, goalListHead));
 
                             findFirstClause = true;
@@ -617,7 +603,7 @@ namespace Prolog
                         }
                         else if (builtinId == BI.fail)
                         {
-                            this.ExecutionDetails?.FailCall(saveGoal);
+                            this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoal.Head.ToString());
 
                             bool canRedo = CanBacktrack(saveGoal);
                             
@@ -637,12 +623,15 @@ namespace Prolog
                             this.ExecutionDetails?.BuiltInCall(saveGoal);
                             if (DoBuiltin(builtinId, out findFirstClause))
                             {
-
+                                this.ExecutionDetails?.Exit(saveGoal);
                             }
                             else
                             {
+                                this.ExecutionDetails?.Failed(saveGoal);
                                 backtrack = true;
                             }
+
+                            CallStack.Pop();
                         }
 
                         if (backtrack)
