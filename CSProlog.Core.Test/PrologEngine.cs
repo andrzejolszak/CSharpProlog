@@ -407,16 +407,16 @@ Exit: banan(1)");
             SolutionSet ss = null;
             ss = prolog.GetAllSolutions("oor(1)", 5);
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
- Call:oor(1)
- Call:2=3
- Fail:2=3
- Redo:oor(1)
- Call:4=5
- Fail:4=5
- Redo:oor(1)
- Call:1=1
- Exit:1=1
- Exit:oor(1)");
+Call: oor(1)
+ Call: 2=3
+ Fail: 2=3
+Redo: oor(1)
+ Call: 4=5
+ Fail: 4=5
+Redo: oor(1)
+ Call: {X=1}=1
+ Exit: {X=1}=1
+Exit: oor(1)");
         }
 
             [Fact]
@@ -429,15 +429,16 @@ Exit: banan(1)");
                 SolutionSet ss = null;
                 ss = prolog.GetAllSolutions("oor2(1)", 5);
                 prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
- Call:oor2(1)
- Call:oor3(1)
- Fail:oor3(1)
- Redo:oor2(1)
- Call:4=5
- Fail:4=5
- Redo:oor2(1)
- Call:1=1
- Exit:1=1");
+Call: oor2(1)
+ Call: oor3({X=1})
+ Fail: oor3({X=1})
+Redo: oor2(1)
+ Call: 4=5
+ Fail: 4=5
+Redo: oor2(1)
+ Call: {X=1}=1
+ Exit: {X=1}=1
+Exit: oor2(1)");
             }
     }
 }

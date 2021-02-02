@@ -777,7 +777,7 @@ namespace Prolog
                     }
                     else
                     {
-                        if (!failedUnify)
+                        if (cp.NextClause == null)
                         {
                             this.ExecutionDetails?.Failed(cp.PrevGoal);
                         }
