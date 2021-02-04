@@ -136,7 +136,7 @@ namespace Prolog
 
                 if (!solutions.Success && checkBox1.Checked && this.pe.ExecutionDetails != null)
                 {
-                    winIO.GuiIO.Write(this.pe.ExecutionDetails.CurrentTermHistoryString);
+                    winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLines);
                 }
             }
             else
@@ -150,7 +150,7 @@ namespace Prolog
 
                     if (s.IsLast && !s.Solved && this.pe.ExecutionDetails != null)
                     {
-                        winIO.GuiIO.Write(this.pe.ExecutionDetails.CurrentTermHistoryString);
+                        winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLines);
                     }
 
                     if (s.IsLast)

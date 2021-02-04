@@ -15,8 +15,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using static Prolog.PrologEngine;
+using static Prolog.PrologEngine.BaseParser;
 
 namespace Prolog
 {
@@ -24,108 +26,65 @@ namespace Prolog
     {
 
 
-        public List<string> CallHistory { get; private set; } = new List<string>(1000);
+        public List<(string, Symbol)> CallHistory { get; private set; } = new List<(string, Symbol)>(1000);
 
-        public string CallHistoryString => "\r\n" + string.Join("\r\n", this.CallHistory);
+        public string CallHistoryString => "\r\n" + string.Join("\r\n", this.CallHistory.Select(x => x.Item1));
 
-        public List<string> CurrentTermHistory { get; private set; } = new List<string>(1000);
-
-        public string CurrentTermHistoryString => "\r\n" + string.Join("\r\n", this.CurrentTermHistory);
+        public string CallHistoryStringWithLines => "\r\n" + string.Join("\r\n", this.CallHistory.Select(x => x.Item1 + " [ln " + x.Item2.LineNoAdjusted + "]"));
 
         public void Reset()
         {
             this.CallHistory.Clear();
-            this.CurrentTermHistory.Clear();
         }
 
-        internal void CurrentGoalBeforeUnify(TermNode goal, TermNode targetClause)
+        internal void FactCall(int level, string goalListHead, Symbol symbol)
         {
-            if ((goal.Head.Name == "true/0" && targetClause.Head.Name == "true/0")
-                || (goal.Head.Name == "fail/0" && targetClause.Head.Name == "fail/0"))
-            {
-                this.CurrentTermHistory.Add($"?: {targetClause.Head} [ln " + goal.Head.Symbol.LineNoAdjusted + "]");
-                return;
-            }
-
-            int line = targetClause.BuiltinId == BI.none ? targetClause.Head.Symbol.LineNoAdjusted : goal.Head.Symbol.LineNoAdjusted;
-            string postfix = targetClause.NextNode == null ? "." : (targetClause.NextNode.Head == null ? "" : " :- ...");
-            this.CurrentTermHistory.Add($"?: {goal} = {targetClause.Head}{postfix} [ln {line}]");
-        }
-
-        internal void AfterUnify(VarStack varStack, int varStackCountPreUnify, bool unified, bool isFailUnification)
-        {
-            if (!unified)
-            {
-                this.CurrentTermHistory.Add("   -> No");
-            }
-            else
-            {
-                StringBuilder yes = new StringBuilder(isFailUnification ? "   -> Fail" : "   -> Yes");
-                if (varStackCountPreUnify < varStack.Count)
-                {
-                    yes.Append(": ");
-
-                    object[] asArray = varStack.ToArray();
-                    for (int i = varStack.Count - varStackCountPreUnify - 1; i >= 0; i--)
-                    {
-                        yes.Append((asArray[i] as BaseTerm).ToWriteString(0) + ", ");
-                    }
-
-                    yes.Remove(yes.Length - 2, 2);
-                }
-
-                this.CurrentTermHistory.Add(yes.ToString());
-            }
-        }
-
-        internal void FactCall(int level, string goalListHead)
-        {
-            this.CallHistory.Add(new string(' ', level) + "Call: " + goalListHead);
+            this.CallHistory.Add((new string(' ', level) + "Call: " + goalListHead, symbol));
         }
 
         internal void Exit(TermNode savedGoal)
         {
-            this.CallHistory.Add(new string(' ', savedGoal.Level) + "Exit: " + savedGoal.Head);
+            this.CallHistory.Add((new string(' ', savedGoal.Level) + "Exit: " + savedGoal.Head, savedGoal.Head.Symbol));
         }
 
         internal void CallCall(CallReturn callReturn)
         {
-            this.CallHistory.Add(new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head);
+            this.CallHistory.Add((new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head, callReturn.SavedGoal.Head.Symbol));
         }
 
-        internal void FailCall(int level, string goalListHead)
+        internal void FailCall(int level, string goalListHead, Symbol symbol)
         {
-            this.CallHistory.Add(new string(' ', level) + "Call: " + goalListHead);
+            this.CallHistory.Add((new string(' ', level) + "Call: " + goalListHead, symbol));
         }
 
         internal void PredicateRuleCall(CallReturn callReturn)
         {
-            this.CallHistory.Add(new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head);
+            this.CallHistory.Add((new string(' ', callReturn.SavedGoal.Level) + "Call: " + callReturn.SavedGoal.Head, callReturn.SavedGoal.Head.Symbol));
         }
 
         internal void Failed(TermNode saveGoal)
         {
-            this.CallHistory.Add(new string(' ', saveGoal.Level) + "Fail: " + saveGoal.Head);
+            this.CallHistory.Add((new string(' ', saveGoal.Level) + "Fail: " + saveGoal.Head, saveGoal.Head.Symbol));
         }
 
-        internal void Failed(int level, string saveGoal)
+        internal void Failed(int level, string saveGoal, Symbol symbol)
         {
-            this.CallHistory.Add(new string(' ', level) + "Fail: " + saveGoal);
+            this.CallHistory.Add((new string(' ', level) + "Fail: " + saveGoal, symbol));
         }
 
         internal void BuiltInCall(TermNode saveGoal)
         {
-            this.CallHistory.Add(new string(' ', saveGoal.Level) + "Call: " + saveGoal.Head);
+            this.CallHistory.Add((new string(' ', saveGoal.Level) + "Call: " + saveGoal.Head, saveGoal.Head.Symbol));
         }
 
         internal void Redo(TermNode callerGoal)
         {
-            this.CallHistory.Add(new string(' ', callerGoal.Level) + "Redo: " + callerGoal.Head);
+            this.CallHistory.Add((new string(' ', callerGoal.Level) + "Redo: " + callerGoal.Head, callerGoal.Head.Symbol));
         }
 
         internal void NextSolution(TermNode prevGoal)
         {
-            this.CallHistory.Add(new string(' ', prevGoal.Level) + "Next: " + prevGoal.Head);
+            this.CallHistory.Add((new string(' ', prevGoal.Level) + "Next: " + prevGoal.Head, prevGoal.Head.Symbol));
         }
     }
 }

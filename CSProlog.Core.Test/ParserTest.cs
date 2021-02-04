@@ -1,4 +1,6 @@
-﻿using FluentAssertions;
+﻿using System.Linq;
+using FluentAssertions;
+using Prolog;
 using Xunit;
 using Xunit.Abstractions;
 using static Prolog.PrologEngine;
@@ -63,6 +65,38 @@ namespace CSPrologTest
             d.ClauseList.Head.Symbol.FinalAdjusted.Should().Be(final);
             d.ClauseList.Head.Symbol.Class.Should().Be(BaseParser.SymbolClass.Id);
             test.Substring(start, final - start).Should().Be("foobar123_d.");
+        }
+
+        [Fact]
+        public void PopulatesMetaData()
+        {
+            string test = @"
+%% foo(++Ground:Type, +Instantiated, -Output, --Unbound, ?BoundToPartial, !Mutable)
+%
+% This comment will be displayed in the code completion menu.
+% The comment header might be used for IDE static analysis in the future.
+%
+foo(A, B, C, D, E, F) :- A = myFooAtom, fail.
+
+% Unit testing example - using SWI-Prolog style directives:
+:- begin_tests(arithm).
+    testSimpleAdd :- 1 + 2 =:= 3.
+    testSub :- 2 - 1 =:= 1.
+:- end_tests(arithm).
+";
+            PrologEngine e = new PrologEngine();
+            e.ConsultFromString(test);
+
+            PredicateDescr descrFoo = e.PredTable.Predicates.Where(x => !x.Value.IsPredefined && x.Key == "6foo").Single().Value;
+            descrFoo.ClauseListEnd.Head.CommentHeader.Should().Be("foo(++Ground:Type, +Instantiated, -Output, --Unbound, ?BoundToPartial, !Mutable)");
+            descrFoo.ClauseListEnd.Head.CommentBody.Should().Be(@"
+This comment will be displayed in the code completion menu.
+The comment header might be used for IDE static analysis in the future.
+
+");
+
+            PredicateDescr descrTestSub = e.PredTable.Predicates.Where(x => !x.Value.IsPredefined && x.Key == "0testSub").Single().Value;
+            descrTestSub.ClauseListEnd.Head.TestGroup.Should().Be("arithm");
         }
 
         [Theory]

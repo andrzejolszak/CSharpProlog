@@ -115,7 +115,7 @@ namespace Prolog
                               SolutionSet ss = e.GetAllSolutions(testName, 0);
 
                               suceeded = !ss.HasError && ss.Success;
-                              callStackText = e.ExecutionDetails.CurrentTermHistoryString;
+                              callStackText = e.ExecutionDetails.CallHistoryStringWithLines;
                           }
                           catch(Exception ex)
                           {

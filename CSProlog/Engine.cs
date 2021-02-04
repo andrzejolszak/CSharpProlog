@@ -487,7 +487,6 @@ namespace Prolog
                     Debugger(goalListHead, currClause, false);
                 }
 
-                this.ExecutionDetails?.CurrentGoalBeforeUnify(goalListHead, currClause);
                 int varStackCountBeforeUnify = this.CurrVarStack.Count;
 
                 string saveGoalPreUnifyCopy = this.ExecutionDetails != null ? saveGoal.Head.ToString() : null;
@@ -496,14 +495,12 @@ namespace Prolog
                 if (!cleanClauseHead.Unify(goalListHead.Head, CurrVarStack))
                 {
                     // Unify failed - try backtracking
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, false, false);
-
                     bool canRedo = CanBacktrack(currClause, failedUnify: true);
                    
                     if (!canRedo || (goalListHead.NextClause != null && goalListHead.NextClause.Head.Name != currClause.Head.Name))
                     {
-                        this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoalPreUnifyCopy);
-                        this.ExecutionDetails?.Failed(saveGoal.Level, saveGoalPreUnifyCopy);
+                        this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoalPreUnifyCopy, saveGoal.Head.Symbol);
+                        this.ExecutionDetails?.Failed(saveGoal.Level, saveGoalPreUnifyCopy, saveGoal.Head.Symbol);
                     }
 
                     PopCallStackFailed(canRedo, saveGoal);
@@ -515,8 +512,6 @@ namespace Prolog
                 }
                 else
                 {
-                    this.ExecutionDetails?.AfterUnify(CurrVarStack, varStackCountBeforeUnify, true, goalListHead.Head.Name == "fail/0");
-
                     // Matched the clause head, move on the evaluating the body
                     // This is where we lose track of the top-level clause because replace the reference with body
                     // However, we can still get hold of the whole clause through saveGoal.NextClause
@@ -531,7 +526,7 @@ namespace Prolog
                     // body is null or :- true., we are matching against a fact
                     if (currClause == null || currClause.IsTrueAtom)
                     {
-                        this.ExecutionDetails?.FactCall(saveGoal.Level, saveGoalPreUnifyCopy);
+                        this.ExecutionDetails?.FactCall(saveGoal.Level, saveGoalPreUnifyCopy, saveGoal.Head.Symbol);
                         this.ExecutionDetails?.Exit(saveGoal);
 
                         goalListHead = goalListHead.NextNode;
@@ -603,7 +598,7 @@ namespace Prolog
                         }
                         else if (builtinId == BI.fail)
                         {
-                            this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoal.Head.ToString());
+                            this.ExecutionDetails?.FailCall(saveGoal.Level, saveGoal.Head.ToString(), saveGoal.Head.Symbol);
 
                             bool canRedo = CanBacktrack(saveGoal);
                             

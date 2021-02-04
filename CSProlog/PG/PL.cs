@@ -1191,12 +1191,12 @@ namespace Prolog
                             }
 
                             string wholeComment = _lastCommentBlock.ToString();
-                            int firstNewLineIdx = wholeComment.IndexOf("\n");
+                            int firstNewLineIdx = wholeComment.IndexOf("\r\n");
                             originalSymbol.FinalPlus = symbol.FinalPlus;
                             originalSymbol.Final = symbol.Final;
                             BaseTerm addedTerm = tokenSeqToTerm.AddFunctorTerm(originalSymbol, functor,
-                                wholeComment.Substring(0, firstNewLineIdx + 1),
-                                wholeComment.Substring(firstNewLineIdx + 1), _currentTestGroup, spaceAfter, args);
+                                wholeComment.Substring(0, firstNewLineIdx == -1 ? 0 : firstNewLineIdx),
+                                wholeComment.Substring(firstNewLineIdx == -1 ? 0 : firstNewLineIdx + 2), _currentTestGroup, spaceAfter, args);
                             _lastCommentBlock.Clear();
 
                             if (addedTerm is AtomTerm && engine.PredTable.ConsultFileName != null)

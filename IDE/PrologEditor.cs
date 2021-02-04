@@ -1119,7 +1119,7 @@ All predicates are imported regardless of any module declarations.
                         {
                             ImageIndex = x.IsPredefined ? 0 : 1,
                             //   MenuText = x,
-                            ToolTipTitle = t?.CommentHeader ?? x.ToString() + ((t?.TestGroup == null) ? string.Empty : (" - test " + t?.TestGroup)),
+                            ToolTipTitle = t?.CommentHeader ?? x.ToString() + ((t?.TestGroup == null) ? string.Empty : ("\n - test " + t?.TestGroup)),
                             ToolTipText = helpRm.GetString(x.Name.ToLower().Replace(" ", "_")) ?? (t?.CommentBody) + $"\n[{file}]"
                         };
 
