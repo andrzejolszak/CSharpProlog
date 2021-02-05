@@ -98,12 +98,16 @@ namespace Prolog
             btnXeqQuery.BackColor = Color.LightBlue;
 
             tbAnswer.Clear();
+            btnCancelQuery.Visible = true;
             btnCancelQuery.Enabled = true;
             btnMore.Enabled = btnStop.Enabled = false;
             _findAllSolutions = findAllSolutions;
 
             winIO.GuiIO.bgw = bgwExecuteQuery;
             bgwExecuteQuery.RunWorkerAsync(queryEditor.Editor.Text);
+
+            winIO.GuiIO.WriteLine("Querying...");
+            this.Cursor = Cursors.WaitCursor;
         }
 
         private void bgwExecuteQuery_DoWork(object sender, DoWorkEventArgs e)
@@ -199,10 +203,11 @@ namespace Prolog
             semaMoreStop.Set();
         }
 
-        // click event for (now invisible) Cancel-button, which does not work as expected.
-        // (execution does not get interrupted, have to sort out why this does not work)
         private void btnCancelQuery_Click(object sender, EventArgs e)
         {
+            Cursor = Cursors.Default;
+            pe.Error = true;
+            pe.UserInterrupted = true;
             bgwExecuteQuery.CancelAsync();
             btnXeqQuery.Enabled = true;
 
@@ -215,7 +220,9 @@ namespace Prolog
 
         private void bgwExecuteQuery_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            Cursor = Cursors.Default;
             btnCancelQuery.Enabled = false;
+            btnCancelQuery.Visible = false;
             btnMore.Enabled = btnStop.Enabled = false;
             btnXeqQuery.Enabled = true;
 

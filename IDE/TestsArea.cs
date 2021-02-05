@@ -79,40 +79,40 @@ namespace Prolog
 
         private void RunTests(IEnumerable<TreeNode> targetTestNodes)
         {
-            for (int i = 0; i < treeView1.Nodes.Count; i++)
+            foreach (TreeNode n in targetTestNodes)
             {
-                TreeNode node = treeView1.Nodes[i];
-                if (targetTestNodes.Any(x => x.Parent == node))
-                {
-                    node.ImageIndex = node.SelectedImageIndex = RunningIcon;
-                }
+                n.ImageIndex = n.SelectedImageIndex = RunningIcon;
+                n.Parent.ImageIndex = n.Parent.SelectedImageIndex = RunningIcon;
+                n.Parent.Expand();
             }
+
+            Application.DoEvents();
+
+            string source = sourceArea.sourceEditor.Editor.Text;
 
             BasicIo oldIo = IO.BasicIO;
             IO.BasicIO = new SilentIO();
             ParallelLoopResult res =
-                Parallel.ForEach(targetTestNodes.OrderBy(x => x.Name).ToArray(),
-                    new ParallelOptions { MaxDegreeOfParallelism = 8 }, x =>
+                Parallel.ForEach(targetTestNodes.Select(control => (control.Text, control)).OrderBy(x => x.Text).ToArray(),
+                    new ParallelOptions { MaxDegreeOfParallelism = 4 }, x =>
                       {
                           bool suceeded = false;
                           string callStackText = "N/A";
-                          string testName = null;
 
                           try
                           {
-                              string source = null;
-
-                              Invoke(new Action(() =>
-                              {
-                                  x.ImageIndex = x.SelectedImageIndex = RunningIcon;
-                                  testName = x.Text;
-                                  source = sourceArea.sourceEditor.Editor.Text;
-                              }));
-
                               PrologEngine e = new PrologEngine(new ExecutionDetails());
+                              
+                              // Timeout after 5s
+                              _ = Task.Delay(5_000).ContinueWith(t =>
+                              {
+                                  e.Error = true;
+                                  e.UserInterrupted = true;
+                              }).ConfigureAwait(false);
+                              
                               e.ConsultFromString(source);
-
-                              SolutionSet ss = e.GetAllSolutions(testName, 0);
+                              
+                              SolutionSet ss = e.GetAllSolutions(x.Text, 0);
 
                               suceeded = !ss.HasError && ss.Success;
                               callStackText = e.ExecutionDetails.CallHistoryStringWithLines;
@@ -121,33 +121,51 @@ namespace Prolog
                           {
                               suceeded = false;
                               callStackText = "Exception during test run: \n" + ex.Message;
-                              Log.Error(ex, testName + ": " + callStackText);
+                              Log.Error(ex, x.Text + ": " + callStackText);
                           }
 
                           BeginInvoke(new Action(() =>
-                            {
-                                x.ImageIndex = x.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
-                                x.ToolTipText = suceeded ? string.Empty : callStackText;
-                                x.ToolTipText = x.ToolTipText.Trim(' ', '\n', '\t', '\r');
+                          {
+                              x.control.ImageIndex = x.control.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
+                              x.control.ToolTipText = suceeded ? string.Empty : callStackText;
+                              x.control.ToolTipText = x.control.ToolTipText.Trim(' ', '\n', '\t', '\r');
+                          }));
 
-                                lock (x.Parent)
-                                {
-                                    if (suceeded)
-                                    {
-                                        if (x.Parent.ImageIndex == RunningIcon)
-                                        {
-                                            x.Parent.ImageIndex = x.Parent.SelectedImageIndex = PassedIcon;
-                                            x.Parent.Collapse();
-                                        }
-                                    }
-                                    else
-                                    {
-                                        x.Parent.ImageIndex = x.Parent.SelectedImageIndex = FailedIcon;
-                                        x.Parent.Expand();
-                                    }
-                                }
-                            }));
+                          Application.DoEvents();
+
                       });
+
+            BeginInvoke(new Action(() =>
+            {
+                HashSet<TreeNode> parents = new HashSet<TreeNode>();
+                foreach (TreeNode n in targetTestNodes)
+                {
+                    parents.Add(n.Parent);
+
+                    if (n.Parent.ImageIndex == RunningIcon)
+                    {
+                        n.Parent.ImageIndex = n.Parent.SelectedImageIndex = n.ImageIndex;
+                    }
+                    else if (n.ImageIndex == FailedIcon || n.ImageIndex == RunningIcon)
+                    {
+                        n.Parent.ImageIndex = n.Parent.SelectedImageIndex = FailedIcon;
+                    }
+                }
+
+                foreach (TreeNode p in parents)
+                {
+                    if (p.SelectedImageIndex == FailedIcon)
+                    {
+                        p.Expand();
+                    }
+                    else
+                    {
+                        p.Collapse();
+                    }
+                }
+            }));
+
+            Application.DoEvents();
 
             IO.BasicIO = oldIo;
         }

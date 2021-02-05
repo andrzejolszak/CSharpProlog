@@ -141,6 +141,8 @@ namespace Prolog
 
         private void Initialize() // also called by ClearAll command
         {
+            Error = false;
+            UserInterrupted = false;
             CurrVarStack = new VarStack();
             // Needed by BaseTerm.VAR which will get varNo = 0
             CurrVarStack.varNoMax++;
