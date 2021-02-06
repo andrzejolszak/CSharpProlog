@@ -1417,7 +1417,12 @@ namespace Prolog
 
                         if (t1.IsVar)
                         {
-                            return false;
+                            return IO.ThrowRuntimeException("Arguments not sufficiently instantiated", CurrVarStack, term);
+                        }
+
+                        if (!t1.IsAtom)
+                        {
+                            return IO.ThrowRuntimeException("Arguments 1 should be an atom", CurrVarStack, term);
                         }
 
                         functor = t1.FunctorToString;
@@ -1429,7 +1434,7 @@ namespace Prolog
                         }
                         else
                         {
-                            return false;
+                            return IO.ThrowRuntimeException("Argument 2 has to be number", CurrVarStack, term);
                         }
 
                         BaseTerm[] args = new BaseTerm[arity];
@@ -3118,6 +3123,13 @@ namespace Prolog
                     if (t1.IsVar)
                     {
                         IO.ThrowRuntimeException("First argument of clause/2 is not sufficiently instantiated", CurrVarStack, term);
+
+                        return false;
+                    }
+
+                    if (!t1.IsCallable)
+                    {
+                        IO.ThrowRuntimeException("First argument of clause/2 is should be callable", CurrVarStack, term);
 
                         return false;
                     }

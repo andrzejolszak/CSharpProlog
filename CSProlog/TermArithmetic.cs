@@ -65,11 +65,6 @@ namespace Prolog
                 }
             }
 
-            public int CompareValue(ValueTerm t)
-            {
-                return 0;
-            }
-
             /// <summary>Retrieves the argument value of a term </summary>
             public T Arg<T>(int pos) where T : struct
             {
@@ -151,9 +146,8 @@ namespace Prolog
                             return new BoolTerm(Symbol, true);
 
                         default:
-                            return new ListTerm(Symbol, FunctorToString);
-                            //IO.Error ("Unable to evaluate '{0}'", FunctorToString);
-                            //break;
+                            IO.ThrowRuntimeException("Unable to evaluate: " + FunctorToString, null, this);
+                            break;
                     }
                 }
 
@@ -239,6 +233,9 @@ namespace Prolog
 
                         case "sign":
                             return new DecimalTerm(Symbol, Math.Sign(a0.To<decimal>()));
+
+                        case "float":
+                            return new DecimalTerm(Symbol, a0.To<double>());
 
                         case "sqrt":
                             return new DecimalTerm(Symbol, Math.Sqrt(a0.To<double>()));

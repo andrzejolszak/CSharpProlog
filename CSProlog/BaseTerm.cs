@@ -738,6 +738,7 @@ namespace Prolog
                     return t.Unify(this, varStack);
                 }
 
+                // TODO: this optimization seems to break down for: functor(1,X,Y), X=1, Y=0. Might be just functor implementation deficiency though...
                 if (CompoundTermType != t.CompoundTermType)
                 {
                     return false; // gives a slight improvement

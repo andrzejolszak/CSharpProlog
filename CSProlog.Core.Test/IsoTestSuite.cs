@@ -203,7 +203,7 @@ namespace CSPrologTest
         [InlineData(@"T: atom_length('', N), N=0")]
         [InlineData(@"F: atom_length('scarlet', 5)")]
         [InlineData(@"R: atom_length(Atom, 4)")]
-        [InlineData(@"R: atom_length(1.23, 4)")]
+        [InlineData(@"T: atom_length(1.23, 4)")]
         [InlineData(@"R: atom_length(atom, '4')")]
         [InlineData(@"T: X = abc, atom_length(X, 3)")]
         public void AtomLength(string test)
@@ -251,7 +251,7 @@ namespace CSPrologTest
         [InlineData(@"R: call((write(3), call(1)))")]
         [InlineData(@"R: call(X)")]
         [InlineData(@"R: call(1)")]
-        [InlineData(@"F: call((fail, 1))")]
+        [InlineData(@"R: call((fail, 1))")]
         [InlineData(@"R: call((write(3), 1))")]
         [InlineData(@"R: call((1; true))")]
         public void Call(string test)
@@ -261,7 +261,7 @@ namespace CSPrologTest
 
         [Theory]
         [InlineData(@"R: catch(true, C, write('something')), throw(blabla)")]
-        [InlineData(@"F: catch(foobar(abc,L), error, fail)")]
+        [InlineData(@"F: catch(foo(abc,L), error, fail)")]
         public void CatchAndThrow(string test)
         {
             test.Evaluate();
@@ -284,7 +284,7 @@ namespace CSPrologTest
         [InlineData(@"F: clause(x,Body)")]
         [InlineData(@"R: clause(_,B)")]
         [InlineData(@"R: clause(4,B)")]
-        [InlineData(@"R: clause(f(_),5)")]
+        [InlineData(@"F: clause(f(_),5)")]
         [InlineData(@"R: clause(atom(_),Body)")]
         [InlineData(@"F: clause(natnum, X)")]
         [InlineData(@"F: clause(single(0), _)")]
@@ -503,8 +503,12 @@ natnum(s(X, 1)) :- natnum(X), true, Z = C, natnum(1).
         [InlineData(@"T: X = 1 + 2, 'is'(Y, X * 3), X = 1+2, Y=9")]
         [InlineData(@"F: 'is'(foo,77)")]
         [InlineData(@"R: 'is'(77, N)")]
-        [InlineData(@"R: 'is'(77, foo)")]
+        [InlineData(@"R: 'is'(77, foooo)")]
+        [InlineData(@"T: 'is'(X,float(3)), X=3")]
         [InlineData(@"T: 'is'(X,float(3)), X=3.0")]
+        [InlineData(@"T: X is 6 + 7, X = 13")]
+        [InlineData(@"T: X is max(6,7), X = 7")]
+        [InlineData(@"T: X is floor(4.42), X = 4")]
         public void Is(string test)
         {
             test.Evaluate();
