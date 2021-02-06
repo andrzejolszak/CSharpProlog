@@ -172,11 +172,6 @@ sentence(X) --> dcg_string(X), [c].
         {
             string consult = @"
 string_without(End, Codes) -->
-    { string(End), !,
-      string_codes(End, EndCodes)
-    },
-    list_string_without(EndCodes, Codes).
-string_without(End, Codes) -->
     list_string_without(End, Codes).
 
 list_string_without(Not, [C|T]) -->
