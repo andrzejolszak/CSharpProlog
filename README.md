@@ -1,6 +1,6 @@
 [![Build Status](https://github.com/andrzejolszak/CSharpProlog/workflows/dotNet/badge.svg)](https://github.com/andrzejolszak/CSharpProlog/actions)
 
-[![Tests](https://gist.github.com/andrzejolszak/f0c3169fff05f0a2fb67c50bf2aecbb7/raw/csharpprolog_tests.md_badge.svg)](https://gist.github.com/andrzejolszak/f0c3169fff05f0a2fb67c50bf2aecbb7)
+[![Tests](https://gist.github.com/andrzejolszak/462c38560864dc0fec179b7188ef7554/raw/csharpprolog_tests.md_badge.svg)](https://gist.github.com/andrzejolszak/462c38560864dc0fec179b7188ef7554)
 
 A C# implementation of Prolog
 
