@@ -1529,13 +1529,23 @@ namespace Prolog
 
                     if (t0.IsVar || t1.IsVar)
                     {
-                        return false;
+                        IO.ThrowRuntimeException("Arguments 0 and 1 cannot be vars", CurrVarStack, term);
+                    }
+
+                    if (!t1.IsCompound)
+                    {
+                        IO.ThrowRuntimeException("Argument 0 should be compound.", CurrVarStack, term);
                     }
 
                     n = t0.To<int>(); // N is 1-based
 
                     if (n <= 0 || n > t1.Arity)
                     {
+                        if (n < 0)
+                        {
+                            IO.ThrowRuntimeException("Argument 0 cannot be negative", CurrVarStack, term);
+                        }
+
                         return false;
                     }
 
@@ -1551,11 +1561,17 @@ namespace Prolog
                     result = true;
                     if (t0.HasFunctor("/") && t0.Arity == 2 && t0.Arg(0).IsAtom && t0.Arg(1).IsInteger)
                     {
-                        result = PredTable.Abolish(t0.Arg(0).FunctorToString, t0.Arg(1).To<short>());
+                        short res = t0.Arg(1).To<short>();
+                        if (res < 0)
+                        {
+                            IO.ThrowRuntimeException("Wrong argument format, expected: atom/int", CurrVarStack, term);
+                        }
+
+                        result = PredTable.Abolish(t0.Arg(0).FunctorToString, res);
                     }
                     else
                     {
-                        result = false;
+                        IO.ThrowRuntimeException("Wrong argument format, expected: atom/int", CurrVarStack, term);
                     }
 
                     if (!result)
@@ -2362,7 +2378,7 @@ namespace Prolog
                     {
                         if (!t2.IsAtomic || !t1.IsAtomic)
                         {
-                            return false;
+                            IO.ThrowRuntimeException("Arguments are not sufficiently instantiated", CurrVarStack, term);
                         }
 
                         string both = t2.FunctorToString.Dequoted();
@@ -2384,7 +2400,7 @@ namespace Prolog
                     {
                         if (!t2.IsAtomic || !t0.IsAtomic)
                         {
-                            return false;
+                            IO.ThrowRuntimeException("Arguments are not sufficiently instantiated", CurrVarStack, term);
                         }
 
                         string both = t2.FunctorToString.Dequoted();
@@ -2406,7 +2422,7 @@ namespace Prolog
                     {
                         if (!t0.IsAtomic || !t1.IsAtomic)
                         {
-                            return false;
+                            IO.ThrowRuntimeException("Type error, atomic expected", CurrVarStack, term);
                         }
 
                         t3 = new AtomTerm(term.Symbol,
@@ -2428,7 +2444,7 @@ namespace Prolog
                     {
                         if (!t0.IsAtomic)
                         {
-                            return false;
+                            IO.ThrowRuntimeException("Argument 0 should be atomic", CurrVarStack, term);
                         }
 
                         int len = t0.FunctorToString.Dequoted().Length;
@@ -2442,7 +2458,12 @@ namespace Prolog
                     {
                         if (t0.IsVar)
                         {
-                            return false;
+                            IO.ThrowRuntimeException("Argument 0 are not sufficiently instantiated", CurrVarStack, term);
+                        }
+
+                        if (!t1.IsInteger)
+                        {
+                            IO.ThrowRuntimeException("Wrong argument 1 format", CurrVarStack, term);
                         }
 
                         if (!t0.Unify(t1, CurrVarStack))

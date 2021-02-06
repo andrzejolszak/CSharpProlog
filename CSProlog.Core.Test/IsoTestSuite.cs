@@ -49,11 +49,11 @@ namespace CSPrologTest
         }
 
         [Theory]
-        [InlineData(@"T: '=\\='(0,1)")]
-        [InlineData(@"F: '=\\='(1.0,1)")]
-        [InlineData(@"F: '=\\='(3 * 2,7 - 1)")]
-        [InlineData(@"R: '=\\='(N,5)")]
-        [InlineData(@"R: '=\\='(floot(1),5)")]
+        [InlineData(@"T: '=\='(0,1)")]
+        [InlineData(@"F: '=\='(1.0,1)")]
+        [InlineData(@"F: '=\='(3 * 2,7 - 1)")]
+        [InlineData(@"R: '=\='(N,5)")]
+        [InlineData(@"R: '=\='(floot(1),5)")]
         public void ArithDiff(string test)
         {
             test.Evaluate();
@@ -205,6 +205,7 @@ namespace CSPrologTest
         [InlineData(@"R: atom_length(Atom, 4)")]
         [InlineData(@"R: atom_length(1.23, 4)")]
         [InlineData(@"R: atom_length(atom, '4')")]
+        [InlineData(@"T: X = abc, atom_length(X, 3)")]
         public void AtomLength(string test)
         {
             test.Evaluate();
