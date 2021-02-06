@@ -36,9 +36,9 @@ namespace CSPrologTest
         }
 
         [Theory]
-        [InlineData(@"a :- ""str"" = ['s', 't', 'r'].", "a")]
+        //[InlineData(@"a :- ""str"" = ['s', 't', 'r'].", "a")]
         [InlineData(@"a :- [s, t, r] = ['s', 't', 'r'].", "a")]
-        [InlineData(@"a :- ""str"" = [s, t, r].", "a")]
+        //[InlineData(@"a :- ""str"" = [s, t, r].", "a")]
         [InlineData(@"a(X) :- ""str"" = X.", @"a(""str"")")]
         [InlineData("a :- var(X).", "a")]
         [InlineData("a :- nonvar(X).", "\\+a")]
