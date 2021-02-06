@@ -71,7 +71,7 @@ Expand the following summaries for more details:
 | **Pending:**             | <xsl:value-of select="/trx:TestRun/trx:ResultSummary/trx:Counters/@pending" /> |
 
 &lt;/details&gt;
-
+<!--
 ## Tests:      
       
         <xsl:apply-templates select="/trx:TestRun/trx:TestDefinitions"/>
