@@ -2485,8 +2485,7 @@ namespace Prolog
                             return false;
                         }
 
-                        t2 = NewIsoOrCsStringTerm(term.Symbol, t0.FunctorToString.Dequoted());
-                        line = ((StringTerm)t2).Value;
+                        line = t0.FunctorToString.Dequoted();
                         ListTerm list;
 
                         if (String.IsNullOrEmpty(line = line.Trim()))
