@@ -74,13 +74,6 @@ namespace Prolog
 
             public static string Format(BaseTerm t, BaseTerm args)
             {
-                if (!(t is StringTerm))
-                {
-                    IO.ThrowRuntimeException("Improper format string", null, t);
-
-                    return null;
-                }
-
                 return Format(t.FunctorToString, args);
             }
 

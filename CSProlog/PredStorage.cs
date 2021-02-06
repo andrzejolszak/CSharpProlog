@@ -937,7 +937,7 @@ namespace Prolog
                         }
                         else
                         {
-                            ClauseBody = new StringTerm(clause.Head.Symbol, "<builtin>");
+                            ClauseBody = new ListTerm(clause.Head.Symbol, "<builtin>");
                         }
 
                         yield return ClauseBody;

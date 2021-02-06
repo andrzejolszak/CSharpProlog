@@ -151,7 +151,7 @@ namespace Prolog
                             return new BoolTerm(Symbol, true);
 
                         default:
-                            return new StringTerm(Symbol, FunctorToString);
+                            return new ListTerm(Symbol, FunctorToString);
                             //IO.Error ("Unable to evaluate '{0}'", FunctorToString);
                             //break;
                     }
@@ -295,37 +295,37 @@ namespace Prolog
                         // string handling
                         case "string":
                         case "string2":
-                            return new StringTerm(Symbol, $"{a0}");
+                            return new ListTerm(Symbol, $"{a0}");
 
                         case "length":
                             return new DecimalTerm(Symbol, a0.FunctorToString.Length);
 
                         case "upcase":
-                            return new StringTerm(Symbol, a0.FunctorToString.ToUpper());
+                            return new ListTerm(Symbol, a0.FunctorToString.ToUpper());
 
                         case "upcase1": // upcase first char; rest unchanged
                             {
                                 string s = a0.FunctorToString;
-                                return new StringTerm(Symbol, s.Length == 0 ? "" : Char.ToUpper(s[0]) + s.Substring(1));
+                                return new ListTerm(Symbol, s.Length == 0 ? "" : Char.ToUpper(s[0]) + s.Substring(1));
                             }
                         case "lowcase":
-                            return new StringTerm(Symbol, a0.FunctorToString.ToLower());
+                            return new ListTerm(Symbol, a0.FunctorToString.ToLower());
 
                         case "trim":
-                            return new StringTerm(Symbol, a0.FunctorToString.Trim());
+                            return new ListTerm(Symbol, a0.FunctorToString.Trim());
 
                         case "trimstart":
-                            return new StringTerm(Symbol, a0.FunctorToString.TrimStart());
+                            return new ListTerm(Symbol, a0.FunctorToString.TrimStart());
 
                         case "reverse":
-                            return new StringTerm(Symbol, a0.FunctorToString.Reverse());
+                            return new ListTerm(Symbol, a0.FunctorToString.Reverse());
 
                         case "trimend":
-                            return new StringTerm(Symbol, a0.FunctorToString.TrimEnd());
+                            return new ListTerm(Symbol, a0.FunctorToString.TrimEnd());
 
                         case "singleline"
                             : // replace newlines by a single space (or null if already followed by a space)
-                            return new StringTerm(Symbol, Regex.Replace(a0.FunctorToString, "(\r(\n| )?|\n ?)", " "));
+                            return new ListTerm(Symbol, Regex.Replace(a0.FunctorToString, "(\r(\n| )?|\n ?)", " "));
                         // DateTime stuff
                         case "year":
                             return new DecimalTerm(Symbol, a0.To<DateTime>().Year);
@@ -367,7 +367,7 @@ namespace Prolog
                             return new DecimalTerm(Symbol, Utils.WeekNo(a0.To<DateTime>()));
 
                         case "dayname":
-                            return new StringTerm(Symbol, a0.To<DateTime>().DayOfWeek.ToString("G"));
+                            return new ListTerm(Symbol, a0.To<DateTime>().DayOfWeek.ToString("G"));
 
                         default:
                             IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/1", null, this);
@@ -398,10 +398,10 @@ namespace Prolog
                             return result;
 
                         case "+":
-                            if ((a0 is StringTerm || a0 is AtomTerm) &&
-                                (a1 is StringTerm || a1 is AtomTerm))
+                            if ((a0 is ListTerm || a0 is AtomTerm) &&
+                                (a1 is ListTerm || a1 is AtomTerm))
                             {
-                                return new StringTerm(Symbol,
+                                return new ListTerm(Symbol,
                                     a0.FunctorToString.Unescaped() + a1.FunctorToString.Unescaped());
                             }
                             else if (a0 is DateTimeTerm && a1 is TimeSpanTerm)
@@ -514,44 +514,44 @@ namespace Prolog
                         // string handling
                         case "format": // format without argument evaluation before substitution
                         case "format2": // format with ...
-                            if (a0 is StringTerm && a1 is ListTerm)
+                            if (a0 is ListTerm && a1 is ListTerm)
                             {
-                                return new StringTerm(Symbol,
+                                return new ListTerm(Symbol,
                                     string.Format(a0.FunctorToString, ((ListTerm)a1).ToStringArray()));
                             }
                             else if (a0 is DateTimeTerm)
                             {
-                                return new StringTerm(Symbol, a0.To<DateTime>().ToString(a1.FunctorToString));
+                                return new ListTerm(Symbol, a0.To<DateTime>().ToString(a1.FunctorToString));
                             }
                             else if (a1 is DecimalTerm)
                             {
-                                return new StringTerm(Symbol, string.Format(a0.FunctorToString, a1.To<decimal>()));
+                                return new ListTerm(Symbol, string.Format(a0.FunctorToString, a1.To<decimal>()));
                             }
                             else
                             {
-                                return new StringTerm(Symbol, string.Format(a0.FunctorToString, a1));
+                                return new ListTerm(Symbol, string.Format(a0.FunctorToString, a1));
                             }
                         case "indexof":
                             return new DecimalTerm(Symbol, a0.FunctorToString.IndexOf(a1.FunctorToString));
 
                         case "padleft":
-                            return new StringTerm(Symbol, a0.FunctorToString.PadLeft(a1.To<int>()));
+                            return new ListTerm(Symbol, a0.FunctorToString.PadLeft(a1.To<int>()));
 
                         case "padright":
-                            return new StringTerm(Symbol, a0.FunctorToString.PadRight(a1.To<int>()));
+                            return new ListTerm(Symbol, a0.FunctorToString.PadRight(a1.To<int>()));
 
                         case "remove":
                             int len = a1.To<int>();
-                            return new StringTerm(Symbol,
+                            return new ListTerm(Symbol,
                                 a0.FunctorToString.Remove(len, a1.FunctorToString.Length - len));
 
                         case "substring":
                             len = a1.To<int>();
-                            return new StringTerm(Symbol,
+                            return new ListTerm(Symbol,
                                 a0.FunctorToString.Substring(len, a0.FunctorToString.Length - len));
 
                         case "wrap":
-                            return new StringTerm(Symbol, Utils.ForceSpaces(a0.FunctorToString, a1.To<int>()));
+                            return new ListTerm(Symbol, Utils.ForceSpaces(a0.FunctorToString, a1.To<int>()));
 
                         case "split":
                             string splitChars = a1.FunctorToString;
@@ -561,7 +561,7 @@ namespace Prolog
                                 splitChars = a0.FunctorToString;
                                 for (int i = splitChars.Length - 1; i >= 0; i--)
                                 {
-                                    splitList = new ListTerm(Symbol, new StringTerm(Symbol, splitChars[i]), splitList);
+                                    splitList = new ListTerm(Symbol, new ListTerm(Symbol, splitChars[i].ToString()), splitList);
                                 }
                             }
                             else
@@ -569,7 +569,7 @@ namespace Prolog
                                 string[] part = a0.FunctorToString.Split(splitChars.ToCharArray());
                                 for (int i = part.Length - 1; i >= 0; i--)
                                 {
-                                    splitList = new ListTerm(Symbol, new StringTerm(Symbol, part[i]), splitList);
+                                    splitList = new ListTerm(Symbol, new ListTerm(Symbol, part[i]), splitList);
                                 }
                             }
 
@@ -593,10 +593,10 @@ namespace Prolog
                                 chain.Append(t.FunctorToString);
                             }
 
-                            return new StringTerm(Symbol, chain.ToString());
+                            return new ListTerm(Symbol, chain.ToString());
 
                         case "repeat":
-                            return new StringTerm(Symbol, a0.FunctorToString.Repeat(a1.To<int>()));
+                            return new ListTerm(Symbol, a0.FunctorToString.Repeat(a1.To<int>()));
 
                         case "levdist": // Levenshtein distance
                             return new DecimalTerm(Symbol, a0.FunctorToString.Levenshtein(a1.FunctorToString));
@@ -637,17 +637,17 @@ namespace Prolog
                                 a0.FunctorToString.IndexOf(a1.FunctorToString, a2.To<int>()));
 
                         case "remove":
-                            return new StringTerm(Symbol, a0.FunctorToString.Remove(a1.To<int>(), a2.To<int>()));
+                            return new ListTerm(Symbol, a0.FunctorToString.Remove(a1.To<int>(), a2.To<int>()));
 
                         case "substring":
-                            return new StringTerm(Symbol, a0.FunctorToString.Substring(a1.To<int>(), a2.To<int>()));
+                            return new ListTerm(Symbol, a0.FunctorToString.Substring(a1.To<int>(), a2.To<int>()));
 
                         case "replace":
-                            return new StringTerm(Symbol,
+                            return new ListTerm(Symbol,
                                 a0.FunctorToString.Replace(a1.FunctorToString, a2.FunctorToString));
 
                         case "regexreplace":
-                            return new StringTerm(Symbol,
+                            return new ListTerm(Symbol,
                                 Regex.Replace(a0.FunctorToString, a1.FunctorToString, a2.FunctorToString));
 
                         case "time":
@@ -661,7 +661,7 @@ namespace Prolog
                                 new DateTime(a0.To<int>(), a1.To<int>(), a2.To<int>()));
 
                         case "if":
-                            return new StringTerm(Symbol, a0.To<bool>() ? a1.FunctorToString : a2.FunctorToString);
+                            return new ListTerm(Symbol, a0.To<bool>() ? a1.FunctorToString : a2.FunctorToString);
 
                         default:
                             IO.ThrowRuntimeException($"Not a built-in function: {FunctorToString}/3", null, this);

@@ -26,16 +26,6 @@ namespace Prolog
     {
         private static readonly TryCatchTerm TC_CLOSE = new TryCatchTerm(null, ")");
 
-        public BaseTerm NewIsoOrCsStringTerm(Symbol symbol, string s)
-        {
-            if (CsharpStrings)
-            {
-                return new StringTerm(symbol, s);
-            }
-
-            return new ListTerm(symbol, s);
-        }
-
         public class TryCatchTerm : AtomTerm
         {
             public TryCatchTerm(Symbol symbol, string a) : base(symbol, a)
@@ -761,31 +751,6 @@ namespace Prolog
             }
 
             public override bool IsEvaluatable => true;
-        }
-
-        public class StringTerm : ValueTerm
-        {
-            public StringTerm(Symbol symbol, string value)
-                : base(symbol)
-            {
-                CompoundFunctor = value;
-                Value = value;
-                CompoundTermType = TermType.String;
-            }
-
-            public StringTerm(Symbol symbol, char value)
-                : base(symbol)
-            {
-                CompoundFunctor = value.ToString();
-                CompoundTermType = TermType.String;
-            }
-
-            public string Value { get; set; }
-
-            public override string ToWriteString(int level)
-            {
-                return '"' + FunctorToString.Replace(@"\", @"\\").Replace(@"""", @"\""") + '"';
-            }
         }
 
         public class DecimalTerm : ValueTerm

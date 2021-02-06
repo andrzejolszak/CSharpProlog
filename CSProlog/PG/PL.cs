@@ -501,7 +501,7 @@ namespace Prolog
                             symbol.SetProcessed();
                             BaseTerm t;
                             PrologTerm(new TerminalSet(terminalCount, Dot), out t);
-                            engine.SetStringStyle(t);
+                            // NOP engine.SetStringStyle(t);
                         }
                         else if (symbol.TerminalId == AllDiscontiguous)
                         {
@@ -1269,14 +1269,14 @@ namespace Prolog
                             symbol.SetProcessed();
                             string s = symbol.ToUnquoted();
                             s = true ? s.Unescaped() : s.Replace("\"\"", "\"");
-                            tokenSeqToTerm.Add(engine.NewIsoOrCsStringTerm(symbol, s));
+                            tokenSeqToTerm.Add(new ListTerm(symbol, s));
                         }
                         else if (symbol.TerminalId == VerbatimStringLiteral)
                         {
                             symbol.SetProcessed();
                             string s = symbol.ToUnquoted();
                             s = s.Replace("\"\"", "\"");
-                            tokenSeqToTerm.Add(engine.NewIsoOrCsStringTerm(symbol, s));
+                            tokenSeqToTerm.Add(new ListTerm(symbol, s));
                         }
                         else if (symbol.TerminalId == LCuBracket)
                         {

@@ -164,11 +164,7 @@ namespace Prolog
 
         private void Write(BaseTerm t, bool dequote)
         {
-            if (t.IsString)
-            {
-                BaseWriteCurrentOutput(dequote ? t.FunctorToString : '"' + t.FunctorToString + '"');
-            }
-            else if (t.IsAtom)
+            if (t.IsAtom)
             {
                 BaseWriteCurrentOutput(dequote ? t.FunctorToString.Dequoted("'") : t.FunctorToString);
             }

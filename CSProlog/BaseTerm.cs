@@ -36,7 +36,6 @@ namespace Prolog
         Number,
         ImagNumber,
         Atom,
-        String,
         DateTime,
         TimeSpan,
         Bool,
@@ -271,7 +270,6 @@ namespace Prolog
 
             public bool IsVar => ChainEnd() is Variable;
             public bool IsAtomic => ChainEnd().IsAtom || ChainEnd() is ValueTerm;
-            public bool IsString => ChainEnd() is StringTerm;
             public bool IsBool => ChainEnd() is BoolTerm;
             public bool IsDateTime => ChainEnd() is DateTimeTerm;
             public bool IsTimeSpan => ChainEnd() is TimeSpanTerm;
@@ -284,7 +282,6 @@ namespace Prolog
             public bool IsAtom => Arity == 0 && !(ChainEnd() is ValueTerm);
 
             // Var has -1
-            public bool IsAtomOrString => IsAtom || IsString;
 
             public bool IsInteger => IsNumber && Decimal.Remainder(To<decimal>(), 1) == 0;
             public bool IsNatural => IsNumber && To<decimal>() >= 0;
@@ -663,7 +660,7 @@ namespace Prolog
             {
                 BaseTerm temp;
 
-                if (t.IsString || t is Cut)
+                if (t is Cut)
                 {
                     body.Append(t);
                 }

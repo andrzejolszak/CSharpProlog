@@ -25,11 +25,11 @@ namespace Prolog
     {
         none, abolish, arg, append, append2, assert, asserta, assertz, atom_,
         atom_string, atom_chars, atom_concat, atom_length, atomic, between, bool_, cache, call, clause, clearall,
-        clearprofile, cls, collection_add, collection_exit, collection_init,
-        combination, compound, config_setting, console, consult, copy_term,
-        current_op, cut, dayname, dcg_flat, date_part, datetime, dayofweek, dayofyear,
+        clearprofile, collection_add, collection_exit, collection_init,
+        combination, compound, config_setting, consult, copy_term,
+        current_op, cut, dcg_flat, date_part, datetime, dayofweek, dayofyear,
         debug, dec_counter, display, eq_num, eq_str, errorlevel, expand_term,
-        fail, fileexists, flat, float_, format, functor, ge_num, ge_ord, gensym, genvar,
+        fail, fileexists, flat, float_, functor, ge_num, ge_ord, gensym, genvar,
         get, get_counter, get0, getvar, ground, gt_num, gt_ord, halt,
         inc_counter, integer, is_, le_num, le_ord,
         leapyear, length, license, list, listing, listing0, listing0X, listing0XN, listingX,
@@ -37,13 +37,13 @@ namespace Prolog
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
         noverbose, now, number, numbervars, or, permutation, pp_defines,
         predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
-        readatom, readeof, readln, retract, retractall,
+        readatom, retract, retractall,
         reverse, set_counter, setvar,
         showfile, showprofile, silent, sort, spy, spypoints, stacktrace, callstack, statistics,
-        string_, string_datetime, string_term, string_words, stringstyle, succ, tab,
+        succ, tab,
         term_pattern, throw_, time_part, timespan, today, trace, treeprint,
         unifiable, univ, validdate, validtime, var,
-        verbose, version, weekno, write, writef, writeln, writelnf
+        verbose, version, weekno, write, writeln
     }
 
     public partial class PrologEngine
@@ -418,12 +418,6 @@ namespace Prolog
 %
        var(V)           :== var.
 
-%% var(@Term, +Name)
-%
-% True if Term currently is a free variable with a given Name.
-%
-       var(V, N)        :== var.
-
 %% nonvar(@Term)
 %
 % True if Term currently is not a free variable.
@@ -475,12 +469,6 @@ namespace Prolog
 %
        list(L)          :== list.
 
-%% string(@Term)
-%
-% True if Term is bound to a string.
-%
-       string(V)        :== string_.
-
 %% bool(@Term)
 %
 % True if Term is bound to a bool.
@@ -507,10 +495,6 @@ namespace Prolog
 % a negative integer. E.g. succ(X, 0) fails silently and succ(X, -1) raises a domain error.
 %
        succ(N0, N1)     :== succ.
-
-       string_datetime(X, D) :== string_datetime.
-       string_datetime(X, Y, M, D) :== string_datetime.
-       string_datetime(X, Y, Mo, D, H, Mi, S) :== string_datetime.
 
 %% -Number is +Expr
 %
@@ -593,19 +577,6 @@ namespace Prolog
        readatom(X)      :== readatom.
        readatoms(L)     :== readatoms.
 
-%% readeof(F, T)
-%
-% unify the entire contents of file F with T
-%
-       readeof(F, T)    :== readeof.
-
-%% read_line(-Codes) is det
-%
-% Read a line from the given or current input. The line read does not include
-% the line-termination character. Unifies Codes with end_of_file if the end of the input is reached.
-%
-       readln(X)        :== readln.
-
 %% get0(-Char)
 %
 % Edinburgh version of the ISO get_code/1 predicate. Note that Edinburgh Prolog didn't support
@@ -642,26 +613,6 @@ namespace Prolog
 %
        writeln(X)       :== writeln.
 
-%% writef(+Format, +Arguments)
-%
-% Formatted write. Format is an atom whose characters will be printed.
-% Format may contain certain special character sequences which specify certain formatting
-% and substitution actions. Arguments provides all the terms required to be output.
-%
-       writef(S, L)     :== writef.  % formatted write, à la C#. L single arg or list of args.
-
-%% writef(+Atom)
-%
-% Equivalent to writef(Atom, []).
-%
-       writef(S)        :== write.
-
-       writelnf(S, L)   :== writelnf.
-       writelnf(S)      :== writeln.
-
-       console(S)       :== console.
-       console(S, L)    :== console.
-
 %% put(+Char)
 %
 % Write Char to the current output stream. Char is either an integer expression
@@ -687,7 +638,6 @@ namespace Prolog
 %
        display(X)       :== display.
 
-       cls               :== cls. % clear screen
        errorlevel(N)    :== errorlevel. % set DOS ERRORLEVEL (for batch processing)
 
     /* Backtrackable predicates
@@ -856,9 +806,6 @@ namespace Prolog
 %
        atom_length(Atom, Len)        :== atom_length.
 
-       string_term(S, T)        :== string_term. % convert string S to Prolog term T and v.v.
-       string_words(S, L)       :== string_words.
-
 %% expand_term(+Term1, -Term2)
 %
 % This predicate is normally called by the compiler on terms read from the input
@@ -895,13 +842,6 @@ namespace Prolog
        throw(S, L)              :== throw_. % ...; L single arg or list of args.
        throw(C, S, L)           :== throw_. % ...; C exception class name (atom or integer); L single arg or list of args.
 
-%% format(+Output, +Format, :Arguments)
-%
-% As format/2, but write the output on the given Output.
-% The de-facto standard only allows Output to be a stream.
-%
-       format(S, L, X)         :== format.
-
 %% now(-When) is det
 %
 % Unify when with the current time-stamp
@@ -910,7 +850,6 @@ namespace Prolog
        validtime(H, M, S)      :== validtime.
        today(Y, M, D)          :== today.
        validdate(Y, M, D)      :== validdate.
-       dayname(Y, M, D, N)     :== dayname.
        dayofweek(Y, M, D, N)   :== dayofweek.
        dayofyear(Y, M, D, N)   :== dayofyear.
        leapyear(Y)             :== leapyear.
@@ -973,7 +912,6 @@ namespace Prolog
 
        clearall               :== clearall.
        spypoints              :== spypoints.
-       stringstyle(X)        :== stringstyle.
        /*next version:
        %callstack(S)         :== callstack. % string S contains current call stack
        %callstack(S, L)      :== callstack. % ... L is list representation
@@ -1088,7 +1026,7 @@ namespace Prolog
                         break;
                     }
 
-                    if (t0.IsAtomOrString)
+                    if (t0.IsAtom)
                     {
                         fileName = Utils.FileNameFromTerm(t0, ".pl");
 
@@ -1393,7 +1331,7 @@ namespace Prolog
                             return false;
                         }
                     }
-                    else if (t0.IsAtomOrString)
+                    else if (t0.IsAtom)
                     {
                         if (!term.Arg(1).Unify(new DecimalTerm(term.Symbol, t0.FunctorToString.Length), CurrVarStack))
                         {
@@ -1611,9 +1549,7 @@ namespace Prolog
                     }
 
                 case BI.var:
-                    if (!term.Arg(0).IsVar ||
-                        (term.Arity == 2 &&
-                         !term.Arg(1).Unify(new StringTerm(term.Symbol, term.Arg(0).Name), CurrVarStack)))
+                    if (!term.Arg(0).IsVar)
                     {
                         return false;
                     }
@@ -1678,14 +1614,6 @@ namespace Prolog
 
                 case BI.list:
                     if (term.Arg(0).IsProperList)
-                    {
-                        break;
-                    }
-
-                    return false;
-
-                case BI.string_:
-                    if (term.Arg(0).IsString)
                     {
                         break;
                     }
@@ -2049,41 +1977,6 @@ namespace Prolog
 
                     break;
 
-                case BI.readln: // readln( L)
-                    line = ReadLine();
-
-                    if (line == null || !term.Arg(0).Unify(new StringTerm(term.Symbol, line), CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
-                case BI.readeof: // readeof( +F, ?T) -- unify the entire contents of file F with string T
-                    if ((t0 = term.Arg(0)).IsVar)
-                    {
-                        return false;
-                    }
-
-                    x = Utils.FileNameFromTerm(t0, ".txt");
-                    string fileContents = null;
-
-                    try
-                    {
-                        fileContents = File.ReadAllText(x);
-                    }
-                    catch (Exception e)
-                    {
-                        IO.ThrowRuntimeException($"Error reading file {x}. Message was:{Environment.NewLine}{e.Message}", CurrVarStack, term);
-                    }
-
-                    if (!term.Arg(1).Unify(new StringTerm(term.Symbol, fileContents), CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
                 case BI.get0: // get0( C): any character
                     n = ReadChar();
 
@@ -2121,39 +2014,6 @@ namespace Prolog
                     NewLine();
                     break;
 
-                case BI.writef: // writef( X, L) // formatted write, L last
-                    string ln = null;
-                    goto case BI.writelnf;
-                case BI.writelnf: // writef( X, L) // formatted writeln, L last
-                    ln = "ln";
-                    if (!(term.Arg(0) is StringTerm))
-                    {
-                        IO.ThrowRuntimeException(String.Format("First argument of write(0}f/2 must be a string", ln),
-                            CurrVarStack,
-                            term);
-                    }
-
-                    if (!(term.Arg(1) is ListTerm))
-                    {
-                        IO.ThrowRuntimeException($"Second argument of write{ln}f/2 must be a list", CurrVarStack, term);
-                    }
-
-                    string fs = Utils.Format(term.Arg(0), term.Arg(1));
-
-                    if (fs == null)
-                    {
-                        return false;
-                    }
-
-                    Write(fs);
-
-                    if (term.FunctorToString == "writelnf")
-                    {
-                        NewLine();
-                    }
-
-                    break;
-
                 case BI.put: // put( C)
                     n = term.Arg<int>(0);
                     Write(((char)n).ToString());
@@ -2187,33 +2047,6 @@ namespace Prolog
                 case BI.display:
                     Write(term.Arg(0).ToDisplayString(), false);
                     NewLine();
-                    break;
-
-                case BI.console:
-                    if (term.Arity == 2 && !(term.Arg(0) is StringTerm))
-                    {
-                        IO.ThrowRuntimeException("First argument of console/1/2 must be a string", CurrVarStack, term);
-                    }
-
-                    if (term.Arity == 2)
-                    {
-                        if (!(term.Arg(1) is ListTerm))
-                        {
-                            IO.ThrowRuntimeException("Second argument of console/2 must be a list", CurrVarStack, term);
-                        }
-
-                        a = Utils.Format(term.Arg(0), term.Arg(1));
-                        IO.WriteLine(a);
-                    }
-                    else
-                    {
-                        IO.WriteLine(term.Arg(0).ToString());
-                    }
-
-                    break;
-
-                case BI.cls:
-                    IO.ClearScreen();
                     break;
 
                 case BI.showfile:
@@ -2323,7 +2156,7 @@ namespace Prolog
                             return false;
                         }
 
-                        t2 = NewIsoOrCsStringTerm(t0.Symbol, t0.FunctorToString.Dequoted());
+                        t2 = new ListTerm(t0.Symbol, t0.FunctorToString.Dequoted());
 
                         if (!t1.Unify(t2, CurrVarStack))
                         {
@@ -2350,13 +2183,6 @@ namespace Prolog
                             }
 
                             if (!term.Arg(0).Unify(TermFromWord(sb.ToString()), CurrVarStack))
-                            {
-                                return false;
-                            }
-                        }
-                        else if (t1.IsString && (a = t1.FunctorToString).Length > 0)
-                        {
-                            if (!term.Arg(0).Unify(TermFromWord(a.Dequoted()), CurrVarStack))
                             {
                                 return false;
                             }
@@ -2533,111 +2359,10 @@ namespace Prolog
                                 return false;
                             }
                         }
-                        else if (t1.IsString && (a = t1.FunctorToString).Length > 0)
-                        {
-                            if (!term.Arg(0).Unify(TermFromWord(a.Dequoted()), CurrVarStack))
-                            {
-                                return false;
-                            }
-                        }
                         else
                         {
                             return false;
                         }
-                    }
-
-                    break;
-
-                case BI.string_term: // string_term( ?S, ?T) -- convert string S to Prolog term T and v.v.
-                    t0 = term.Arg(0);
-                    t1 = term.Arg(1);
-
-                    if (t0.IsString)
-                    {
-                        PrologParser p = new PrologParser(this)
-                        {
-                            StreamIn = "&reading" + Environment.NewLine + t0.FunctorToString.AddEndDot()
-                        };
-
-                        if (!t1.Unify(p.ReadTerm, CurrVarStack))
-                        {
-                            return false;
-                        }
-                    }
-                    else if (!t0.Unify(new StringTerm(term.Symbol, t1.ToString()), CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
-                case BI.string_words:
-                    t0 = term.Arg(0);
-                    t1 = term.Arg(1);
-
-                    if (t0.IsString)
-                    {
-                        ListTerm list;
-                        line = ((StringTerm)t0).Value;
-
-                        if (String.IsNullOrEmpty(line = line.Trim()))
-                        {
-                            list = BaseTerm.EMPTYLIST;
-                        }
-                        else
-                        {
-                            string[] words = line.Tokens();
-                            BaseTerm[] terms = new BaseTerm[words.Length];
-
-                            for (int i = 0; i < words.Length; i++)
-                            {
-                                terms[i] = TermFromWord(words[i]);
-                            }
-
-                            list = ListTerm.ListFromArray(terms);
-                        }
-
-                        if (list.Unify(t1, CurrVarStack))
-                        {
-                            break;
-                        }
-                    }
-                    else if (t1.IsProperList)
-                    {
-                        StringBuilder sb = new StringBuilder();
-                        bool first = true;
-
-                        foreach (BaseTerm t in (ListTerm)t1)
-                        {
-                            if (first)
-                            {
-                                first = false;
-                            }
-                            else
-                            {
-                                sb.Append(' ');
-                            }
-
-                            sb.Append(t);
-                        }
-
-                        if (t0.Unify(new StringTerm(term.Symbol, sb.ToString()), CurrVarStack))
-                        {
-                            break;
-                        }
-                    }
-
-                    return false;
-
-                case BI.stringstyle:
-                    t0 = term.Arg(0);
-                    if (t0.IsVar)
-                    {
-                        t0.Unify(new AtomTerm(term.Symbol, CsharpStrings ? "csharp" : "iso"), CurrVarStack);
-                    }
-                    else
-                    {
-                        SetStringStyle(t0);
                     }
 
                     break;
@@ -2690,10 +2415,6 @@ namespace Prolog
                             {
                                 t2 = new DecimalTerm(term.Symbol, int.Parse(a));
                             }
-                            else if (type == TermType.String)
-                            {
-                                t2 = NewIsoOrCsStringTerm(term.Symbol, a);
-                            }
                             else
                             {
                                 t2 = new AtomTerm(term.Symbol, a);
@@ -2739,21 +2460,6 @@ namespace Prolog
                     int k = t1.To<int>();
                     t0.NumberVars(ref k, CurrVarStack);
                     t2.Unify(new DecimalTerm(term.Symbol, k), CurrVarStack);
-                    break;
-
-                case BI.format: // format/3
-                    fs = Utils.Format(term.Arg(0), term.Arg(1));
-
-                    if (fs == null)
-                    {
-                        return false;
-                    }
-
-                    if (!term.Arg(2).Unify(new StringTerm(term.Symbol, fs), CurrVarStack))
-                    {
-                        return false;
-                    }
-
                     break;
 
                 case BI.predicatePN: // predicate( +P/N)
@@ -2855,11 +2561,6 @@ namespace Prolog
                     {
                         IO.ThrowRuntimeException($"First argument of throw/3 ({t0}) is not an atom or an integer", CurrVarStack,
                             term);
-                    }
-
-                    if (!(t0 is StringTerm))
-                    {
-                        IO.ThrowRuntimeException($"Throw/3: string expected instead of '{t0}'", CurrVarStack, term);
                     }
 
                     exceptionMessage = t1 == null ? t0.FunctorToString : Utils.Format(t0, t1);
@@ -3000,81 +2701,6 @@ namespace Prolog
 
                     break;
 
-                case BI.string_datetime: // convert a string to a DateTime term
-                    t0 = term.Arg(0);
-
-                    if (term.Arity > 2)
-                    {
-                        if (!t0.IsString || !DateTime.TryParse(t0.FunctorToString, out dati))
-                        {
-                            IO.ThrowRuntimeException($"string_datetime: invalid date format: '{t0}' for first argument",
-                                CurrVarStack, term);
-
-                            return false;
-                        }
-
-                        if (!term.Arg(1).Unify(new DecimalTerm(term.Symbol, dati.Year), CurrVarStack) ||
-                            !term.Arg(2).Unify(new DecimalTerm(term.Symbol, dati.Month), CurrVarStack) ||
-                            !term.Arg(3).Unify(new DecimalTerm(term.Symbol, dati.Day), CurrVarStack) ||
-                            (term.Arity == 7 &&
-                             (!term.Arg(4).Unify(new DecimalTerm(term.Symbol, dati.Hour), CurrVarStack) ||
-                              !term.Arg(5).Unify(new DecimalTerm(term.Symbol, dati.Minute), CurrVarStack) ||
-                              !term.Arg(6).Unify(new DecimalTerm(term.Symbol, dati.Second), CurrVarStack)
-                             )))
-                        {
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        t1 = term.Arg(1);
-
-                        if (t0.IsString)
-                        {
-                            if (DateTime.TryParse(t0.FunctorToString, out dati))
-                            {
-                                if (!t1.Unify(new DateTimeTerm(term.Symbol, dati), CurrVarStack))
-                                {
-                                    return false;
-                                }
-                            }
-                            else
-                            {
-                                IO.ThrowRuntimeException($"string_datetime: error while parsing first argument: '{t0}'",
-                                    CurrVarStack, term);
-
-                                return false;
-                            }
-                        }
-                        else if (t0.IsVar)
-                        {
-                            if (t1.IsDateTime)
-                            {
-                                if (!t0.Unify(new StringTerm(term.Symbol, t1.FunctorToString), CurrVarStack))
-                                {
-                                    return false;
-                                }
-                            }
-                            else
-                            {
-                                IO.ThrowRuntimeException($"string_datetime: second argument is not a DateTime term: '{t0}'",
-                                    CurrVarStack, term);
-
-                                return false;
-                            }
-                        }
-                        else
-                        {
-                            IO.ThrowRuntimeException($"string_datetime: first argument not a string or var: '{t0}'",
-                                CurrVarStack,
-                                term);
-
-                            return false;
-                        }
-                    }
-
-                    break;
-
                 case BI.date_part: // get the date part of a DateTime (time set to 00:00:00)
                     t0 = term.Arg(0);
 
@@ -3103,57 +2729,6 @@ namespace Prolog
                     }
 
                     if (!term.Arg(1).Unify(new TimeSpanTerm(term.Symbol, t0.To<DateTime>().TimeOfDay), CurrVarStack))
-                    {
-                        return false;
-                    }
-
-                    break;
-
-                case BI.dayname: // dayname( +Y, +M, +D, ?N)
-                    DayOfWeek dow;
-                    t0 = term.Arg(0);
-
-                    if (t0.IsInteger)
-                    {
-                        y = t0.To<int>();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-
-                    t1 = term.Arg(1);
-
-                    if (t1.IsInteger)
-                    {
-                        m = t1.To<int>();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-
-                    t2 = term.Arg(2);
-
-                    if (t2.IsInteger)
-                    {
-                        d = t2.To<int>();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-
-                    try
-                    {
-                        dow = new DateTime(y, m, d).DayOfWeek;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-
-                    if (!term.Arg(3).Unify(new StringTerm(term.Symbol, dow.ToString("G")), CurrVarStack))
                     {
                         return false;
                     }

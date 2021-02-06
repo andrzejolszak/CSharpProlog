@@ -80,7 +80,6 @@ namespace Prolog
 
         public Stack<int> CatchIdStack { get; set; }
 
-        public bool CsharpStrings { get; set; }
         public bool EventDebug { get; set; }
 
         public DateTime? LastConsulted { get; set; }
@@ -959,7 +958,7 @@ namespace Prolog
                     case Status.TryMatch:
                         if (t.ExceptionClass == null || t.ExceptionClass == exceptionClass)
                         {
-                            t.MsgVar.Unify(new StringTerm(t.Symbol, exceptionMessage), CurrVarStack);
+                            t.MsgVar.Unify(new ListTerm(t.Symbol, exceptionMessage), CurrVarStack);
 
                             return true;
                         }
@@ -1053,9 +1052,6 @@ namespace Prolog
 
         public void Consult(string stream, string streamName = null)
         {
-            bool csharpStringsSave = CsharpStrings;
-            // string as ISO-style charcode lists or as C# strings
-
             try
             {
                 ConsultedFiles.Clear();
@@ -1063,7 +1059,6 @@ namespace Prolog
             }
             finally
             {
-                CsharpStrings = csharpStringsSave;
                 LastConsulted = DateTime.Now;
             }
         }
@@ -1071,20 +1066,6 @@ namespace Prolog
         public void ConsultFromString(string prologCode, string codeTitle = null)
         {
             Consult(prologCode, codeTitle);
-        }
-
-        public void SetStringStyle(BaseTerm t)
-        {
-            string arg = t.FunctorToString;
-
-            if (!(arg == "csharp" || arg == "iso"))
-            {
-                IO.ThrowRuntimeException($"Illegal argument '{t}' for setstringstyle/1 -- must be 'iso' or 'csharp'",
-                    CurrVarStack,
-                    t);
-            }
-
-            CsharpStrings = arg == "csharp";
         }
 
         private void SetSwitch(string switchName, ref bool switchVar, bool mode)
