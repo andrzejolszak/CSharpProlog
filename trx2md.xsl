@@ -73,7 +73,7 @@ Expand the following summaries for more details:
 &lt;/details&gt;
 
 ## Tests:      
-      
+      <!--
         <xsl:apply-templates select="/trx:TestRun/trx:TestDefinitions"/>
     </xsl:template>
 
