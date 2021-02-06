@@ -119,16 +119,6 @@ Expand the following summaries for more details:
 <xsl:value-of select="$testOutcomeIcon" />
 <xsl:text> </xsl:text>
 <xsl:value-of select="@name" />
-    &lt;/summary&gt;
-
-| | |
-|-|-|
-| **ID:**            | `<xsl:value-of select="@id" />`
-| **Name:**          | `<xsl:value-of select="@name" />`
-| **Outcome:**       | `<xsl:value-of select="$testResult/@outcome" />` <xsl:value-of select="$testOutcomeIcon" />
-| **Start:**         | `<xsl:value-of select="$testResult/@startTime" />`
-| **End:**           | `<xsl:value-of select="$testResult/@endTime" />`
-| **Duration:**      | `<xsl:value-of select="$testResult/@duration" />`
 </xsl:if>
       <!--
 &lt;details&gt;
