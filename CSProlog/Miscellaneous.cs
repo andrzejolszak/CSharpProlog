@@ -563,7 +563,7 @@ namespace Prolog
             }
 
             PrologEngine.IO.ThrowRuntimeException(
-                $"Unrecognized escape sequence in string \"{s}\"" + "\r\n(cf. CSProlog.exe.config in .exe-directory)",
+                $"Unrecognized escape sequence in string \"{s}\"{Environment.NewLine}(cf. CSProlog.exe.config in .exe-directory)",
                 null, null);
 
             return null;

@@ -392,12 +392,12 @@ namespace Prolog
                     PrologTerm(new TerminalSet(terminalCount, Dot, ImpliesSym, DCGArrowSym), out head);
                     if (!head.IsCallable)
                     {
-                        IO.ThrowConsultException("\r\nIllegal predicate head: {0}", head);
+                        IO.ThrowConsultException("Illegal predicate head: {0}", head);
                     }
 
                     if (engine.PredTable.Predefined.Contains(head.Key))
                     {
-                        IO.ThrowConsultException("\r\nPredefined predicate or operator '{0}' cannot be redefined.", head);
+                        IO.ThrowConsultException("Predefined predicate or operator '{0}' cannot be redefined.", head);
                     }
 
                     GetSymbol(new TerminalSet(terminalCount, Dot, ImpliesSym, DCGArrowSym), false, true);
@@ -1191,7 +1191,7 @@ namespace Prolog
                             }
 
                             string wholeComment = _lastCommentBlock.ToString();
-                            int firstNewLineIdx = wholeComment.IndexOf("\r\n");
+                            int firstNewLineIdx = wholeComment.IndexOf(Environment.NewLine);
                             originalSymbol.FinalPlus = symbol.FinalPlus;
                             originalSymbol.Final = symbol.Final;
                             BaseTerm addedTerm = tokenSeqToTerm.AddFunctorTerm(originalSymbol, functor,

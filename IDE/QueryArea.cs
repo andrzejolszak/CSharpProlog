@@ -118,15 +118,15 @@ namespace Prolog
 
                 if (solutions.HasError)
                 {
-                    winIO.GuiIO.WriteLine("Errors: \r\n" + solutions.ErrMsg);
+                    winIO.GuiIO.WriteLine("Errors:" + Environment.NewLine + solutions.ErrMsg);
                 }
                 else if (solutions.Success)
                 {
-                    winIO.GuiIO.WriteLine("yes\r\n" + solutions);
+                    winIO.GuiIO.WriteLine("yes" + Environment.NewLine + solutions);
                 }
                 else
                 {
-                    winIO.GuiIO.WriteLine("no\r\n" + solutions);
+                    winIO.GuiIO.WriteLine("no" + Environment.NewLine + solutions);
                 }
                 
                 foreach (PrologException error in solutions.Errors)

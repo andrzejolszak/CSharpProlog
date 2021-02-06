@@ -120,7 +120,7 @@ namespace Prolog
                           catch(Exception ex)
                           {
                               suceeded = false;
-                              callStackText = "Exception during test run: \n" + ex.Message;
+                              callStackText = "Exception during test run:" + Environment.NewLine + ex.Message;
                               Log.Error(ex, x.Text + ": " + callStackText);
                           }
 

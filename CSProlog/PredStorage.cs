@@ -166,7 +166,7 @@ namespace Prolog
                 definedInCurrFile.Clear();
                 isDiscontiguous.Clear();
                 //Globals.ConsultModuleName = null;
-                parser.Prefix = "&program\r\n";
+                parser.Prefix = "&program" + Environment.NewLine;
                 IO.Write($"--- Consulting {fileName} ... ");
                 parser.LoadFromStream(stream, fileName);
                 IO.WriteLine($"{parser.LineCount} lines read");
@@ -275,7 +275,7 @@ namespace Prolog
                         break;
 
                     default:
-                        IO.ThrowConsultException($"\r\nUnknown directive ':- {directive}'", symbol);
+                        IO.ThrowConsultException($"Unknown directive ':- {directive}'", symbol);
                         break;
                 }
             }

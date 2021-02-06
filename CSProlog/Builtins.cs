@@ -2074,7 +2074,7 @@ namespace Prolog
                     }
                     catch (Exception e)
                     {
-                        IO.ThrowRuntimeException($"Error reading file {x}. Message was:\r\n{e.Message}", CurrVarStack, term);
+                        IO.ThrowRuntimeException($"Error reading file {x}. Message was:{Environment.NewLine}{e.Message}", CurrVarStack, term);
                     }
 
                     if (!term.Arg(1).Unify(new StringTerm(term.Symbol, fileContents), CurrVarStack))
@@ -2557,7 +2557,7 @@ namespace Prolog
                     {
                         PrologParser p = new PrologParser(this)
                         {
-                            StreamIn = "&reading\r\n" + t0.FunctorToString.AddEndDot()
+                            StreamIn = "&reading" + Environment.NewLine + t0.FunctorToString.AddEndDot()
                         };
 
                         if (!t1.Unify(p.ReadTerm, CurrVarStack))

@@ -64,7 +64,7 @@
             this.cbNewLines.Size = new System.Drawing.Size(68, 30);
             this.cbNewLines.TabIndex = 28;
             this.cbNewLines.TabStop = false;
-            this.cbNewLines.Text = "Enter\r\nAccepts";
+            this.cbNewLines.Text = "Enter Accepts";
             this.cbNewLines.UseVisualStyleBackColor = true;
             this.cbNewLines.CheckedChanged += new System.EventHandler(this.cbNewLines_CheckedChanged);
             // 

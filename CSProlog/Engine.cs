@@ -41,8 +41,8 @@ namespace Prolog
 
         public static readonly int maxWriteDepth = -1; // Set by maxwritedepth/1. Subterms beyond this depth are written as "..."
 
-        private static readonly string YES = "\r\n" + "Yes";
-        private static readonly string NO = "\r\n" + "No";
+        private static readonly string YES = Environment.NewLine + "Yes";
+        private static readonly string NO = Environment.NewLine + "No";
         private ChoicePoint currentCp;
         private bool debug;
 
@@ -278,7 +278,7 @@ namespace Prolog
             catch (Exception x)
             {
                 Error = true;
-                Solution1.SetMessage("{0}{1}\r\n",
+                Solution1.SetMessage("{0}{1}" + Environment.NewLine,
                     x.Message, UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "");
 
                 return false;
@@ -307,7 +307,7 @@ namespace Prolog
             {
                 Error = true;
                 Solution1.Solved = false;
-                string msg = $"{x.Message}{(UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}\r\n";
+                string msg = $"{x.Message}{(UserSetShowStackTrace ? Environment.NewLine + x.StackTrace : "")}{Environment.NewLine}";
                 Solution1.SetMessage(msg);
 
                 if (x is RuntimeException rex)
@@ -1135,7 +1135,7 @@ namespace Prolog
 
             public override String ToString()
             {
-                return $"choicepoint\r\ngoal {goalListHead}\r\nclause {nextClause}\r\nactive {active}";
+                return $"choicepoint{Environment.NewLine}goal {goalListHead}{Environment.NewLine}clause {nextClause}{Environment.NewLine}active {active}";
             }
         }
 

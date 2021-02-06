@@ -70,7 +70,7 @@ namespace Prolog
                 int i = 0;
                 foreach (Solution s in solutionSet)
                 {
-                    sb.AppendLine("Solution {0}:\r\n{1}", ++i, s.ToString());
+                    sb.AppendLine("Solution {0}:{1}{2}", ++i, Environment.NewLine, s.ToString());
                 }
 
                 return sb.ToString();

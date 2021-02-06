@@ -122,7 +122,7 @@ namespace Prolog
                 }
             }
 
-            p.StreamIn = "&reading\r\n" + query; // equal to parser ReadingSym
+            p.StreamIn = "&reading" + Environment.NewLine + query; // equal to parser ReadingSym
             BaseTerm result = p.ReadTerm;
 
             return result;

@@ -27,6 +27,7 @@ namespace CSPrologTest
 
         public static PredicateDescr CanParse(this string consult, [CallerLineNumber] int sourceLineNumber = 0)
         {
+            consult = consult.Replace("\r\n", Environment.NewLine);
             PrologEngine e = new PrologEngine();
             e.ConsultFromString(consult + Dynamics);
             return e.PredTable.Predicates.Where(x => !x.Value.IsPredefined).FirstOrDefault().Value;
@@ -40,7 +41,7 @@ namespace CSPrologTest
             SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(!ss.HasError && ss.Success,
-                $"{query} NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}, \nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
+                $"{query} NOT TRUE @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}, {Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
 
             if (consult == null)
             {
@@ -49,7 +50,7 @@ namespace CSPrologTest
                 ss = e.GetAllSolutions("test", 5);
 
                 Assert.True(!ss.HasError && ss.Success,
-                    $"test NOT TRUE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
+                    $"test NOT TRUE @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}{Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
             }
         }
 
@@ -62,7 +63,7 @@ namespace CSPrologTest
             SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(!ss.HasError && !ss.Success,
-                $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
+                $"{query} NOT FALSE @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}{Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
 
             if (consult == null)
             {
@@ -72,7 +73,7 @@ namespace CSPrologTest
                 ss = e.GetAllSolutions("test", 5);
 
                 Assert.True(!ss.HasError && !ss.Success,
-                    $"{query} NOT FALSE @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
+                    $"{query} NOT FALSE @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}{Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
             }
         }
 
@@ -85,7 +86,7 @@ namespace CSPrologTest
             SolutionSet ss = e.GetAllSolutions(query, 5);
 
             Assert.True(ss.HasError && !ss.Success,
-                $"{query} NOT ERROR @ ln {sourceLineNumber}\nOUT: {ss}\nERR:{ss.ErrMsg}\nExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
+                $"{query} NOT ERROR @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}{Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLines}");
         }
 
         public static void Evaluate(this string test, string consult = null, bool executionDetails = true)

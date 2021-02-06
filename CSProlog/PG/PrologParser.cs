@@ -256,7 +256,7 @@ namespace Prolog
                 if (symbol.TerminalId != VerbatimStringLiteral)
                 {
                     SyntaxError =
-                        $"Unterminated verbatim string: {symbol}\r\n(remember to use \"\" instead of \\\" for an embedded \")";
+                        $"Unterminated verbatim string: {symbol}{Environment.NewLine}(remember to use \"\" instead of \\\" for an embedded \")";
                 }
             }
 
@@ -599,7 +599,7 @@ namespace Prolog
                                     _lastCommentBlock.AppendLine(symbol.InputLine.Replace("%", string.Empty).Trim());
                                 }
 
-                                DoComment("\n", false, streamInPtr.FOnLine);
+                                DoComment(Environment.NewLine, false, streamInPtr.FOnLine);
                                 eoLineCount = 1;
 
                                 if (seeEndOfLine)

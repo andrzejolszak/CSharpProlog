@@ -67,7 +67,7 @@ namespace AutocompleteMenuNS
 
         public override string ToString()
         {
-            return MenuText ?? Text.Replace("\n", " ").Replace("^", "");
+            return MenuText ?? Text.Replace(Environment.NewLine, " ").Replace("^", "");
         }
 
         public override string GetTextForReplace()

@@ -256,7 +256,7 @@ namespace Prolog
         {
             if (wasModified)
             {
-                DialogResult result = MessageBox.Show(this, "Changes to the current document will be lost.\nContinue?",
+                DialogResult result = MessageBox.Show(this, $"Changes to the current document will be lost.{Environment.NewLine}Continue?",
                     "Please Confirm", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
                 return result == DialogResult.OK;
             }

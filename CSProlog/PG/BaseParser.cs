@@ -673,7 +673,7 @@ namespace Prolog
                                     Break = false;
                                 }
 
-                                DoComment("\n", false, streamInPtr.FOnLine);
+                                DoComment(Environment.NewLine, false, streamInPtr.FOnLine);
                                 eoLineCount = 1;
 
                                 if (seeEndOfLine)
@@ -1573,7 +1573,7 @@ namespace Prolog
                     {
                         if (node.TermRec != null)
                         {
-                            sb.AppendFormat("{0} {1}\r\n", prefix, node.TermRec);
+                            sb.AppendFormat("{0} {1}{2}", prefix, node.TermRec, Environment.NewLine);
                         }
                     }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using static Prolog.PrologEngine.BaseParser;
@@ -169,7 +170,7 @@ namespace Prolog
                     case TC.Pr_InPo:
                     case TC.Po_Term:
                     case TC.Po_Pr:
-                        IO.ThrowConsultException($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
+                        IO.ThrowConsultException($"Syntax error: {topToken} may not be followed by {newToken}",
                             newToken);
                         break;
 
@@ -177,7 +178,7 @@ namespace Prolog
                     case TC.Pr_EoS:
                         if (!ProcessIfStandAloneOperator())
                         {
-                            IO.ThrowConsultException(" \n \nSyntax error:\n Unexpected end of term after {0}", topToken);
+                            IO.ThrowConsultException($"Syntax error: Unexpected end of term after {0}", topToken);
                         }
 
                         break;
@@ -195,7 +196,7 @@ namespace Prolog
                     case TC.In_Term:
                         if (inOpAtBoS)
                         {
-                            IO.ThrowConsultException($" \n \nSyntax error:\n {topToken} may not be followed by {newToken}",
+                            IO.ThrowConsultException($"Syntax error: {topToken} may not be followed by {newToken}",
                                 newToken);
                             inOpAtBoS = false;
                         }

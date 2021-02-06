@@ -28,9 +28,9 @@ namespace Prolog
 
         public List<(string, Symbol)> CallHistory { get; private set; } = new List<(string, Symbol)>(1000);
 
-        public string CallHistoryString => "\r\n" + string.Join("\r\n", this.CallHistory.Select(x => x.Item1));
+        public string CallHistoryString => Environment.NewLine + string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1));
 
-        public string CallHistoryStringWithLines => "\r\n" + string.Join("\r\n", this.CallHistory.Select(x => x.Item1 + " [ln " + x.Item2.LineNoAdjusted + "]"));
+        public string CallHistoryStringWithLines => Environment.NewLine + string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1 + " [ln " + x.Item2.LineNoAdjusted + "]"));
 
         public void Reset()
         {
