@@ -1196,7 +1196,7 @@ namespace Prolog
                             originalSymbol.Final = symbol.Final;
                             BaseTerm addedTerm = tokenSeqToTerm.AddFunctorTerm(originalSymbol, functor,
                                 wholeComment.Substring(0, firstNewLineIdx == -1 ? 0 : firstNewLineIdx),
-                                wholeComment.Substring(firstNewLineIdx == -1 ? 0 : firstNewLineIdx + 2), _currentTestGroup, spaceAfter, args);
+                                wholeComment.Substring(firstNewLineIdx == -1 ? 0 : firstNewLineIdx + Environment.NewLine.Length), _currentTestGroup, spaceAfter, args);
                             _lastCommentBlock.Clear();
 
                             if (addedTerm is AtomTerm && engine.PredTable.ConsultFileName != null)
