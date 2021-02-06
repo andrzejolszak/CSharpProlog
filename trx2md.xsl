@@ -72,47 +72,8 @@ Expand the following summaries for more details:
 
 &lt;/details&gt;
 
-## Tests:
-        <xsl:apply-templates select="/trx:TestRun/trx:TestDefinitions"/>
-    </xsl:template>
-
-    <xsl:template match="trx:UnitTest">
-      <xsl:if test="$testResult/@outcome = 'Failed'">
-        <xsl:variable name="testId"
-                      select="@id" />
-        <xsl:variable name="testResult"
-                      select="/trx:TestRun/trx:Results/trx:UnitTestResult[@testId=$testId]" />
-        <xsl:variable name="testOutcomeIcon">
-            <xsl:choose>
-                <xsl:when test="$testResult/@outcome = 'Passed'">:heavy_check_mark:</xsl:when>
-                <xsl:when test="$testResult/@outcome = 'Failed'">:x:</xsl:when>
-                <xsl:when test="$testResult/@outcome = 'NotExecuted'">:radio_button:</xsl:when>
-                <xsl:otherwise>:grey_question:</xsl:otherwise>
-            </xsl:choose>
-        </xsl:variable>
-        </xsl:if>
-
-
-  <xs:simpleType name="TestOutcome">
-    <xs:restriction base="xs:string">
-      <xs:enumeration value="Error"/>
-      <xs:enumeration value="Failed"/>
-      <xs:enumeration value="Timeout"/>
-      <xs:enumeration value="Aborted"/>
-      <xs:enumeration value="Inconclusive"/>
-      <xs:enumeration value="PassedButRunAborted"/>
-      <xs:enumeration value="NotRunnable"/>
-      <xs:enumeration value="NotExecuted"/>
-      <xs:enumeration value="Disconnected"/>
-      <xs:enumeration value="Warning"/>
-      <xs:enumeration value="Passed"/>
-      <xs:enumeration value="Completed"/>
-      <xs:enumeration value="InProgress"/>
-      <xs:enumeration value="Pending"/>
-    </xs:restriction>
-  </xs:simpleType>
+## Tests:      
       
-      <!--
         <xsl:apply-templates select="/trx:TestRun/trx:TestDefinitions"/>
     </xsl:template>
 
@@ -149,11 +110,11 @@ Expand the following summaries for more details:
       <xs:enumeration value="Pending"/>
     </xs:restriction>
   </xs:simpleType>
- -->
+
 
 &lt;details&gt;
     &lt;summary&gt;
-    <!--
+   
 <xsl:value-of select="$testOutcomeIcon" />
 <xsl:text> </xsl:text>
 <xsl:value-of select="@name" />
@@ -164,11 +125,11 @@ Expand the following summaries for more details:
 | **ID:**            | `<xsl:value-of select="@id" />`
 | **Name:**          | `<xsl:value-of select="@name" />`
 | **Outcome:**       | `<xsl:value-of select="$testResult/@outcome" />` <xsl:value-of select="$testOutcomeIcon" />
-| **Computer Name:** | `<xsl:value-of select="$testResult/@computerName" />`
 | **Start:**         | `<xsl:value-of select="$testResult/@startTime" />`
 | **End:**           | `<xsl:value-of select="$testResult/@endTime" />`
 | **Duration:**      | `<xsl:value-of select="$testResult/@duration" />`
 
+      <!--
 &lt;details&gt;
     &lt;summary&gt;Test Method Details:&lt;/summary&gt;
 
