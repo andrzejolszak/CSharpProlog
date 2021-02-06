@@ -115,7 +115,7 @@ Expand the following summaries for more details:
 &lt;details&gt;
     &lt;summary&gt;
 
-<xsl:if test="$testResult/@outcome = 'Failed'"
+<xsl:if test="$testResult/@outcome = 'Failed'">
 <xsl:value-of select="$testOutcomeIcon" />
 <xsl:text> </xsl:text>
 <xsl:value-of select="@name" />
