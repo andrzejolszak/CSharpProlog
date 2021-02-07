@@ -2271,36 +2271,27 @@ namespace Prolog
                     t0 = term.Arg(0);
                     t1 = term.Arg(1);
 
-                    if (t1.IsVar)
+                    if (t0.IsVar)
                     {
-                        if (!t0.IsAtomic)
-                        {
-                            IO.ThrowRuntimeException("Argument 0 should be atomic", CurrVarStack, term);
-                        }
-
-                        int len = t0.FunctorToString.Dequoted().Length;
-
-                        if (!t1.Unify(new DecimalTerm(term.Symbol, len), CurrVarStack))
-                        {
-                            return false;
-                        }
+                        IO.ThrowRuntimeException("Argument 0 are not sufficiently instantiated", CurrVarStack, term);
                     }
-                    else
+
+
+                    if (!t0.IsAtomic)
                     {
-                        if (t0.IsVar)
-                        {
-                            IO.ThrowRuntimeException("Argument 0 are not sufficiently instantiated", CurrVarStack, term);
-                        }
+                        IO.ThrowRuntimeException("Argument 0 should be atomic", CurrVarStack, term);
+                    }
 
-                        if (!t1.IsInteger)
-                        {
-                            IO.ThrowRuntimeException("Wrong argument 1 format", CurrVarStack, term);
-                        }
+                    if (!t1.IsInteger && !t1.IsVar)
+                    {
+                        IO.ThrowRuntimeException("Wrong argument 1 format", CurrVarStack, term);
+                    }
 
-                        if (!t0.Unify(t1, CurrVarStack))
-                        {
-                            return false;
-                        }
+                    int len = t0.FunctorToString.Dequoted().Length;
+
+                    if (!t1.Unify(new DecimalTerm(term.Symbol, len), CurrVarStack))
+                    {
+                        return false;
                     }
 
                     break;
