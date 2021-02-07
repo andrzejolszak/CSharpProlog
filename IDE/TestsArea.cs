@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -102,20 +103,15 @@ namespace Prolog
                           try
                           {
                               PrologEngine e = new PrologEngine(new ExecutionDetails());
-                              
-                              // Timeout after 5s
-                              _ = Task.Delay(5_000).ContinueWith(t =>
-                              {
-                                  e.Error = true;
-                                  e.UserInterrupted = true;
-                              }).ConfigureAwait(false);
-                              
+
                               e.ConsultFromString(source);
-                              
+
+                              // Timeout after 2s
+                              e.MaxExecutionMs = 2_000;
                               SolutionSet ss = e.GetAllSolutions(x.Text, 0);
 
                               suceeded = !ss.HasError && ss.Success;
-                              callStackText = e.ExecutionDetails.CallHistoryStringWithLines;
+                              callStackText = suceeded ? string.Empty : (ss.ErrMsg + Environment.NewLine + e.ExecutionDetails.CallHistoryStringWithLinesLast10);
                           }
                           catch(Exception ex)
                           {
@@ -127,11 +123,11 @@ namespace Prolog
                           BeginInvoke(new Action(() =>
                           {
                               x.control.ImageIndex = x.control.SelectedImageIndex = suceeded ? PassedIcon : FailedIcon;
-                              x.control.ToolTipText = suceeded ? string.Empty : callStackText;
+                              x.control.ToolTipText = callStackText;
                               x.control.ToolTipText = x.control.ToolTipText.Trim(' ', '\n', '\t', '\r');
                           }));
 
-                          Application.DoEvents();
+                          //Application.DoEvents();
 
                       });
 

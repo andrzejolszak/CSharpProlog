@@ -16,7 +16,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using static Prolog.PrologEngine;
 using static Prolog.PrologEngine.BaseParser;
 
@@ -28,9 +27,11 @@ namespace Prolog
 
         public List<(string, Symbol)> CallHistory { get; private set; } = new List<(string, Symbol)>(1000);
 
-        public string CallHistoryString => Environment.NewLine + string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1));
+        public string CallHistoryString => string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1));
 
-        public string CallHistoryStringWithLines => Environment.NewLine + string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1 + " [ln " + x.Item2.LineNoAdjusted + "]"));
+        public string CallHistoryStringWithLines => string.Join(Environment.NewLine, this.CallHistory.Select(x => x.Item1 + " [ln " + x.Item2.LineNoAdjusted + "]"));
+
+        public string CallHistoryStringWithLinesLast10 => $"...{Environment.NewLine}" + string.Join(Environment.NewLine, this.CallHistory.TakeLast(10).Select(x => x.Item1.Trim() + " [ln " + x.Item2.LineNoAdjusted + "]"));
 
         public void Reset()
         {

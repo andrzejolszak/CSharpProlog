@@ -140,7 +140,7 @@ namespace Prolog
 
                 if (!solutions.Success && checkBox1.Checked && this.pe.ExecutionDetails != null)
                 {
-                    winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLines);
+                    winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLinesLast10);
                 }
             }
             else
@@ -154,7 +154,7 @@ namespace Prolog
 
                     if (s.IsLast && !s.Solved && this.pe.ExecutionDetails != null)
                     {
-                        winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLines);
+                        winIO.GuiIO.Write(this.pe.ExecutionDetails.CallHistoryStringWithLinesLast10);
                     }
 
                     if (s.IsLast)
@@ -206,8 +206,7 @@ namespace Prolog
         private void btnCancelQuery_Click(object sender, EventArgs e)
         {
             Cursor = Cursors.Default;
-            pe.Error = true;
-            pe.UserInterrupted = true;
+            pe.HaltExection();
             bgwExecuteQuery.CancelAsync();
             btnXeqQuery.Enabled = true;
 

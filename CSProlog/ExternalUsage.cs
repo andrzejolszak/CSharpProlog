@@ -139,6 +139,8 @@ namespace Prolog
 
     public partial class PrologEngine
     {
+        public DateTime ExecutionStart { get; private set; }
+
         // Store solutions in an GetAllSolutions class
         public SolutionSet GetAllSolutions(string query)
         {
@@ -152,6 +154,7 @@ namespace Prolog
 
             SolutionSet solutions = new SolutionSet();
             this.ExecutionDetails?.Reset();
+            this.ExecutionStart = DateTime.UtcNow;
 
             try
             {

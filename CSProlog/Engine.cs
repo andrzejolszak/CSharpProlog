@@ -122,6 +122,7 @@ namespace Prolog
 
         public bool Halted { get; set; }
 
+        public int MaxExecutionMs { get; set; }
 
         public event Action FoundAllSolutions;
 
@@ -140,7 +141,6 @@ namespace Prolog
 
         private void Initialize() // also called by ClearAll command
         {
-            Error = false;
             UserInterrupted = false;
             CurrVarStack = new VarStack();
             // Needed by BaseTerm.VAR which will get varNo = 0
@@ -160,6 +160,7 @@ namespace Prolog
 
             Error = false;
             Halted = false;
+            MaxExecutionMs = 0;
             Trace1 = false;
             EventDebug = false;
             StartTime = -1;
@@ -382,6 +383,11 @@ namespace Prolog
         {
             while (goalListHead != null) // consume the last of goalNodes until it is exhausted
             {
+                if (this.MaxExecutionMs > 0 && (DateTime.UtcNow - this.ExecutionStart).TotalMilliseconds > this.MaxExecutionMs)
+                {
+                    this.HaltExection();
+                }
+
                 if (UserInterrupted)
                 {
                     throw new AbortQueryException(goalListHead.Head);

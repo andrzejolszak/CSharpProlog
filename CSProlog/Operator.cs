@@ -193,6 +193,12 @@ namespace Prolog
             }
         }
 
+        public void HaltExection()
+        {
+            this.Error = true;
+            this.UserInterrupted = true;
+        }
+
         public class OpDescrTriplet // contains three OperatorDescr's with inf/pre/post-role, resp.
         {
             private readonly OperatorDescr[] triplet;
