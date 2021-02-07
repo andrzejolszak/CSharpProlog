@@ -127,7 +127,7 @@ namespace Prolog
                               x.control.ToolTipText = x.control.ToolTipText.Trim(' ', '\n', '\t', '\r');
                           }));
 
-                          //Application.DoEvents();
+                          Application.DoEvents();
 
                       });
 
