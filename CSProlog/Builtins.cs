@@ -1470,9 +1470,9 @@ namespace Prolog
                     t0 = term.Arg(0);
                     t1 = term.Arg(1);
 
-                    if (t0.IsVar || t1.IsVar)
+                    if (t1.IsVar)
                     {
-                        IO.ThrowRuntimeException("Arguments 0 and 1 cannot be vars", CurrVarStack, term);
+                        IO.ThrowRuntimeException("Argument 1 cannot be var", CurrVarStack, term);
                     }
 
                     if (!t1.IsCompound)
@@ -2207,6 +2207,7 @@ namespace Prolog
 
                     if (t0.IsVar)
                     {
+                        // TODO:
                         if (!t2.IsAtomic || !t1.IsAtomic)
                         {
                             IO.ThrowRuntimeException("Arguments are not sufficiently instantiated", CurrVarStack, term);
@@ -3160,17 +3161,38 @@ namespace Prolog
 
                     result = false;
 
-                    while (t1.Arity == 2)
+                    bool backtracking = false;
+
+                    if (!backtracking)
                     {
-                        if (result = t0.Unify(t1.Arg(0), CurrVarStack))
+                        while (t1.Arity == 2)
                         {
-                            break;
+                            if (result = t0.Unify(t1.Arg(0), CurrVarStack))
+                            {
+                                break;
+                            }
+
+                            t1 = t1.Arg(1);
                         }
 
-                        t1 = t1.Arg(1);
+                        currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
                     }
+                    else
+                    {
+                        while (t1.Arity == 2)
+                        {
+                            if (result = t0.Unify(t1.Arg(0), CurrVarStack))
+                            {
+                                if ((t0 = t1.Arg(1)).Arity == 0) // empty t
+                                    currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
+                                //else
+                                //    head.Arg(2).Bind(t0);  // set Rest to remainder of t (for backtracking)
 
-                    currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
+                                break;
+                            }
+                            t1 = t1.Arg(1);
+                        }
+                    }
 
                     if (!result)
                     {

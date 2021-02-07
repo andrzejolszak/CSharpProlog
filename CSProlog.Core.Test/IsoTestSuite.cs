@@ -43,6 +43,8 @@ namespace CSPrologTest
         [InlineData(@"R: arg(0,3,A)")]
         [InlineData(@"R: arg(-3,foo(a,b),A)")]
         [InlineData(@"R: arg(a,foo(a,b),X)")]
+        [InlineData(@"T3: arg(Position,f(a,b,c),Term)")]
+        [InlineData(@"T1: arg(Position,f(a,b,c),b)")]
         public void Arg(string test)
         {
             test.Evaluate();
@@ -194,6 +196,24 @@ namespace CSPrologTest
         [InlineData(@"R: atom_concat('iso',f(a),A3)")]
         [InlineData(@"R: atom_concat(A1,A2,f(a))")]
         public void AtomConcat(string test)
+        {
+            test.Evaluate();
+        }
+
+        [Theory]
+        [InlineData(@"T1: member(X, [1,2,3]), X = 3")]
+        [InlineData(@"T3: member(X, [1,2,3])")]
+        [InlineData(@"T2: member(1, [1,2,1])")] // t;t
+        [InlineData(@"T2: member(1, [1,2,1,3])")] //t;t;f
+        [InlineData(@"T2: L=[1,X,1,3,Y],member(foo,L)")] //t;t
+        [InlineData(@"T1: member(3, [1,2,3])")]
+        [InlineData(@"T1: member(1,[3,4,2,1,6|stop])")] // t;f
+        [InlineData(@"F: member(3, [1,2,4])")]
+        [InlineData(@"F: member(3, [])")]
+        [InlineData(@"T: member(3, X), X = [1|Y]")]
+        [InlineData(@"T: member(3, X), X = [Z, 1|Y]")]
+        [InlineData(@"T: member(P, X), P = 1, X = [Z, 1|Y]")]
+        public void Member(string test)
         {
             test.Evaluate();
         }

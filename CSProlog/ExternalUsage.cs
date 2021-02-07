@@ -15,6 +15,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Prolog
@@ -41,9 +42,11 @@ namespace Prolog
 
         public Solution this[int i] => solutionSet[i];
 
-        internal void CreateVarSet()
+        public int SolutionsCount => this.solutionSet.Count(x => x.IsSolved);
+
+        internal void CreateVarSet(bool isSolved)
         {
-            solutionSet.Add(currVarSet = new Solution());
+            solutionSet.Add(currVarSet = new Solution(isSolved));
         }
 
         internal void AddToVarSet(string name, string type, string value)
@@ -84,9 +87,12 @@ namespace Prolog
     {
         private readonly List<Variable> variables;
 
-        public Solution()
+        public bool IsSolved { get; }
+
+        public Solution(bool isSolved)
         {
             variables = new List<Variable>();
+            IsSolved = isSolved;
         }
 
         public IEnumerable<Variable> NextVariable
@@ -183,19 +189,14 @@ namespace Prolog
                     }
 
                     solutions.Success = true;
-                    bool firstVar = true;
+
+                    solutions.CreateVarSet(s.Solved);
 
                     foreach (IVarValue varValue in s.VarValuesIterator)
                     {
                         if (varValue.DataType == "none")
                         {
                             break;
-                        }
-
-                        if (firstVar)
-                        {
-                            firstVar = false;
-                            solutions.CreateVarSet();
                         }
 
                         solutions.AddToVarSet(varValue.Name, varValue.DataType, varValue.Value.ToString());

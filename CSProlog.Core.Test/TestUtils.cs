@@ -33,7 +33,7 @@ namespace CSPrologTest
             return e.PredTable.Predicates.Where(x => !x.Value.IsPredefined).FirstOrDefault().Value;
         }
 
-        public static void True(this string query, string consult = null, bool executionDetails = true, [CallerLineNumber] int sourceLineNumber = 0)
+        public static void True(this string query, string consult = null, bool executionDetails = true, int? solutionsCount = null, [CallerLineNumber] int sourceLineNumber = 0)
         {
             PrologEngine e = new PrologEngine(executionDetails ? new ExecutionDetails() : null);
             e.ConsultFromString((consult ?? "") + Dynamics);
@@ -42,6 +42,11 @@ namespace CSPrologTest
 
             Assert.True(!ss.HasError && ss.Success,
                 $"{query} NOT TRUE @ ln {sourceLineNumber}{Environment.NewLine}OUT: {ss}, {Environment.NewLine}ERR:{ss.ErrMsg}{Environment.NewLine}ExecDetails:{e.ExecutionDetails?.CallHistoryStringWithLinesLast10}");
+
+            if (solutionsCount.HasValue)
+            {
+                Assert.Equal(solutionsCount.Value, ss.SolutionsCount);
+            }
 
             if (consult == null)
             {
@@ -98,6 +103,26 @@ namespace CSPrologTest
             {
                 case "T: ":
                     query.True(consult, executionDetails: executionDetails);
+                    break;
+
+                case "T1:":
+                    query.True(consult, executionDetails: executionDetails, solutionsCount: 1);
+                    break;
+
+                case "T2:":
+                    query.True(consult, executionDetails: executionDetails, solutionsCount: 2);
+                    break;
+
+                case "T3:":
+                    query.True(consult, executionDetails: executionDetails, solutionsCount: 3);
+                    break;
+
+                case "T4:":
+                    query.True(consult, executionDetails: executionDetails, solutionsCount: 4);
+                    break;
+
+                case "T5:":
+                    query.True(consult, executionDetails: executionDetails, solutionsCount: 5);
                     break;
 
                 case "F: ":
