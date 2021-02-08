@@ -18,6 +18,7 @@ namespace CSPrologTest
 :- fail_if_undefined( undef_pred/0 ).
 :- fail_if_undefined( '\='/2 ).
 :- fail_if_undefined( foo/2 ).
+:- fail_if_undefined( '^'/2 ). 
 
 %:- dynamic( nofoo/1 ).
 %:- dynamic( undef_pred/0 ).

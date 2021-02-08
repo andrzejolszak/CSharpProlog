@@ -33,10 +33,10 @@ namespace Prolog
         get, get_counter, get0, getvar, ground, gt_num, gt_ord, halt,
         inc_counter, integer, is_, le_num, le_ord,
         leapyear, length, license, list, listing, listing0, listing0X, listing0XN, listingX,
-        listingXN, lt_num, lt_ord, member, name, ne_num,
+        listingXN, lt_num, lt_ord, memberchk, name, ne_num,
         ne_str, ne_uni, nl, nocache, nodebug, nonvar, noprofile, nospy, nospyall, notrace,
         noverbose, now, number, numbervars, or, permutation, pp_defines,
-        predicatePN, predicateX, print, profile, put, query_timeout, read, readatoms,
+        predicatePN, print, profile, put, query_timeout, read, readatoms,
         readatom, retract, retractall,
         reverse, set_counter, setvar,
         showfile, showprofile, silent, sort, spy, spypoints, stacktrace, callstack, statistics,
@@ -821,11 +821,7 @@ namespace Prolog
 %
        numbervars(X, B, E)      :== numbervars.
 
-       predicate(P/N)           :== predicatePN.
-       predicate(T)             :== predicateX.
-
-       current_predicate(P/N)           :== predicatePN.
-       current_predicate(T)             :== predicateX.
+       current_predicate(T)             :== predicatePN.
 
 %% ground(@Term)
 %
@@ -922,8 +918,13 @@ namespace Prolog
 % True when Elem is an element of List. This `chk' variant of member/2 is
 % semi deterministic and typically used to test membership of a list.
 %
-       memberchk(X, [Y|Rest]) :- nonvar(X), member(X, [Y|Rest]).
+       %memberchk(X, [Y|Rest]) :- nonvar(X), member(X, [Y|Rest]).
 
+       memberchk(X, L)           :== memberchk.
+       memberchk(T, El, H).
+       memberchk(_, El, El).
+       memberchk([H|T], El, _) :-
+           memberchk(T, El, H).
 %% member(?Elem, ?List)
 %
 % True if Elem is a member of List.
@@ -2308,14 +2309,14 @@ namespace Prolog
                 case BI.atom_chars: // atom_chars( ?A, ?L)
                     t1 = term.Arg(1);
                     t0 = term.Arg(0);
+                    
+                    if (!t0.IsAtomic)
+                    {
+                        IO.ThrowRuntimeException("Argument 0 should be atomic", CurrVarStack, term);
+                    }
 
                     if (t0.IsAtom || t0.IsNumber) // create a list containing A's characters or character codes
                     {
-                        if (!t0.IsAtomic)
-                        {
-                            return false;
-                        }
-
                         line = t0.FunctorToString.Dequoted();
                         ListTerm list;
 
@@ -2477,20 +2478,10 @@ namespace Prolog
                     }
                     else
                     {
-                        result = false;
+                        IO.ThrowRuntimeException("Arguments expected: term/artiy", CurrVarStack, term);
                     }
 
                     if (!result)
-                    {
-                        return false;
-                    }
-
-                    break;
-
-                case BI.predicateX: // predicate( +T)
-                    t0 = term.Arg(0);
-
-                    if (t0.IsVar || !PredTable.IsPredicate(t0.FunctorToString, t0.Arity))
                     {
                         return false;
                     }
@@ -3161,45 +3152,29 @@ namespace Prolog
 
                     break;
 
-                case BI.member: // member( X, L)
-                    if ((t0 = term.Arg(0)).IsVar || !(t1 = term.Arg(1)).IsListNode)
+                case BI.memberchk: // member( X, L)
+
+                    t0 = term.Arg(0);
+                    t1 = term.Arg(1);
+
+                    //currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
+
+
+                    if (!t1.IsListNode && !t1.IsVar)
                     {
                         return false;
                     }
 
                     result = false;
 
-                    bool backtracking = false;
-
-                    if (!backtracking)
+                    while (t1.Arity == 2)
                     {
-                        while (t1.Arity == 2)
+                        if (result = t0.Unify(t1.Arg(0), CurrVarStack))
                         {
-                            if (result = t0.Unify(t1.Arg(0), CurrVarStack))
-                            {
-                                break;
-                            }
-
-                            t1 = t1.Arg(1);
+                            break;
                         }
 
-                        currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
-                    }
-                    else
-                    {
-                        while (t1.Arity == 2)
-                        {
-                            if (result = t0.Unify(t1.Arg(0), CurrVarStack))
-                            {
-                                if ((t0 = t1.Arg(1)).Arity == 0) // empty t
-                                    currentCp.Kill(); // no backtracking to follow -> remove the choicepoint for the alternative clauses
-                                //else
-                                //    head.Arg(2).Bind(t0);  // set Rest to remainder of t (for backtracking)
-
-                                break;
-                            }
-                            t1 = t1.Arg(1);
-                        }
+                        t1 = t1.Arg(1);
                     }
 
                     if (!result)
@@ -3208,21 +3183,6 @@ namespace Prolog
                     }
 
                     break;
-
-                // BACKTRACKING VERSION
-                //          while (t1.Arity == 2)
-                //          {
-                //            if (result = t0.Unify (t1.Arg (0), varStack))
-                //            {
-                //              if ((t0 = t1.Arg (1)).Arity == 0) // empty t
-                //                currentCp.Kill (); // no backtracking to follow -> remove the choicepoint for the alternative clauses
-                //              else
-                //                head.Arg (2).Bind (t0);  // set Rest to remainder of t (for backtracking)
-                //
-                //              break;
-                //            }
-                //            t1 = t1.Arg (1);
-                //          }
 
                 //case BI.append: // append( [_|_], [_|_], L)
                 //  if (!(t0 = head.Arg (0)).IsProperOrPartialList) return false;

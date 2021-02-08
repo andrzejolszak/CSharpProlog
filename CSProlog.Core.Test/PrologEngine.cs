@@ -130,7 +130,7 @@ Call: foo1
   Call: fail
   Fail: fail
  Fail: dar1
-Fail: foo1");
+Fail: foo1".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: foo1 [ln 0]
@@ -151,7 +151,7 @@ Call: foo1 [ln 0]
   Call: fail [ln 27]
   Fail: fail [ln 27]
  Fail: dar1 [ln 20]
-Fail: foo1 [ln 0]");
+Fail: foo1 [ln 0]".Trim());
         }
 
         [Fact]
@@ -169,14 +169,14 @@ Call: person({X})
 Exit: person({X=alice})
 Next: person({X})
 Call: person({X})
-Exit: person({X=bob})");
+Exit: person({X=bob})".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: person({X}) [ln 0]
 Exit: person({X=alice}) [ln 0]
 Next: person({X}) [ln 0]
 Call: person({X}) [ln 0]
-Exit: person({X=bob}) [ln 0]");
+Exit: person({X=bob}) [ln 0]".Trim());
         }
 
         [Fact]
@@ -191,11 +191,11 @@ Exit: person({X=bob}) [ln 0]");
             // SWI-compliant
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
 Call: person(bob)
-Exit: person(bob)");
+Exit: person(bob)".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: person(bob) [ln 0]
-Exit: person(bob) [ln 0]");
+Exit: person(bob) [ln 0]".Trim());
         }
 
         [Fact]
@@ -209,7 +209,7 @@ Exit: person(bob) [ln 0]");
             ss = prolog.GetAllSolutions("person(nope)", 5);
             prolog.ExecutionDetails.CallHistoryString.Should().Be(@"
 Call: person(nope)
-Fail: person(nope)");
+Fail: person(nope)".Trim());
         }
 
         [Fact]
@@ -225,13 +225,13 @@ Fail: person(nope)");
 Call: ppp(1)
  Call: {X=1}=1
  Exit: {X=1}=1
-Exit: ppp(1)");
+Exit: ppp(1)".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: ppp(1) [ln 0]
  Call: {X=1}=1 [ln 8]
  Exit: {X=1}=1 [ln 8]
-Exit: ppp(1) [ln 0]");
+Exit: ppp(1) [ln 0]".Trim());
         }
 
         [Fact]
@@ -248,7 +248,7 @@ Exit: ppp(1) [ln 0]");
 Call: ppp(5, 6)
  Call: {Z=5}={Y=6}
  Fail: {Z=5}={Y=6}
-Fail: ppp(5, 6)");
+Fail: ppp(5, 6)".Trim());
         }
 
         [Fact]
@@ -280,7 +280,7 @@ Redo: a(3)
    Exit: f({X=3})
   Exit: call(f({X=3}))
  Exit: c({X=3})
-Exit: a(3)");
+Exit: a(3)".Trim());
         }
 
         [Fact(Skip = "TODO")]
@@ -305,7 +305,7 @@ Call: a({X})
 Exit: a({X=1})
 Call: {X=1}=3
 Fail: {X=1}=3
-");
+".Trim());
         }
 
         [Fact(Skip = "TODO")]
@@ -354,7 +354,7 @@ Redo:a(_7856)
   Exit:c(3)
  Exit:a(3)
  Call:3=3
- Exit:3=3");
+ Exit:3=3".Trim());
         }
 
         [Fact]
@@ -386,7 +386,7 @@ Call: natnum(s(s(s(0))))
  Exit: true
  Call: {Y}={Z}
  Exit: {Y={Z}}={Z}
-Exit: natnum(s(s(s(0))))");
+Exit: natnum(s(s(s(0))))".Trim());
         }
 
         [Fact(Skip = "TODO")]
@@ -408,7 +408,7 @@ Redo:sentence([e], _6500)
 Redo:sentence([e], _6500)
  Call:[e]=[e|_6500]
  Exit:[e]=[e]
-Exit:sentence([e], [])");
+Exit:sentence([e], [])".Trim());
         }
 
         [Fact]
@@ -432,7 +432,7 @@ Call: banan(1)
  Exit: pineapple({Y=1})
  Call: {X=1}={Y=1}
  Exit: {X=1}={Y=1}
-Exit: banan(1)");
+Exit: banan(1)".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: banan(1) [ln 0]
@@ -446,7 +446,7 @@ Call: banan(1) [ln 0]
  Exit: pineapple({Y=1}) [ln 37]
  Call: {X=1}={Y=1} [ln 37]
  Exit: {X=1}={Y=1} [ln 37]
-Exit: banan(1) [ln 0]");
+Exit: banan(1) [ln 0]".Trim());
         }
 
         [Fact]
@@ -468,7 +468,7 @@ Redo: oor(1)
 Redo: oor(1)
  Call: {X=1}=1
  Exit: {X=1}=1
-Exit: oor(1)");
+Exit: oor(1)".Trim());
 
             prolog.ExecutionDetails.CallHistoryStringWithLines.Should().Be(@"
 Call: oor(1) [ln 0]
@@ -480,7 +480,7 @@ Redo: oor(1) [ln 0]
 Redo: oor(1) [ln 0]
  Call: {X=1}=1 [ln 41]
  Exit: {X=1}=1 [ln 41]
-Exit: oor(1) [ln 0]");
+Exit: oor(1) [ln 0]".Trim());
         }
 
             [Fact]
@@ -502,7 +502,7 @@ Redo: oor2(1)
 Redo: oor2(1)
  Call: {X=1}=1
  Exit: {X=1}=1
-Exit: oor2(1)");
+Exit: oor2(1)".Trim());
             }
     }
 }

@@ -28,15 +28,8 @@ namespace CSPrologTest
         }
 
         [Theory]
-        [InlineData("a§b.")]
-        [InlineData("1ab.")]
-        [InlineData("1ab,.")]
         [InlineData("-f_-_.")]
         [InlineData("-abc.")]
-        [InlineData("aab/.")]
-        [InlineData("aab/-1.")]
-        [InlineData("aab/.1.")]
-        [InlineData("aab/1()")]
         [InlineData("%This line is commented out: a :- b.")]
         public void ParsesSymbolsFalsePositives(string test)
         {
@@ -178,7 +171,6 @@ The comment header might be used for IDE static analysis in the future.
         [InlineData("atom. atom.")]
         [InlineData("aar. a :- atom.")]
         [InlineData("aar. struct(Param, param2).")]
-        [InlineData("foobar123_.\r\n aar=2. struct(Param, param2).")]
         public void ParsesMany(string test)
         {
             test.CanParse();
@@ -421,7 +413,7 @@ concatenate([X|L1], L2, [X|L3]) :-
              */
         }
 
-        [Fact]
+        [Fact(Skip = "not supported")]
         public void SetPrologFlag()
         {
             "set_prolog_flag(unknown, fail), current_prolog_flag(unknown, V), V=fail".True();
