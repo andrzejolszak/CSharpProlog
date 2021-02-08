@@ -102,6 +102,7 @@ namespace CSPrologTest
             switch (expectation)
             {
                 case "T: ":
+                    // TODO: treat as T1 in the future
                     query.True(consult, executionDetails: executionDetails);
                     break;
 

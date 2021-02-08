@@ -929,10 +929,18 @@ namespace Prolog
 % True if Elem is a member of List.
 % Actually member/2 given below is memberchk/2.
 % As member/2, it is not completely correct, e.i. it should backtrack on member(1, [1,1,1]) !!!
-%
-       member(X, L)           :== member. % fails for unbound X or L. Disables backtracking upon success
-       member(X, [X|_]).
-       member(X, [_|L]) :- member(X, L).
+
+% Old impl.
+%       member(X, L)           :== member. % fails for unbound X or L. Disables backtracking upon success
+%       member(X, [X|_]).
+%       member(X, [_|L]) :- member(X, L).
+
+    member(El, [H|T]) :-
+        member_(T, El, H).
+    
+    member_(_, El, El).
+    member_([H|T], El, _) :-
+        member_(T, El, H).
 
 %% append(?List1, ?List2, ?List1AndList2)
 %

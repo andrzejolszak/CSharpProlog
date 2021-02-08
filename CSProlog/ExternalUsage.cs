@@ -203,7 +203,7 @@ namespace Prolog
                         varFound = true;
                     }
 
-                    if (++i == maxSolutionCount || !varFound)
+                    if (++i == maxSolutionCount)
                     {
                         break;
                     }
